@@ -1,6 +1,6 @@
 // src/components/Hand.tsx
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { gameStateManager } from '../engine/GameStateManager';
 import { vfxSystem } from '../engine/VFXSystem';
 import { uiPositionManager } from '../engine/UIPositionManager';
@@ -12,26 +12,15 @@ interface HandProps {
 export const Hand: React.FC<HandProps> = () => {
     const handRef = useRef<HTMLDivElement>(null);
 
-    const [handRect, setHandRect] = useState<DOMRect | null>(null);
-
+    // Register position for UI manager (but don't track rect changes)
     useEffect(() => {
-        const updateHandRect = () => {
+        const updateHandPosition = () => {
             if (handRef.current) {
                 const rect = handRef.current.getBoundingClientRect();
-                setHandRect(rect);
                 uiPositionManager.register('playerHand', { x: rect.left, y: rect.top });
             }
         };
-
-        updateHandRect();
-        window.addEventListener('resize', updateHandRect);
-
-        const unsubscribeGameState = gameStateManager.subscribe(updateHandRect); // Update hand rect on game state changes
-
-        return () => {
-            window.removeEventListener('resize', updateHandRect);
-            unsubscribeGameState();
-        };
+        updateHandPosition();
     }, []);
 
     useEffect(() => {
