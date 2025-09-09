@@ -221,11 +221,15 @@ export const VFX: React.FC = () => {
         }
 
         case 'updateHand': {
+          console.log('🎨 VFX: Processing updateHand event');
           const updateHandData = event.data as VFXEventData['updateHand'];
           const newHandCards = updateHandData.cards;
+          console.log('🎨 VFX: updateHand - received', newHandCards.length, 'cards:', newHandCards.map(c => `${c.card.rank}${c.card.suit[0]} at (${c.position.x}, ${c.position.y})`));
 
           const currentPixiCardIds = new Set(Object.keys(pixiCards));
           const newHandCardIds = new Set(newHandCards.map((c: { card: CardType; }) => c.card.id));
+          console.log('🎨 VFX: Current pixiCards keys:', Array.from(currentPixiCardIds));
+          console.log('🎨 VFX: New hand card IDs:', Array.from(newHandCardIds));
 
           // Remove cards no longer in hand
           for (const cardId of currentPixiCardIds) {
@@ -258,6 +262,7 @@ export const VFX: React.FC = () => {
             let sprite = pixiCards[card.id]?.sprite;
 
             if (!sprite) {
+              console.log('🎨 VFX: Creating new sprite for card', card.rank, card.suit, 'at position', position);
               // Create fallback texture for new cards
               const createFallbackTexture = () => {
                 const graphics = new PIXI.Graphics()
@@ -358,8 +363,10 @@ export const VFX: React.FC = () => {
                 }
               });
 
+              console.log('🎨 VFX: Adding sprite to stage for card', card.rank, card.suit, 'sprite position:', sprite.x, sprite.y);
               app.stage.addChild(sprite);
               setPixiCards(prev => ({ ...prev, [card.id]: { sprite, card, originalPosition: { x: position.x, y: position.y } } }));
+              console.log('🎨 VFX: Sprite added to stage, total children:', app.stage.children.length);
 
               gsap.to(sprite, {
                 y: position.y, // Animate to final Y position
