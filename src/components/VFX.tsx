@@ -531,7 +531,7 @@ export const VFX: React.FC = () => {
   }, [pixiCards, pixiApp]);
 
   return (
-    <div className="vfx-layer absolute inset-0">
+    <div className="vfx-layer absolute inset-0 z-20">
       <Application 
         width={window.innerWidth} 
         height={window.innerHeight}
