@@ -27,6 +27,65 @@ export const VFX: React.FC = () => {
   const onAppInit = (app: PIXI.Application) => {
     console.log('🎨 VFX: PIXI App initialized', app);
     setPixiApp(app);
+    
+    // MANUAL TEST: Load a single card immediately
+    console.log('🗠️ VFX: MANUAL TEST - Loading test card');
+    
+    // Create a bright test rectangle first
+    const testGraphics = new PIXI.Graphics()
+      .rect(0, 0, 120, 160)
+      .fill(0x00ff00) // Bright green
+      .rect(10, 10, 100, 140)
+      .fill(0x000000) // Black center
+      .rect(20, 20, 80, 20)
+      .fill(0xffffff); // White text area
+    
+    // Add text
+    const testText = new PIXI.Text('TEST', { 
+      fontSize: 16, 
+      fill: 0x000000, 
+      fontWeight: 'bold' 
+    });
+    testText.x = 30;
+    testText.y = 25;
+    testGraphics.addChild(testText);
+    
+    const testTexture = app.renderer.generateTexture(testGraphics);
+    const testSprite = new PIXI.Sprite(testTexture);
+    testSprite.x = 100;
+    testSprite.y = 700; // Bottom of screen
+    testSprite.anchor.set(0.5);
+    
+    app.stage.addChild(testSprite);
+    console.log('🗠️ VFX: Green test sprite added at (100, 700)');
+    
+    // Now try to load a real card image
+    const testImagePath = '/images/decks/default/1-espadas.png';
+    console.log('🗠️ VFX: Loading real card image:', testImagePath);
+    
+    PIXI.Assets.load(testImagePath)
+      .then((realTexture) => {
+        console.log('🗠️ VFX: Real card loaded successfully!', realTexture);
+        const realSprite = new PIXI.Sprite(realTexture);
+        realSprite.x = 250;
+        realSprite.y = 700;
+        realSprite.anchor.set(0.5);
+        realSprite.scale.set(0.6); // Scale down a bit
+        
+        app.stage.addChild(realSprite);
+        console.log('🗠️ VFX: Real card sprite added at (250, 700)', 'size:', realTexture.width, 'x', realTexture.height);
+        
+        // Also try to update the test sprite with the real texture
+        setTimeout(() => {
+          testSprite.texture = realTexture;
+          testSprite.scale.set(0.6);
+          console.log('🗠️ VFX: Green sprite updated with real texture');
+        }, 2000);
+        
+      })
+      .catch((error) => {
+        console.error('❌ VFX: Failed to load test card:', error);
+      });
   };
 
   // Effect to handle card removal from hand (discard animation)
