@@ -263,42 +263,43 @@ export const VFX: React.FC = () => {
 
             if (!sprite) {
               console.log('🎨 VFX: Creating new sprite for card', card.rank, card.suit, 'at position', position);
-              // Create fallback texture for new cards
-              const createFallbackTexture = () => {
-                const graphics = new PIXI.Graphics()
-                  .rect(0, 0, 120, 160)
-                  .fill(0x2a2a3a)
-                  .rect(5, 5, 110, 150)
-                  .stroke({ width: 2, color: 0x4a90e2 })
-                  .rect(15, 20, 90, 20)
-                  .fill(0xffffff);
-                
-                const text = new PIXI.Text(`${card.rank}${card.suit[0]}`, { 
-                  fontSize: 16, 
-                  fill: 0x000000, 
-                  fontWeight: 'bold' 
-                });
-                text.x = 20;
-                text.y = 25;
-                graphics.addChild(text);
-                
-                return app.renderer.generateTexture(graphics);
-              };
               
-              // Create new sprite with fallback texture
-              const fallbackTexture = createFallbackTexture();
-              sprite = new PIXI.Sprite(fallbackTexture);
+              // Try to load real texture first
+              const imagePath = `/images/decks/default/${card.imageFile}`;
+              console.log('🎨 VFX: Attempting to load texture FIRST:', imagePath);
               
-              // Try to load real image asynchronously
-              PIXI.Assets.load(`/images/decks/default/${card.imageFile}`)
-                .then((loadedTexture) => {
-                  if (sprite) {
-                    sprite.texture = loadedTexture;
-                  }
-                })
-                .catch((_error) => {
-                  console.log(`Could not load ${card.imageFile} in updateHand, using fallback`);
-                });
+              // Load texture synchronously using PixiJS cache
+              let texture;
+              try {
+                // Check if texture is already in cache
+                if (PIXI.Assets.cache.has(imagePath)) {
+                  texture = PIXI.Assets.cache.get(imagePath);
+                  console.log('🎨 VFX: Using cached texture:', imagePath);
+                } else {
+                  // Load texture and add to cache
+                  console.log('🎨 VFX: Loading texture for first time:', imagePath);
+                  // Use fallback for now and load async
+                  texture = PIXI.Texture.WHITE; // Temporary white texture
+                  
+                  // Load async and update
+                  PIXI.Assets.load(imagePath)
+                    .then((loadedTexture) => {
+                      console.log('🎨 VFX: Async texture loaded:', imagePath);
+                      if (sprite) {
+                        sprite.texture = loadedTexture;
+                        console.log('🎨 VFX: Texture applied to sprite for', card.rank, card.suit);
+                      }
+                    })
+                    .catch((error) => {
+                      console.error(`❌ VFX: Could not load ${card.imageFile}:`, error);
+                    });
+                }
+              } catch (error) {
+                console.error('❌ VFX: Error with texture loading:', error);
+                texture = PIXI.Texture.WHITE;
+              }
+              
+              sprite = new PIXI.Sprite(texture);
               sprite.anchor.set(0.5);
               sprite.x = position.x;
               sprite.y = position.y; // Use correct position directly
