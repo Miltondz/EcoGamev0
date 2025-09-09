@@ -26,7 +26,7 @@ export const Hand: React.FC<HandProps> = () => {
     useEffect(() => {
         const cardsInHand = gameStateManager.hand;
         const numCards = cardsInHand.length;
-        console.log('🃏 Hand: Processing', numCards, 'cards in hand (SINGLE EXECUTION)');
+        console.log('🃏 Hand: Processing', numCards, 'cards in hand - triggered by hand change');
         
         if (numCards === 0) {
             console.log('🃏 Hand: No cards to display');
@@ -53,7 +53,7 @@ export const Hand: React.FC<HandProps> = () => {
         console.log('🃏 Hand: Calling vfxSystem.updateHand with', handVFXData.length, 'cards');
         vfxSystem.updateHand({ cards: handVFXData });
 
-    }, []); // Remove all dependencies to stop infinite loop - will fix properly next
+    }, [gameStateManager.hand.length]); // Only depend on hand length to avoid infinite updates
 
     // Debug: Log hand changes
     useEffect(() => {
