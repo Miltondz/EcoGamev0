@@ -16,6 +16,7 @@ import { FaWrench, FaEye, FaArrowRight } from 'react-icons/fa';
 import { GameLog } from './components/GameLog';
 import { VFX } from './components/VFX';
 import { CSSCards } from './components/CSSCards';
+import { TestCardImages } from './components/TestCardImages';
 
 const App: React.FC = () => {
     const [inGame, setInGame] = useState<boolean>(false);
@@ -75,6 +76,9 @@ const App: React.FC = () => {
                     <div className="debug-app-indicator">
                         APP.TSX ACTIVE
                     </div>
+                    
+                    {/* Test Card Images Component */}
+                    <TestCardImages />
                     
                     {/* PixiJS VFX Layer */}
                     <VFX />

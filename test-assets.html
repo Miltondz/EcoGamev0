@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Assets - Juego Eco</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #1a1a1a; color: white; }
+        .card-test { display: inline-block; margin: 10px; text-align: center; }
+        .card-test img { width: 80px; height: auto; border: 2px solid #333; border-radius: 8px; }
+        .success { border-color: #00ff00; }
+        .error { border-color: #ff0000; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
+    </style>
+</head>
+<body>
+    <h1>🎴 Test de Carga de Assets - Juego Eco</h1>
+    <div id="results"></div>
+    <div id="cards-grid" class="grid"></div>
+
+    <script>
+        async function testAssets() {
+            const cards = [
+                { "id": "AS", "imageFile": "1-espadas.png" },
+                { "id": "2S", "imageFile": "2-espadas.png" },
+                { "id": "3S", "imageFile": "3-espadas.png" },
+                { "id": "AH", "imageFile": "1-corazones.png" },
+                { "id": "2H", "imageFile": "2-corazones.png" },
+                { "id": "cardback", "imageFile": "card-back.jpg" },
+                { "id": "missing", "imageFile": "missing-card.jpg" }
+            ];
+
+            const resultsDiv = document.getElementById('results');
+            const cardsGrid = document.getElementById('cards-grid');
+            
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const card of cards) {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'card-test';
+                
+                const img = document.createElement('img');
+                const imagePath = `/images/decks/default/${card.imageFile}`;
+                img.src = imagePath;
+                
+                const label = document.createElement('div');
+                label.textContent = card.id;
+                
+                cardDiv.appendChild(img);
+                cardDiv.appendChild(label);
+                cardsGrid.appendChild(cardDiv);
+
+                // Test loading
+                try {
+                    await new Promise((resolve, reject) => {
+                        const testImg = new Image();
+                        testImg.onload = () => {
+                            img.className = 'success';
+                            successCount++;
+                            resolve();
+                        };
+                        testImg.onerror = () => {
+                            img.className = 'error';
+                            errorCount++;
+                            label.textContent += ' ❌';
+                            reject(new Error(`Failed to load ${imagePath}`));
+                        };
+                        testImg.src = imagePath;
+                    });
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+
+            resultsDiv.innerHTML = `
+                <h2>Resultados del Test:</h2>
+                <p>✅ Cargados correctamente: ${successCount}</p>
+                <p>❌ Errores de carga: ${errorCount}</p>
+                <p><strong>Estado:</strong> ${errorCount === 0 ? '✅ Todos los assets funcionan' : '⚠️ Hay problemas de carga'}</p>
+            `;
+        }
+
+        testAssets();
+    </script>
+</body>
+</html>
