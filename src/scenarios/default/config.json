@@ -1,0 +1,26 @@
+{
+  "id": "default",
+  "name": "Default Scenario",
+  "description": "The default starting scenario.",
+  "initialPlayerStats": {
+    "PV": 20,
+    "COR": 20,
+    "PA": 2,
+    "handSize": 5
+  },
+  "initialEcoHP": 50,
+  "difficultySettings": {
+    "normal": { "ecoHP": 50 },
+    "hard": { "ecoHP": 70 },
+    "nightmare": { "ecoHP": 100 }
+  },
+  "art": {
+    "background": "",
+    "cardBack": "",
+    "hudTheme": ""
+  },
+  "audio": {
+    "ambientSound": "",
+    "music": ""
+  }
+}

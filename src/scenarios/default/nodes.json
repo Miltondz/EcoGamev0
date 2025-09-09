@@ -1,0 +1,46 @@
+[
+  {
+    "id": "node-1",
+    "name": "Reactor",
+    "description": "Provides power.",
+    "maxDamage": 3,
+    "repairThreshold": 7,
+    "reward": {
+      "type": "PA",
+      "amount": 1
+    }
+  },
+  {
+    "id": "node-2",
+    "name": "Comunicaciones",
+    "description": "Maintains contact.",
+    "maxDamage": 3,
+    "repairThreshold": 7,
+    "reward": {
+      "type": "HAND_SIZE",
+      "amount": 1
+    }
+  },
+  {
+    "id": "node-3",
+    "name": "Soporte Vital",
+    "description": "Regulates the environment.",
+    "maxDamage": 3,
+    "repairThreshold": 7,
+    "reward": {
+      "type": "MAX_COR",
+      "amount": 3
+    }
+  },
+    {
+    "id": "node-4",
+    "name": "Propulsión",
+    "description": "Controls movement.",
+    "maxDamage": 3,
+    "repairThreshold": 7,
+    "reward": {
+      "type": "CRITICAL_DAMAGE",
+      "amount": 1
+    }
+  }
+]

@@ -1,0 +1,22 @@
+{
+  "id": "eco_default",
+  "name": "The Anomaly",
+  "description": "A standard anomaly.",
+  "phases": {
+    "vigilante": {
+      "threshold": 60,
+      "description": "The Eco is observing.",
+      "effects": ["basic_attack"]
+    },
+    "predador": {
+      "threshold": 25,
+      "description": "The Eco becomes aggressive.",
+      "effects": ["basic_attack", "insert_hallucination"]
+    },
+    "devastador": {
+      "threshold": 0,
+      "description": "The Eco is enraged.",
+      "effects": ["enhanced_attack", "corrupt", "insert_hallucination"]
+    }
+  }
+}

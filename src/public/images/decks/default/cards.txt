@@ -1,0 +1,64 @@
+ El volumen de la unidad D no tiene etiqueta.
+ El n£mero de serie del volumen es: E01F-9E54
+
+ Directorio de D:\Proyectos\truco\images\decks\default
+
+04-08-2025  11:37    <DIR>          .
+04-08-2025  11:37    <DIR>          ..
+04-08-2025  12:57            10.769 1-corazones.jpg
+04-08-2025  12:57            11.240 1-diamantes.jpg
+04-08-2025  12:57             9.957 1-espadas.jpg
+04-08-2025  12:57            11.641 1-treboles.jpg
+04-08-2025  12:57            19.259 10-corazones.jpg
+04-08-2025  12:57            20.046 10-diamantes.jpg
+04-08-2025  12:57            17.369 10-espadas.jpg
+04-08-2025  12:57            21.010 10-treboles.jpg
+04-08-2025  12:57            41.812 11-corazones.jpg
+04-08-2025  12:57            43.644 11-diamantes.jpg
+04-08-2025  12:57            40.208 11-espadas.jpg
+04-08-2025  12:57            41.745 11-treboles.jpg
+04-08-2025  12:57            42.985 12-corazones.jpg
+04-08-2025  12:57            45.320 12-diamantes.jpg
+04-08-2025  12:57            43.242 12-espadas.jpg
+04-08-2025  12:57            44.898 12-treboles.jpg
+04-08-2025  12:57            42.786 13-corazones.jpg
+04-08-2025  12:57            45.626 13-diamantes.jpg
+04-08-2025  12:57            45.929 13-espadas.jpg
+04-08-2025  12:57            44.769 13-treboles.jpg
+04-08-2025  12:57             7.756 2-corazones.jpg
+04-08-2025  12:57             8.615 2-diamantes.jpg
+04-08-2025  12:57             7.173 2-espadas.jpg
+04-08-2025  12:57             8.297 2-treboles.jpg
+04-08-2025  12:57            10.118 3-corazones.jpg
+04-08-2025  12:57            10.647 3-diamantes.jpg
+04-08-2025  12:57             9.044 3-espadas.jpg
+04-08-2025  12:57            10.988 3-treboles.jpg
+04-08-2025  12:57            11.161 4-corazones.jpg
+04-08-2025  12:57            11.796 4-diamantes.jpg
+04-08-2025  12:57            10.080 4-espadas.jpg
+04-08-2025  12:57            11.878 4-treboles.jpg
+04-08-2025  12:57            12.446 5-corazones.jpg
+04-08-2025  12:57            13.415 5-diamantes.jpg
+04-08-2025  12:57            11.353 5-espadas.jpg
+04-08-2025  12:57            13.587 5-treboles.jpg
+04-08-2025  12:57            13.914 6-corazones.jpg
+04-08-2025  12:57            14.900 6-diamantes.jpg
+04-08-2025  12:57            12.850 6-espadas.jpg
+04-08-2025  12:57            15.545 6-treboles.jpg
+04-08-2025  12:57            15.257 7-corazones.jpg
+04-08-2025  12:57            16.284 7-diamantes.jpg
+04-08-2025  12:57            13.666 7-espadas.jpg
+04-08-2025  12:57            16.855 7-treboles.jpg
+04-08-2025  12:57            16.441 8-corazones.jpg
+04-08-2025  12:57            18.348 8-diamantes.jpg
+04-08-2025  12:57            14.676 8-espadas.jpg
+04-08-2025  12:57            17.827 8-treboles.jpg
+04-08-2025  12:57            17.804 9-corazones.jpg
+04-08-2025  12:57            19.030 9-diamantes.jpg
+04-08-2025  12:57            15.859 9-espadas.jpg
+04-08-2025  12:57            19.377 9-treboles.jpg
+03-08-2025  11:40            34.320 card-back.jpg
+04-08-2025  11:37                 0 cards.txt
+03-08-2025  11:56         1.443.677 deck-preview.jpg
+              55 archivos      2.549.239 bytes
+               2 dirs  105.565.421.568 bytes libres

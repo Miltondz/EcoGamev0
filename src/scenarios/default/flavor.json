@@ -1,0 +1,10 @@
+{
+  "intro": "You have entered the default scenario.",
+  "victory": "You have overcome the anomaly.",
+  "defeat": "The anomaly has consumed you.",
+  "hallucinations": [
+    "You hear a faint whisper.",
+    "The walls seem to breathe.",
+    "A shadow moves in the corner of your eye."
+  ]
+}
