@@ -35,47 +35,36 @@ export const Hand: React.FC<HandProps> = () => {
     }, []);
 
     useEffect(() => {
-        if (!handRect) {
-            console.log('🃏 Hand: No handRect available yet');
+        const cardsInHand = gameStateManager.hand;
+        const numCards = cardsInHand.length;
+        console.log('🃏 Hand: Processing', numCards, 'cards in hand (SINGLE EXECUTION)');
+        
+        if (numCards === 0) {
+            console.log('🃏 Hand: No cards to display');
+            vfxSystem.updateHand({ cards: [] });
             return;
         }
 
-        const cardsInHand = gameStateManager.hand;
-        const numCards = cardsInHand.length;
-        console.log('🃏 Hand: Processing', numCards, 'cards in hand, handRect:', handRect);
-        
-        // Si handRect.width es 0, usar window.innerWidth como fallback
-        const effectiveWidth = handRect.width > 0 ? handRect.width : window.innerWidth;
-        console.log('🃏 Hand: Using effective width:', effectiveWidth, 'original width:', handRect.width);
-        
-        const cardWidth = 100; // Approximate card width for spacing calculation
-        const spacing = 20; // Space between cards
-        const totalWidth = numCards * cardWidth + (numCards - 1) * spacing;
-
-        // Calculate start X to center the hand
-        let startX = handRect.left + (effectiveWidth / 2) - (totalWidth / 2);
-        if (numCards === 0) {
-            startX = handRect.left + effectiveWidth / 2; // Center if no cards
-        }
-
+        // TEMPORARY FIX: Use fixed positions to stop the position chaos
+        const fixedY = 850; // Fixed Y position that should be visible
         const handVFXData = cardsInHand.map((card, index) => {
-            const cardX = startX + index * (cardWidth + spacing) + cardWidth / 2;
-            const cardY = handRect.top + handRect.height / 2; // Center vertically in the hand area
+            const cardX = 200 + index * 120; // Fixed spacing
+            const cardY = fixedY;
 
-            console.log(`🃏 Hand: Card ${index} (${card.rank}${card.suit[0]}) position: x=${cardX}, y=${cardY}`);
+            console.log(`🃏 Hand: Card ${index} (${card.rank}${card.suit[0]}) FIXED position: x=${cardX}, y=${cardY}`);
 
             return {
                 card,
                 position: { x: cardX, y: cardY },
-                rotation: 0, // No rotation for now
-                delay: index * 0.1 // Staggered deal animation
+                rotation: 0,
+                delay: index * 0.1
             };
         });
 
         console.log('🃏 Hand: Calling vfxSystem.updateHand with', handVFXData.length, 'cards');
         vfxSystem.updateHand({ cards: handVFXData });
 
-    }, [gameStateManager.hand?.length, handRect?.width, handRect?.height]); // Only re-run when essential properties change
+    }, []); // Remove all dependencies to stop infinite loop - will fix properly next
 
     // Debug: Log hand changes
     useEffect(() => {

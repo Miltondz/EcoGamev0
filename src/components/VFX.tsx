@@ -379,6 +379,7 @@ export const VFX: React.FC = () => {
               });
 
             } else {
+              console.log('🎨 VFX: Updating existing sprite for card', card.rank, card.suit, 'from', sprite.x, sprite.y, 'to', position.x, position.y);
               // Update existing sprite's position
               gsap.to(sprite, {
                 x: position.x,
