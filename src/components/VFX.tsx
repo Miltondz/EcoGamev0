@@ -278,8 +278,14 @@ export const VFX: React.FC = () => {
                 } else {
                   // Load texture and add to cache
                   console.log('🎨 VFX: Loading texture for first time:', imagePath);
-                  // Use fallback for now and load async
-                  texture = PIXI.Texture.WHITE; // Temporary white texture
+                  // Use fallback for now and load async  
+                  // Create a more visible temporary texture for debugging
+                  const tempGraphics = new PIXI.Graphics()
+                    .rect(0, 0, 120, 160)
+                    .fill(0xff0000) // Red background for visibility
+                    .rect(10, 10, 100, 140) 
+                    .fill(0xffffff); // White center
+                  texture = app.renderer.generateTexture(tempGraphics);
                   
                   // Load async and update
                   PIXI.Assets.load(imagePath)
@@ -287,7 +293,9 @@ export const VFX: React.FC = () => {
                       console.log('🎨 VFX: Async texture loaded:', imagePath);
                       if (sprite) {
                         sprite.texture = loadedTexture;
-                        console.log('🎨 VFX: Texture applied to sprite for', card.rank, card.suit);
+                        // Force sprite to update its bounds and re-render
+                        sprite.anchor.set(0.5); // Re-set anchor to trigger update
+                        console.log('🎨 VFX: Texture applied to sprite for', card.rank, card.suit, 'size:', loadedTexture.width, 'x', loadedTexture.height);
                       }
                     })
                     .catch((error) => {
