@@ -75,7 +75,7 @@ export const Hand: React.FC<HandProps> = () => {
         console.log('🃏 Hand: Calling vfxSystem.updateHand with', handVFXData.length, 'cards');
         vfxSystem.updateHand({ cards: handVFXData });
 
-    }, [gameStateManager.hand, handRect]); // Re-run when hand changes or handRect updates
+    }, [gameStateManager.hand?.length, handRect?.width, handRect?.height]); // Only re-run when essential properties change
 
     // Debug: Log hand changes
     useEffect(() => {

@@ -301,10 +301,11 @@ export const VFX: React.FC = () => {
                 });
               sprite.anchor.set(0.5);
               sprite.x = position.x;
-              sprite.y = position.y + 100; // Start slightly below for a "rise up" effect
+              sprite.y = position.y; // Use correct position directly
               sprite.rotation = rotation;
               sprite.scale.set(0.8);
               sprite.interactive = true;
+              console.log('🎨 VFX: Sprite positioned at', sprite.x, sprite.y, 'should be visible');
 
               let dragging = false;
               let dragData: PIXI.FederatedPointerEvent | null = null;
@@ -368,10 +369,11 @@ export const VFX: React.FC = () => {
               setPixiCards(prev => ({ ...prev, [card.id]: { sprite, card, originalPosition: { x: position.x, y: position.y } } }));
               console.log('🎨 VFX: Sprite added to stage, total children:', app.stage.children.length);
 
+              // Simple fade in animation
+              sprite.alpha = 0;
               gsap.to(sprite, {
-                y: position.y, // Animate to final Y position
                 alpha: 1,
-                duration: 0.5,
+                duration: 0.3,
                 delay: delay,
                 ease: 'power2.out',
               });
