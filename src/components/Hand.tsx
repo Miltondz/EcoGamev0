@@ -43,19 +43,26 @@ export const Hand: React.FC<HandProps> = () => {
         const cardsInHand = gameStateManager.hand;
         const numCards = cardsInHand.length;
         console.log('🃏 Hand: Processing', numCards, 'cards in hand, handRect:', handRect);
+        
+        // Si handRect.width es 0, usar window.innerWidth como fallback
+        const effectiveWidth = handRect.width > 0 ? handRect.width : window.innerWidth;
+        console.log('🃏 Hand: Using effective width:', effectiveWidth, 'original width:', handRect.width);
+        
         const cardWidth = 100; // Approximate card width for spacing calculation
         const spacing = 20; // Space between cards
         const totalWidth = numCards * cardWidth + (numCards - 1) * spacing;
 
         // Calculate start X to center the hand
-        let startX = handRect.left + (handRect.width / 2) - (totalWidth / 2);
+        let startX = handRect.left + (effectiveWidth / 2) - (totalWidth / 2);
         if (numCards === 0) {
-            startX = handRect.left + handRect.width / 2; // Center if no cards
+            startX = handRect.left + effectiveWidth / 2; // Center if no cards
         }
 
         const handVFXData = cardsInHand.map((card, index) => {
             const cardX = startX + index * (cardWidth + spacing) + cardWidth / 2;
             const cardY = handRect.top + handRect.height / 2; // Center vertically in the hand area
+
+            console.log(`🃏 Hand: Card ${index} (${card.rank}${card.suit[0]}) position: x=${cardX}, y=${cardY}`);
 
             return {
                 card,
@@ -79,9 +86,14 @@ export const Hand: React.FC<HandProps> = () => {
         <div 
             className="player-section flex flex-col items-center justify-center py-4 w-full flex-shrink-0" 
             ref={handRef}
-            style={{ height: '25vh', minHeight: '150px' }} // Flexible height for hand area
+            style={{ 
+                height: '25vh', 
+                minHeight: '150px',
+                width: '100%',
+                minWidth: '800px' // Ensure minimum width for card positioning
+            }}
         >
-            <div className="flex justify-center p-4 h-full w-full items-end relative">
+            <div className="flex justify-center p-4 h-full w-full items-end relative" style={{ width: '100%' }}>
                 {/* No direct card rendering here */}
             </div>
             {/* Interaction buttons will be moved to App.tsx or handled by VFX.tsx */}
