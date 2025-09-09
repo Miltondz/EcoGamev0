@@ -35,10 +35,14 @@ export const Hand: React.FC<HandProps> = () => {
     }, []);
 
     useEffect(() => {
-        if (!handRect) return;
+        if (!handRect) {
+            console.log('🃏 Hand: No handRect available yet');
+            return;
+        }
 
         const cardsInHand = gameStateManager.hand;
         const numCards = cardsInHand.length;
+        console.log('🃏 Hand: Processing', numCards, 'cards in hand, handRect:', handRect);
         const cardWidth = 100; // Approximate card width for spacing calculation
         const spacing = 20; // Space between cards
         const totalWidth = numCards * cardWidth + (numCards - 1) * spacing;
@@ -61,9 +65,15 @@ export const Hand: React.FC<HandProps> = () => {
             };
         });
 
+        console.log('🃏 Hand: Calling vfxSystem.updateHand with', handVFXData.length, 'cards');
         vfxSystem.updateHand({ cards: handVFXData });
 
     }, [gameStateManager.hand, handRect]); // Re-run when hand changes or handRect updates
+
+    // Debug: Log hand changes
+    useEffect(() => {
+        console.log('🃏 Hand: Current hand state:', gameStateManager.hand);
+    }, [gameStateManager.hand]);
 
     return (
         <div 

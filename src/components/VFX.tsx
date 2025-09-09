@@ -25,6 +25,7 @@ export const VFX: React.FC = () => {
 
   // Callback to get the PIXI app instance when it's created
   const onAppInit = (app: PIXI.Application) => {
+    console.log('🎨 VFX: PIXI App initialized', app);
     setPixiApp(app);
   };
 
@@ -58,8 +59,12 @@ export const VFX: React.FC = () => {
     if (!pixiApp) return;
 
     const handleVFXEvent = (event: VFXEvent<VFXEventType>) => {
+      console.log('🎨 VFX: Received event', event.type, event.data);
       const app = pixiApp;
-      if (!app?.stage) return;
+      if (!app?.stage) {
+        console.warn('⚠️ VFX: No PIXI app or stage available');
+        return;
+      }
 
       switch (event.type) {
         case 'dealCard': {

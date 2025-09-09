@@ -84,8 +84,12 @@ class VFXSystem {
   }
 
   dispatch<T extends VFXEventType>(type: T, data: VFXEventData[T]): void {
+    console.log(`🎯 VFXSystem: Dispatching event '${type}'`, data);
     const event: VFXEvent<T> = { type, data };
-    this.listeners.forEach(listener => listener(event));
+    this.listeners.forEach(listener => {
+      console.log(`📡 VFXSystem: Notifying listener for '${type}'`);
+      listener(event);
+    });
   }
 
   // Métodos de ayuda para despachar eventos específicos
