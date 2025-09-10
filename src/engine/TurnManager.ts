@@ -11,10 +11,13 @@ import { gameLogSystem } from './GameLogSystem';
 import { vfxSystem } from './VFXSystem';
 import { uiPositionManager } from './UIPositionManager';
 import { scenarioEventsEngine } from './ScenarioEventsEngine';
-import type { Card, Event, HallucinationCard } from './types';
+import type { Card, Event, HallucinationCard, DynamicEvent } from './types';
 
 class TurnManager {
     public currentEvent: Event | null = null;
+    public currentEventCard: Card | null = null;
+    public currentDynamicEvent: DynamicEvent | null = null;
+    public onEventShow: ((eventCard: Card, event: DynamicEvent) => void) | null = null;
 
     async startGame(scenarioId: string = 'default') {
         console.log(`🎮 TurnManager: Iniciando juego con escenario '${scenarioId}'`);
@@ -184,23 +187,42 @@ class TurnManager {
         
         console.log(`📅 TurnManager: Procesando evento para carta ${eventCard.id}`);
         
+        // Guardar carta del evento actual para referencia
+        this.currentEventCard = eventCard;
+        
         // Intentar usar el sistema de eventos dinámicos
         if (scenarioEventsEngine.hasEvents) {
             const result = scenarioEventsEngine.processEvent(eventCard);
             if (result.processed && result.event) {
-                gameLogSystem.addMessage(`🎭 ${result.event.event}`, 'system', 'info');
-                gameLogSystem.addMessage(result.event.flavor, 'system', 'info');
+                this.currentDynamicEvent = result.event;
+                
+                // Mostrar evento visual si hay callback registrado
+                if (this.onEventShow) {
+                    console.log(`🎭 TurnManager: Mostrando evento visual: ${result.event.event}`);
+                    this.onEventShow(eventCard, result.event);
+                } else {
+                    // Fallback al log si no hay sistema visual
+                    gameLogSystem.addMessage(`🎭 ${result.event.event}`, 'system', 'info');
+                    gameLogSystem.addMessage(result.event.flavor, 'system', 'info');
+                }
+                
                 console.log(`📅 TurnManager: Evento dinámico procesado: ${result.event.event}`);
             } else {
                 gameLogSystem.addMessage(`Evento desconocido para carta ${eventCard.rank} de ${eventCard.suit}`, 'system', 'info');
+                this.currentDynamicEvent = null;
+                // Descartar inmediatamente si no hay evento
+                deckManager.discard([eventCard]);
             }
         } else {
             // Fallback: usar sistema de eventos original si existe
             gameLogSystem.addMessage(`Evento no procesado para carta ${eventCard.rank} de ${eventCard.suit}`, 'system', 'info');
+            this.currentDynamicEvent = null;
+            // Descartar inmediatamente si no hay sistema de eventos
+            deckManager.discard([eventCard]);
         }
         
-        // Descartar la carta del evento
-        deckManager.discard([eventCard]);
+        // No descartar la carta inmediatamente si hay sistema visual - se descarta cuando se cierra el modal
+        // La carta se descartará cuando se cierre el modal del evento
     }
 
     private executePlayerActionPhase() {

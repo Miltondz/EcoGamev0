@@ -27,6 +27,12 @@ class GameStateManager {
     private _playerStatusEffects: PlayerStatusEffect[] = [];
     private _ecoRevealedCard: Card | null = null;
     private _cardsToDraw: Card[] = [];
+    
+    // Card selection and interaction state
+    private _selectedCards: Card[] = [];
+    private _currentAction: 'none' | 'repair' | 'focus' | 'search' = 'none';
+    private _targetNodeId: string | null = null;
+    private _isNodeSelectionMode: boolean = false;
 
     private _maxAP: number = 2;
     private _maxHandSize: number = 5;
@@ -66,6 +72,10 @@ class GameStateManager {
     get criticalDamageBoost() { return this._criticalDamageBoost; }
     get maxPV() { return 20; } // Valor máximo hardcoded por ahora
     get maxSanity() { return this._maxSanity; }
+    get selectedCards() { return this._selectedCards; }
+    get currentAction() { return this._currentAction; }
+    get targetNodeId() { return this._targetNodeId; }
+    get isNodeSelectionMode() { return this._isNodeSelectionMode; }
 
     set pv(value: number) { this._pv = Math.max(0, value); this.notify(); }
     set sanity(value: number) { this._sanity = Math.max(0, value); this.notify(); }
@@ -78,9 +88,46 @@ class GameStateManager {
     set victory(value: boolean | null) { this._victory = value; this.notify(); }
     set playerStatusEffects(value: PlayerStatusEffect[]) { this._playerStatusEffects = value; this.notify(); }
     set ecoRevealedCard(value: Card | null) { this._ecoRevealedCard = value; this.notify(); }
+    set criticalDamageBoost(value: number) { this._criticalDamageBoost = value; this.notify(); }
 
     clearCardsToDraw() {
         this._cardsToDraw = [];
+        this.notify();
+    }
+    
+    // Card selection methods
+    selectCard(card: Card) {
+        if (!this._selectedCards.find(c => c.id === card.id)) {
+            this._selectedCards.push(card);
+            this.notify();
+        }
+    }
+    
+    deselectCard(card: Card) {
+        this._selectedCards = this._selectedCards.filter(c => c.id !== card.id);
+        this.notify();
+    }
+    
+    clearSelectedCards() {
+        this._selectedCards = [];
+        this.notify();
+    }
+    
+    setCurrentAction(action: 'none' | 'repair' | 'focus' | 'search') {
+        this._currentAction = action;
+        this.notify();
+    }
+    
+    setNodeSelectionMode(enabled: boolean) {
+        this._isNodeSelectionMode = enabled;
+        if (!enabled) {
+            this._targetNodeId = null;
+        }
+        this.notify();
+    }
+    
+    setTargetNode(nodeId: string | null) {
+        this._targetNodeId = nodeId;
         this.notify();
     }
 
@@ -102,6 +149,10 @@ class GameStateManager {
             this._playerStatusEffects = [];
             this._ecoRevealedCard = null;
             this._cardsToDraw = [];
+            this._selectedCards = [];
+            this._currentAction = 'none';
+            this._targetNodeId = null;
+            this._isNodeSelectionMode = false;
             this.notify();
         } catch (error) {
             console.error('Error resetting game state:', error);
@@ -121,6 +172,10 @@ class GameStateManager {
             this._playerStatusEffects = [];
             this._ecoRevealedCard = null;
             this._cardsToDraw = [];
+            this._selectedCards = [];
+            this._currentAction = 'none';
+            this._targetNodeId = null;
+            this._isNodeSelectionMode = false;
             this.notify();
         }
     }

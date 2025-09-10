@@ -33,17 +33,18 @@ export const Hand: React.FC<HandProps> = () => {
             return;
         }
 
-        // Use screen-relative positioning for cards
-        const screenWidth = window.innerWidth;
-        const screenHeight = window.innerHeight;
+        // Use fixed layout positioning for cards (1280x800 layout)
+        const LAYOUT_WIDTH = 1280;
+        const LAYOUT_HEIGHT = 720;
+        const HAND_AREA = { x: 200, y: 560, width: 880, height: 100 };
         
-        // Position cards in the bottom area of screen
-        const handCenterX = screenWidth / 2;
-        const handCenterY = screenHeight - 120; // Fixed position from bottom
+        // Position cards in the fixed hand area
+        const handCenterX = HAND_AREA.x + HAND_AREA.width / 2; // 640px from left
+        const handCenterY = HAND_AREA.y + HAND_AREA.height / 2; // 670px from top
         
-        console.log(`🎃 Hand: Screen size: ${screenWidth}x${screenHeight}, hand center: (${handCenterX}, ${handCenterY})`);
+        console.log(`🎃 Hand: Fixed layout ${LAYOUT_WIDTH}x${LAYOUT_HEIGHT}, hand center: (${handCenterX}, ${handCenterY})`);
         
-        const cardSpacing = 120;
+        const cardSpacing = Math.min(120, HAND_AREA.width / Math.max(numCards, 1)); // Adapt spacing to fit in area
         const totalWidth = (numCards - 1) * cardSpacing;
         const startX = handCenterX - totalWidth / 2;
         
@@ -84,16 +85,8 @@ export const Hand: React.FC<HandProps> = () => {
         return () => clearTimeout(timer);
     }, [gameStateManager.hand.map(c => c.id).join(',')]); // Only depend on actual card composition
 
-    // Update card positions when window resizes
-    useEffect(() => {
-        const handleResize = () => {
-            console.log('🎃 Hand: Window resized, updating card positions');
-            updateCardPositions(false); // Only reposition existing cards on resize
-        };
-
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []); // Empty dependency array - set up once
+    // No longer need window resize handling for fixed layout
+    // useEffect for resize removed as we use fixed 1280x800 layout
 
     // Debug: Log hand changes
     useEffect(() => {
@@ -102,17 +95,18 @@ export const Hand: React.FC<HandProps> = () => {
 
     return (
         <div 
-            className="player-section flex flex-col items-center justify-center py-4 w-full flex-shrink-0" 
+            className="player-section flex flex-col items-center justify-center" 
             ref={handRef}
             style={{ 
-                height: '25vh', 
-                minHeight: '150px',
-                width: '100%',
-                minWidth: '800px' // Ensure minimum width for card positioning
+                width: '880px',
+                height: '100px',
+                position: 'absolute',
+                left: 0,
+                top: 0
             }}
         >
-            <div className="flex justify-center p-4 h-full w-full items-end relative" style={{ width: '100%' }}>
-                {/* No direct card rendering here */}
+            <div className="flex justify-center items-center h-full w-full relative">
+                {/* No direct card rendering here - handled by VFX.tsx */}
             </div>
             {/* Interaction buttons will be moved to App.tsx or handled by VFX.tsx */}
         </div>

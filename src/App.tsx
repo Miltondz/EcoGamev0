@@ -3,20 +3,20 @@
 import React, { useState, useEffect } from 'react';
 import { Board } from './components/Board';
 import { MainMenu } from './components/MainMenu';
-import { TempStats } from './components/TempStats';
 import { GameLayout } from './components/GameLayout';
 import { Hand } from './components/Hand';
 import { turnManager } from './engine/TurnManager';
 import { gameStateManager, GamePhase } from './engine/GameStateManager';
+import { nodeSystem } from './engine/NodeSystem';
 import type { Card as CardType } from './engine/types';
 import { cardEffectEngine } from './engine/CardEffectEngine';
 import { RepairButton, FocusButton, EndTurnButton, StyledButton } from './components/StyledButton';
 import { FaWrench, FaEye, FaArrowRight, FaCrosshairs, FaSearch } from 'react-icons/fa';
 
-import { GameLog } from './components/GameLog';
 import { VFX } from './components/VFX';
+import { GameLog } from './components/GameLog';
+import EventVisualSystem from './components/EventVisualSystem';
 // import { CSSCards } from './components/CSSCards'; // Commented out - using only PixiJS VFX
-import { TestCardImages } from './components/TestCardImages';
 
 const App: React.FC = () => {
     const [inGame, setInGame] = useState<boolean>(false);
@@ -24,6 +24,8 @@ const App: React.FC = () => {
     const [isRepairMode, setRepairMode] = useState<boolean>(false);
     const [cardsForRepair, setCardsForRepair] = useState<CardType[]>([]);
     const [cardPlayMode, setCardPlayMode] = useState<'attack' | 'search'>('attack'); // Modo de juego de cartas
+    const [turnOverlay, setTurnOverlay] = useState<{ visible: boolean; text: string }>({ visible: false, text: '' });
+    const [eventVisual, setEventVisual] = useState<{ visible: boolean; card: CardType | null; event: any | null }>({ visible: false, card: null, event: null });
     const [, setTick] = useState(0); // Used to force re-renders
 
     useEffect(() => {
@@ -31,6 +33,14 @@ const App: React.FC = () => {
             setTick(tick => tick + 1);
             if (gameStateManager.phase === GamePhase.EVENT && turnManager.currentEvent) {
                 setEventMessage(turnManager.currentEvent.event);
+            }
+            // Turn overlay when phase enters PLAYER_ACTION or ECO_ATTACK
+            if (gameStateManager.phase === GamePhase.PLAYER_ACTION) {
+                setTurnOverlay({ visible: true, text: `Turno ${gameStateManager.turn} - Tu turno` });
+                setTimeout(() => setTurnOverlay({ visible: false, text: '' }), 800);
+            } else if (gameStateManager.phase === GamePhase.ECO_ATTACK) {
+                setTurnOverlay({ visible: true, text: `Turno ${gameStateManager.turn} - ECO` });
+                setTimeout(() => setTurnOverlay({ visible: false, text: '' }), 800);
             }
             // Forzar re-render cuando cambien stats importantes
             console.log('🔄 App: GameState changed - PV:', gameStateManager.pv, 'EcoHP:', gameStateManager.ecoHp, 'AP:', gameStateManager.pa);
@@ -43,6 +53,16 @@ const App: React.FC = () => {
         setEventMessage(null);
         setRepairMode(false);
         setCardsForRepair([]);
+        
+        // Configurar callback para eventos visuales
+        turnManager.onEventShow = (eventCard, event) => {
+            console.log('🎭 App: Mostrando evento visual', event.event);
+            setEventVisual({ visible: true, card: eventCard, event });
+        };
+        
+        // Show start overlay
+        setTurnOverlay({ visible: true, text: 'Comienza la partida' });
+        setTimeout(() => setTurnOverlay({ visible: false, text: '' }), 1200);
     };
 
     const handleContinue = () => {
@@ -69,174 +89,305 @@ const App: React.FC = () => {
         setCardsForRepair([]);
     };
 
+    // Helper function to get node display properties
+    const getNodeDisplay = (nodeId: string) => {
+        const node = nodeSystem.getNode(nodeId);
+        if (!node) return { icon: '❓', color: '#666666', status: 'N/A' };
+        
+        const repairLevel = Math.max(0, node.maxDamage - node.damage);
+        const repairPercent = Math.round((repairLevel / node.maxDamage) * 100);
+        
+        let color, icon;
+        
+        switch (node.status) {
+            case 'stable':
+                color = repairLevel === node.maxDamage ? '#22c55e' : '#eab308'; // green if fully repaired, yellow if partially
+                break;
+            case 'unstable':
+                color = '#f97316'; // orange
+                break;
+            case 'corrupted':
+                color = '#ef4444'; // red
+                break;
+            default:
+                color = '#6b7280'; // gray
+        }
+        
+        // Get appropriate icon based on node type
+        switch (nodeId) {
+            case 'communications': 
+                icon = node.status === 'corrupted' ? '📵' : (repairLevel === node.maxDamage ? '📶' : '📳');
+                break;
+            case 'power':
+            case 'energy':
+                icon = node.status === 'corrupted' ? '🔋' : (repairLevel === node.maxDamage ? '⚡' : '🔅');
+                break;
+            case 'defense':
+            case 'shields':
+                icon = node.status === 'corrupted' ? '🛑' : (repairLevel === node.maxDamage ? '🛡️' : '⚠️');
+                break;
+            case 'supplies':
+            case 'life_support':
+                icon = node.status === 'corrupted' ? '💀' : (repairLevel === node.maxDamage ? '📦' : '📋');
+                break;
+            default:
+                icon = node.status === 'corrupted' ? '💥' : (repairLevel === node.maxDamage ? '✅' : '🔧');
+        }
+        
+        return { 
+            icon, 
+            color, 
+            status: `${repairPercent}%`,
+            repairLevel,
+            maxDamage: node.maxDamage,
+            damage: node.damage
+        };
+    };
+
     return (
-        <div className="main-container">
+        <div className="fixed-game-container flex justify-center items-center min-h-screen bg-black">
             { !inGame ? (
-                <MainMenu onStartGame={handleStartGame} />
+                <div className="game-viewport relative" style={{ width: '1280px', height: '720px' }}>
+                    <MainMenu onStartGame={handleStartGame} />
+                </div>
             ) : (
-                <GameLayout>
+                <div className="game-viewport relative overflow-hidden" style={{ width: '1280px', height: '720px' }}>
+                    <GameLayout>
                     {/* HUD Superior - Stats del jugador y Eco */}
-                    <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-center">
+                    <div style={{ 
+                           position: 'absolute',
+                           top: '20px', 
+                           left: '40px', 
+                           width: '1200px', 
+                           height: '50px',
+                           zIndex: 20,
+                           display: 'flex',
+                           justifyContent: 'space-between',
+                           alignItems: 'center'
+                         }}>
                         {/* Stats Jugador - Izquierda */}
-                        <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 border border-amber-600/30">
-                            <div className="flex items-center space-x-4 text-sm">
-                                <span className="text-amber-100 font-bold">JUGADOR</span>
-                                <span className="text-amber-200">HP: {gameStateManager.pv}/{gameStateManager.maxPV}</span>
-                                <span className="text-amber-200">Cor: {gameStateManager.sanity}</span>
-                                <span className="text-amber-200">AP: {gameStateManager.pa}/{gameStateManager.maxAP}</span>
+                        <div style={{
+                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                          backdropFilter: 'blur(4px)',
+                          borderRadius: '8px',
+                          padding: '8px 16px',
+                          border: '1px solid rgba(217, 119, 6, 0.3)'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '14px' }}>
+                                <span style={{ color: '#fef3c7', fontWeight: 'bold' }}>JUGADOR</span>
+                                <span style={{ color: '#fde68a' }}>HP: {gameStateManager.pv}/{gameStateManager.maxPV}</span>
+                                <span style={{ color: '#fde68a' }}>Cor: {gameStateManager.sanity}</span>
+                                <span style={{ color: '#fde68a' }}>AP: {gameStateManager.pa}/{gameStateManager.maxAP}</span>
                             </div>
                         </div>
                         
                         {/* Turno - Centro */}
-                        <div className="bg-slate-800/80 backdrop-blur-sm rounded-lg px-6 py-2 border border-slate-600/50">
-                            <div className="text-center">
-                                <div className="text-slate-200 font-bold">TURNO {gameStateManager.turn}</div>
-                                <div className="text-slate-300 text-xs">FASE: {gameStateManager.phase === GamePhase.PLAYER_ACTION ? "JUGADOR" : "ECO"}</div>
+                        <div style={{
+                          backgroundColor: 'rgba(30, 41, 59, 0.8)',
+                          backdropFilter: 'blur(4px)',
+                          borderRadius: '8px',
+                          padding: '8px 24px',
+                          border: '1px solid rgba(71, 85, 105, 0.5)'
+                        }}>
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{ color: '#e2e8f0', fontWeight: 'bold' }}>TURNO {gameStateManager.turn}</div>
+                                <div style={{ color: '#cbd5e1', fontSize: '12px' }}>FASE: {gameStateManager.phase === GamePhase.PLAYER_ACTION ? "JUGADOR" : "ECO"}</div>
                             </div>
                         </div>
                         
                         {/* Stats Eco - Derecha */}
-                        <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 border border-red-600/30">
-                            <div className="flex items-center space-x-4 text-sm">
-                                <span className="text-red-200">Cartas: 5</span>
-                                <span className="text-red-200">HP: {gameStateManager.ecoHp}/{gameStateManager.maxEcoHp}</span>
-                                <span className="text-red-200">Vigilante</span>
-                                <span className="text-red-100 font-bold">ECO</span>
+                        <div style={{
+                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                          backdropFilter: 'blur(4px)',
+                          borderRadius: '8px',
+                          padding: '8px 16px',
+                          border: '1px solid rgba(220, 38, 38, 0.3)'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '14px' }}>
+                                <span style={{ color: '#fecaca' }}>HP: {gameStateManager.ecoHp}/{gameStateManager.maxEcoHp}</span>
+                                <span style={{ color: '#fecaca' }}>Vigilante</span>
+                                <span style={{ color: '#fee2e2', fontWeight: 'bold' }}>ECO</span>
                             </div>
-                        </div>
-                    </div>
-                    
-                    {/* Cartas del Eco - Zona Superior */}
-                    <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-15">
-                        <div className="flex items-center space-x-2">
-                            <span className="text-red-400 text-sm font-bold mr-4">MANO DEL ECO:</span>
-                            {Array.from({ length: 5 }, (_, i) => (
-                                <div
-                                    key={i}
-                                    className="w-12 h-16 rounded border border-red-700/50 shadow-lg transition-transform bg-cover bg-center"
-                                    style={{
-                                        backgroundImage: 'url("/images/decks/default/card-back.jpg")',
-                                        backgroundSize: 'cover'
-                                    }}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                    
-                    {/* Panel Izquierdo - Jugador */}
-                    <div className="absolute left-8 top-44 bottom-64 w-80 z-30 bg-black/40 backdrop-blur-sm rounded-lg border border-amber-600/30 p-4 overflow-y-auto">
-                        <div className="space-y-4">
-                            <div className="text-center">
-                                <div className="w-16 h-16 rounded-full bg-amber-800/50 flex items-center justify-center text-2xl mx-auto mb-2">👤</div>
-                                <div className="text-amber-200 font-bold">SURVIVOR</div>
-                            </div>
-                            
-                            <div className="space-y-3">
-                                <div>
-                                    <div className="text-amber-200 text-sm font-bold mb-2">Estado:</div>
-                                    <div className="text-amber-300 text-xs space-y-1">
-                                        <div>• Normal</div>
-                                        <div>• Sin efectos</div>
-                                        <div>• Cartas: {gameStateManager.hand.length}</div>
-                                    </div>
-                                </div>
-                                
-                                <div>
-                                    <div className="text-amber-200 text-sm font-bold mb-2">Nodos del Sistema:</div>
-                                    <div className="space-y-2 text-xs">
-                                        <div className="bg-red-900/30 border border-red-700/50 rounded p-2">
-                                            <div className="text-red-300 font-bold">Comunicaciones</div>
-                                            <div className="text-red-400">0% - Desconectado</div>
-                                        </div>
-                                        <div className="bg-red-900/30 border border-red-700/50 rounded p-2">
-                                            <div className="text-red-300 font-bold">Energía</div>
-                                            <div className="text-red-400">0% - Sin energía</div>
-                                        </div>
-                                        <div className="bg-red-900/30 border border-red-700/50 rounded p-2">
-                                            <div className="text-red-300 font-bold">Defensa</div>
-                                            <div className="text-red-400">0% - Vulnerable</div>
-                                        </div>
-                                        <div className="bg-red-900/30 border border-red-700/50 rounded p-2">
-                                            <div className="text-red-300 font-bold">Suministros</div>
-                                            <div className="text-red-400">0% - Agotado</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    {/* Panel Central - Campo de Batalla */}
-                    <div className="absolute left-96 right-96 top-44 bottom-64 z-30 bg-black/30 backdrop-blur-sm rounded-lg border border-amber-600/50 p-6 flex flex-col">
-                        <div className="text-center mb-4">
-                            <div className="text-amber-400 text-4xl mb-2">⚔️</div>
-                            <div className="text-amber-300 text-xl font-bold mb-2">CAMPO DE BATALLA</div>
-                            <div className="text-amber-500/80 text-sm">Haz clic en las cartas para jugarlas</div>
                         </div>
                         
-                        <div className="flex-1 flex">
-                            <div className="w-1/2 pr-4">
-                                <div className="text-amber-200 text-sm font-bold mb-3">Objetivos:</div>
-                                <div className="space-y-2 text-xs text-amber-300">
-                                    <div className="flex items-center">
-                                        <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-                                        <span>Reactivar sistemas críticos</span>
-                                    </div>
-                                    <div className="flex items-center">
-                                        <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-                                        <span>Resistir ataques del Eco</span>
-                                    </div>
-                                    <div className="flex items-center">
-                                        <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
-                                        <span>Sobrevivir hasta el amanecer</span>
-                                    </div>
-                                </div>
+                    </div>
+                    
+                    {/* Cartas del Eco - Zona debajo del HUD */}
+                    <div style={{ 
+                           position: 'absolute',
+                           top: '80px',  
+                           left: '200px', 
+                           width: '880px', 
+                           height: '80px',
+                           zIndex: 25,
+                           display: 'flex',
+                           alignItems: 'center',
+                           justifyContent: 'center',
+                           gap: '12px'
+                         }}>
+                        {Array.from({ length: 5 }, (_, i) => (
+                            <div
+                                key={i}
+                                style={{
+                                    width: '48px',
+                                    height: '64px',
+                                    borderRadius: '4px',
+                                    border: '2px solid rgba(185, 28, 28, 0.8)',
+                                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                                    transition: 'transform 0.2s ease',
+                                    backgroundImage: 'url("/images/decks/default/card-back.jpg")',
+                                    backgroundSize: 'cover',
+                                    backgroundPosition: 'center',
+                                    backgroundColor: '#1e293b',
+                                    filter: 'drop-shadow(0 2px 4px rgba(185, 28, 28, 0.3))'
+                                }}
+                            />
+                        ))}
+                    </div>
+                    
+                    {/* Panel Izquierdo UNIFICADO - Jugador */}
+                    <div style={{ 
+                           position: 'absolute',
+                           left: '0px', 
+                           top: '90px',
+                           width: '200px', 
+                           height: '580px',
+                           zIndex: 30,
+                           backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                           backdropFilter: 'blur(4px)',
+                           borderRadius: '8px',
+                           border: '1px solid rgba(217, 119, 6, 0.3)',
+                           padding: '16px',
+                           overflowY: 'auto'
+                         }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{ 
+                                  width: '64px', 
+                                  height: '64px', 
+                                  borderRadius: '50%', 
+                                  backgroundColor: 'rgba(146, 64, 14, 0.5)', 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  justifyContent: 'center', 
+                                  fontSize: '1.5rem', 
+                                  margin: '0 auto 8px auto' 
+                                }}>👤</div>
+                                <div style={{ color: '#fde68a', fontWeight: 'bold', fontSize: '12px' }}>SURVIVOR</div>
                             </div>
                             
-                            <div className="w-1/2 pl-4">
-                                <div className="text-amber-200 text-sm font-bold mb-3">Eventos Recientes:</div>
-                                <div className="space-y-2 text-xs text-amber-300">
-                                    <div className="flex items-center">
-                                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                                        <span>Juego iniciado</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '100%' }}>
+                                <div>
+                                    <div style={{ color: '#fde68a', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>Estado:</div>
+                                    <div style={{ color: '#fcd34d', fontSize: '9px' }}>
+                                        <div style={{ marginBottom: '2px' }}>• Normal</div>
+                                        <div style={{ marginBottom: '2px' }}>• Sin efectos</div>
+                                        <div style={{ marginBottom: '2px' }}>• Cartas: {gameStateManager.hand.length}</div>
                                     </div>
-                                    <div className="flex items-center">
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                                        <span>Cartas repartidas</span>
+                                </div>
+                                
+                                <div>
+                                    <div style={{ color: '#fde68a', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>Habilidades:</div>
+                                    <div style={{ color: '#fcd34d', fontSize: '9px' }}>
+                                        <div style={{ marginBottom: '2px' }}>• Reparación: Tréboles</div>
+                                        <div style={{ marginBottom: '2px' }}>• Ataque: Picas</div>
+                                        <div style={{ marginBottom: '2px' }}>• Búsqueda: Diamantes</div>
+                                        <div style={{ marginBottom: '2px' }}>• Enfoque: Corazones</div>
                                     </div>
-                                    <div className="flex items-center">
-                                        <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
-                                        <span>Esperando acción</span>
+                                </div>
+
+                                <div>
+                                    <div style={{ color: '#fde68a', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>Objetivos:</div>
+                                    <div style={{ color: '#fcd34d', fontSize: '9px' }}>
+                                        <div style={{ marginBottom: '2px' }}>• Reactivar sistemas críticos</div>
+                                        <div style={{ marginBottom: '2px' }}>• Resistir ataques del Eco</div>
+                                        <div style={{ marginBottom: '2px' }}>• Sobrevivir hasta el amanecer</div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div style={{ color: '#fde68a', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>Eventos Recientes:</div>
+                                    <div style={{ color: '#fcd34d', fontSize: '9px' }}>
+                                        <div style={{ marginBottom: '2px' }}>• Juego iniciado</div>
+                                        <div style={{ marginBottom: '2px' }}>• Cartas repartidas</div>
+                                        <div style={{ marginBottom: '2px' }}>• Esperando acción</div>
+                                    </div>
+                                </div>
+
+                                {/* Nodos grandes en parte inferior izquierda */}
+                                <div style={{ marginTop: 'auto' }}>
+                                    <div style={{ color: '#fde68a', fontSize: '10px', fontWeight: 'bold', marginBottom: '6px' }}>NODOS</div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                        {['communications','energy','defense','supplies'].map((id) => {
+                                            const nd = getNodeDisplay(id);
+                                            return (
+                                                <div key={id} style={{ textAlign: 'center', padding: '8px', backgroundColor: 'rgba(217, 119, 6, 0.08)', borderRadius: '4px', border: '1px solid rgba(217, 119, 6, 0.25)' }}>
+                                                    <div style={{ fontSize: '24px', marginBottom: '4px', color: nd.color }}>{nd.icon}</div>
+                                                    <div style={{ fontSize: '8px', color: nd.color }}>{nd.status}</div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    {/* Panel Derecho - Eco */}
-                    <div className="absolute right-8 top-44 bottom-64 w-80 z-30 bg-black/40 backdrop-blur-sm rounded-lg border border-red-600/30 p-4 overflow-y-auto">
-                        <div className="space-y-4">
-                            <div className="text-center">
-                                <div className="w-16 h-16 rounded-full bg-red-800/50 flex items-center justify-center text-2xl mx-auto mb-2 animate-pulse">👹</div>
-                                <div className="text-red-200 font-bold">ECO - VIGILANTE</div>
+                    
+                    {/* Panel Derecho UNIFICADO - Eco */}
+                    <div style={{ 
+                           position: 'absolute',
+                           left: '1080px', 
+                           top: '90px',
+                           width: '200px', 
+                           height: '580px',
+                           zIndex: 30,
+                           backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                           backdropFilter: 'blur(4px)',
+                           borderRadius: '8px',
+                           border: '1px solid rgba(220, 38, 38, 0.3)',
+                           padding: '16px',
+                           overflowY: 'auto'
+                         }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{ 
+                                  width: '64px', 
+                                  height: '64px', 
+                                  borderRadius: '50%', 
+                                  backgroundColor: 'rgba(153, 27, 27, 0.5)', 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  justifyContent: 'center', 
+                                  fontSize: '1.5rem', 
+                                  margin: '0 auto 8px auto',
+                                  animation: 'pulse 2s infinite'
+                                }}>👹</div>
+                                <div style={{ color: '#fecaca', fontWeight: 'bold', fontSize: '12px' }}>ECO - VIGILANTE</div>
                             </div>
                             
-                            <div className="space-y-3">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '100%' }}>
                                 <div>
-                                    <div className="text-red-200 text-sm font-bold mb-2">Estado:</div>
-                                    <div className="text-red-300 text-xs space-y-1">
-                                        <div>• Vigilante</div>
-                                        <div>• Cartas: 5</div>
-                                        <div>• Última acción: Esperando</div>
+                                    <div style={{ color: '#fecaca', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>Estado:</div>
+                                    <div style={{ color: '#f87171', fontSize: '9px' }}>
+                                        <div style={{ marginBottom: '2px' }}>• Vigilante</div>
+                                        <div style={{ marginBottom: '2px' }}>• Cartas: 5</div>
+                                        <div style={{ marginBottom: '2px' }}>• Última acción: Esperando</div>
                                     </div>
                                 </div>
                                 
                                 <div>
-                                    <div className="text-red-200 text-sm font-bold mb-2">Amenaza:</div>
-                                    <div className="text-red-300 text-xs space-y-1">
-                                        <div>• Nivel: Moderado</div>
-                                        <div>• Preparando ataque</div>
+                                    <div style={{ color: '#fecaca', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>Amenaza:</div>
+                                    <div style={{ color: '#f87171', fontSize: '9px' }}>
+                                        <div style={{ marginBottom: '2px' }}>• Nivel: Moderado</div>
+                                        <div style={{ marginBottom: '2px' }}>• Preparando ataque</div>
                                     </div>
+                                </div>
+                                
+                                
+                                {/* GameLog en la parte inferior */}
+                                <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
+                                    <GameLog />
                                 </div>
                             </div>
                         </div>
@@ -247,20 +398,39 @@ const App: React.FC = () => {
                         APP.TSX ACTIVE
                     </div>
                     
-                    {/* Test Card Images Component */}
-                    <TestCardImages />
+                    {/* Test Card Images Component - Comentado para producción */}
+                    {/* <TestCardImages /> */}
                     
+                    {/* Turn overlay */}
+                    {turnOverlay.visible && (
+                        <div style={{ position: 'absolute', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+                            <div style={{ padding: '16px 32px', borderRadius: '8px', border: '1px solid rgba(217,119,6,0.5)', background: 'rgba(0,0,0,0.8)', color: '#fde68a', fontWeight: 'bold', fontSize: '18px' }}>
+                                {turnOverlay.text}
+                            </div>
+                        </div>
+                    )}
+
                     {/* PixiJS VFX Layer */}
                     <VFX />
                     
                     {/* CSS Cards Layer (fallback/additional) */}
                     {/* <CSSCards /> */}
                     
-                    {/* Temporary Stats Display */}
-                    <TempStats />
+                    {/* Temporary Stats Display - Comentado para producción */}
+                    {/* <TempStats /> */}
 
-                    {/* Central game area content */}
-                    <div className="absolute left-96 right-96 top-44 bottom-64 z-5">
+                    {/* Central game area content - Board principal */}
+                    <div style={{ 
+                           position: 'absolute',
+                           left: '200px', 
+                           top: '120px', 
+                           width: '880px', 
+                           height: '350px',
+                           zIndex: 20,
+                           backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                           borderRadius: '8px',
+                           border: '1px solid rgba(217, 119, 6, 0.2)'
+                         }}>
                         <Board 
                             onNodeClick={handleNodeClick} 
                             isRepairMode={isRepairMode}
@@ -268,15 +438,37 @@ const App: React.FC = () => {
                     </div>
 
                     {/* Hand area */}
-                    <div className="absolute bottom-16 left-0 right-0 z-15 h-40">
+                    <div style={{ 
+                           position: 'absolute',
+                           left: '200px', 
+                           top: '500px',
+                           width: '880px', 
+                           height: '120px',
+                           zIndex: 25
+                         }}>
                         <Hand />
                     </div>
 
-                    {/* Game Log - now self-positioning */}
-                    <GameLog />
+                    {/* Game Log - now integrated in right panel */}
 
                     {/* Styled Control Buttons */}
-                    <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 flex space-x-4 z-50 bg-black/50 px-6 py-3 rounded-xl backdrop-blur-sm border border-amber-800/30">
+                    <div style={{ 
+                           position: 'absolute',
+                           left: '440px', 
+                           top: '670px',
+                           width: '400px', 
+                           height: '50px',
+                           zIndex: 50,
+                           backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                           backdropFilter: 'blur(4px)',
+                           borderRadius: '12px',
+                           border: '1px solid rgba(146, 64, 14, 0.3)',
+                           padding: '12px 24px',
+                           gap: '16px',
+                           display: 'flex',
+                           justifyContent: 'center',
+                           alignItems: 'center'
+                         }}>
                         <RepairButton 
                             onClick={toggleRepairMode}
                             icon={<FaWrench />}
@@ -365,7 +557,25 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     )}
-                </GameLayout>
+                    
+                    {/* Event Visual System */}
+                    <EventVisualSystem
+                        isVisible={eventVisual.visible}
+                        eventCard={eventVisual.card}
+                        event={eventVisual.event}
+                        onClose={() => {
+                            console.log('🎭 App: Cerrando evento visual');
+                            setEventVisual({ visible: false, card: null, event: null });
+                            // Descartar la carta del evento cuando se cierre el modal
+                            if (turnManager.currentEventCard) {
+                                // deckManager.discard([turnManager.currentEventCard]); // Se maneja en TurnManager
+                                turnManager.currentEventCard = null;
+                                turnManager.currentDynamicEvent = null;
+                            }
+                        }}
+                    />
+                    </GameLayout>
+                </div>
             )}
         </div>
     );

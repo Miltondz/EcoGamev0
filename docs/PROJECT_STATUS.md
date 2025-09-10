@@ -112,7 +112,7 @@ GameStateManager (Observable)
 
 ## Estado de Funcionalidades
 
-### ✅ Completadas
+### ✅ Completadas (Phase 4 Finalizada)
 - Sistema base de turnos y fases
 - Renderizado de cartas con PixiJS
 - Efectos de hover y animaciones básicas
@@ -121,19 +121,25 @@ GameStateManager (Observable)
 - IA básica del Eco
 - Sistema de logging de combate
 - HUD con estadísticas dinámicas
+- **🎆 Sistema de Eventos Visuales** - 52 eventos únicos con efectos PixiJS
+- **EventVisualSystem.tsx** - 4 tipos de presentación (Card/Image/GIF/Video)
+- **PixiScreenEffects.ts** - 12 efectos de pantalla hardware-accelerated
+- **Migración a resolución fija 1280x720** - Layout pixel-perfect
+- **Integración TurnManager-App-VFX** - Sistema callback para eventos
 
-### 🔄 En Progreso
-- Migración a resolución fija 1280x720
-- Mejoras en reflow automático de cartas
-- Depuración de efectos que causan sprites excesivos
+### 🔄 En Progreso (Phase 5)
+- Balance testing del sistema de eventos
+- Integración de audio para efectos de pantalla
+- Assets reales para imágenes/GIFs/videos de eventos
 
-### 📋 Pendientes
-- Sistema de victoria/derrota completo
-- Efectos visuales avanzados (partículas, shaders)
-- Sonidos y música
+### 📋 Pendientes (Phase 5)
+- Sistema de victoria/derrota mejorado
+- Sonidos y música sincronizada con eventos
 - Sistema de guardado/carga
+- Escenarios adicionales (Chile, Venezuela)
 - Menú de configuraciones
 - Versión móvil con layout específico
+- Efectos de partículas avanzados
 
 ---
 *Documento actualizado: Enero 2025*

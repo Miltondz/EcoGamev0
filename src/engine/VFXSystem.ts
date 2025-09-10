@@ -14,7 +14,11 @@ export type VFXEventType =
   | 'cardResearch'
   | 'cardResource'
   | 'updateHand' // New event type
-  | 'repositionHand'; // Reposition existing cards
+  | 'repositionHand' // Reposition existing cards
+  | 'ecoPlayCard' // ECO plays a card with full animation
+  | 'dealEcoCard' // Deal card to ECO hand
+  | 'nodeRepaired' // Node gets repaired
+  | 'nodeDamaged'; // Node gets damaged
 
 // 2. Interfaces para los datos de cada evento
 export interface VFXEventData {
@@ -73,6 +77,27 @@ export interface VFXEventData {
       delay: number;
     }[];
   };
+  ecoPlayCard: { // ECO plays a card with full drag, flip, zoom, consume animation
+    card: Card;
+    startPosition: { x: number; y: number };
+    centerPosition: { x: number; y: number };
+  };
+  dealEcoCard: { // Deal a card to ECO's hand
+    card: Card;
+    startPosition: { x: number; y: number };
+    endPosition: { x: number; y: number };
+    delay: number;
+  };
+  nodeRepaired: { // Node gets repaired
+    nodeId: string;
+    repairAmount: number;
+    position: { x: number; y: number };
+  };
+  nodeDamaged: { // Node gets damaged
+    nodeId: string;
+    damageAmount: number;
+    position: { x: number; y: number };
+  };
 }
 
 // 3. Evento genérico que usa un mapeo de tipos
@@ -109,6 +134,8 @@ class VFXSystem {
   discardCard = (data: VFXEventData['discardCard']) => this.dispatch('discardCard', data);
   updateHand = (data: VFXEventData['updateHand']) => this.dispatch('updateHand', data); // New helper method
   repositionHand = (data: VFXEventData['updateHand']) => this.dispatch('repositionHand', data); // Reposition existing cards
+  ecoPlayCard = (data: VFXEventData['ecoPlayCard']) => this.dispatch('ecoPlayCard', data); // ECO card play animation
+  dealEcoCard = (data: VFXEventData['dealEcoCard']) => this.dispatch('dealEcoCard', data); // Deal to ECO
   
   triggerSuitEffect(suit: Suit, startPosition: { x: number; y: number }, endPosition: { x: number; y: number }) {
     switch (suit) {

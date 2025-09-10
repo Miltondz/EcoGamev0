@@ -7,6 +7,7 @@ import { deckManager } from './DeckManager';
 import { gameLogSystem } from './GameLogSystem';
 import { hallucinationSystem } from './HallucinationSystem';
 import { scenarioRulesEngine } from './ScenarioRulesEngine';
+import { vfxSystem } from './VFXSystem';
 import type { Card } from './types';
 
 export class EcoAI {
@@ -30,11 +31,22 @@ export class EcoAI {
             return;
         }
 
-        console.log(`🃎 EcoAI: Eco roba carta: ${card.rank} de ${card.suit}`);
+        console.log(`🌃 EcoAI: Eco roba carta: ${card.rank} de ${card.suit}`);
         
         // Reveal the card to the UI
         gameStateManager.ecoRevealedCard = card;
         console.log(`👁️ EcoAI: Carta revelada al jugador`);
+
+        // Trigger advanced VFX animation for ECO playing card
+        const ecoHandPos = { x: 540, y: 80 }; // ECO hand area
+        const centerPos = { x: 640, y: 300 }; // Center of play area
+        
+        console.log(`🎭 EcoAI: Triggering advanced ECO card play animation`);
+        vfxSystem.ecoPlayCard({
+            card,
+            startPosition: ecoHandPos,
+            centerPosition: centerPos
+        });
 
         // Wait for animations, then execute the attack
         setTimeout(() => {

@@ -131,6 +131,82 @@ class CardEffectEngine {
             gameLogSystem.addMessage("Cards' total value is not high enough to repair the node (minimum 5 total value needed).", 'player', 'info');
         }
     }
+    
+    focusAction(cards: Card[]) {
+        // Focus action uses Hearts cards to recover sanity and gain temporary bonuses
+        const heartCards = cards.filter(card => card.suit === 'Hearts');
+        if (heartCards.length === 0) {
+            gameLogSystem.addMessage('Focus action requires Heart cards.', 'system', 'info');
+            return;
+        }
+        
+        if (gameStateManager.pa < 1) {
+            gameLogSystem.addMessage('Not enough action points to focus.', 'system', 'info');
+            return;
+        }
+        
+        const totalValue = heartCards.reduce((sum, card) => sum + card.value, 0);
+        const sanityRecovered = Math.floor(totalValue * 1.5); // Focus recovers 150% of card value
+        const criticalBoost = Math.floor(totalValue / 3); // Critical damage boost
+        
+        gameStateManager.recoverSanity(sanityRecovered);
+        gameStateManager.criticalDamageBoost += criticalBoost;
+        
+        const apSpent = gameStateManager.spendActionPoints(1);
+        if (apSpent) {
+            deckManager.discard(heartCards);
+            gameLogSystem.addMessage(`Used ${heartCards.length} Heart card(s) to recover ${sanityRecovered} sanity and gain +${criticalBoost} critical damage.`, 'player', 'focus');
+            
+            // Remove cards from hand
+            heartCards.forEach(card => {
+                gameStateManager.hand = gameStateManager.hand.filter(c => c.id !== card.id);
+            });
+        } else {
+            gameLogSystem.addMessage("Failed to spend action points for focus.", 'system', 'info');
+        }
+    }
+    
+    searchAction(cards: Card[], searchType: 'specific' | 'any' = 'any') {
+        // Search action uses Diamond cards to draw cards from deck
+        const diamondCards = cards.filter(card => card.suit === 'Diamonds');
+        if (diamondCards.length === 0) {
+            gameLogSystem.addMessage('Search action requires Diamond cards.', 'system', 'info');
+            return;
+        }
+        
+        if (gameStateManager.pa < 1) {
+            gameLogSystem.addMessage('Not enough action points to search.', 'system', 'info');
+            return;
+        }
+        
+        const totalValue = diamondCards.reduce((sum, card) => sum + card.value, 0);
+        let cardsToDraw = Math.floor(totalValue / 2); // Draw cards based on total value
+        
+        if (searchType === 'specific') {
+            // When searching for specific cards, draw fewer but get choice
+            cardsToDraw = Math.max(1, Math.floor(cardsToDraw / 2));
+        }
+        
+        const drawnCards = deckManager.drawCards(cardsToDraw);
+        if (drawnCards.length > 0) {
+            gameStateManager.addCardsToHand(drawnCards);
+            
+            const apSpent = gameStateManager.spendActionPoints(1);
+            if (apSpent) {
+                deckManager.discard(diamondCards);
+                gameLogSystem.addMessage(`Used ${diamondCards.length} Diamond card(s) to search and drew ${drawnCards.length} cards.`, 'player', 'search');
+                
+                // Remove cards from hand
+                diamondCards.forEach(card => {
+                    gameStateManager.hand = gameStateManager.hand.filter(c => c.id !== card.id);
+                });
+            } else {
+                gameLogSystem.addMessage("Failed to spend action points for search.", 'system', 'info');
+            }
+        } else {
+            gameLogSystem.addMessage("No cards left to draw from deck.", 'player', 'search');
+        }
+    }
 }
 
 export const cardEffectEngine = new CardEffectEngine();
