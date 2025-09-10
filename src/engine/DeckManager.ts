@@ -33,6 +33,8 @@ class DeckManager {
         this.events = []; // Will be loaded from scenario
         this.shuffle();
         this.shuffleEcoDeck();
+        
+        console.log(`🎴 DeckManager: Inicializado con ${this.deck.length} cartas para jugador y ${this.ecoDeck.length} cartas para Eco`);
     }
 
     reset() {
@@ -64,35 +66,43 @@ class DeckManager {
     shuffleEcoDeck() {
         for (let i = this.ecoDeck.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [this.ecoDeck[i], this.ecoDeck[j]] = [this.ecoDeck[j], this.deck[i]];
+            [this.ecoDeck[i], this.ecoDeck[j]] = [this.ecoDeck[j], this.ecoDeck[i]];
         }
     }
 
     drawCards(count: number = 1): Card[] {
+        console.log(`🎴 DeckManager: Robando ${count} carta(s) para jugador. Mazo actual: ${this.deck.length}`);
         const drawnCards: Card[] = [];
         for (let i = 0; i < count; i++) {
             if (this.deck.length === 0) {
+                console.log(`🔄 DeckManager: Mazo vacío, mezclando descarte (${this.discardPile.length} cartas)`);
                 this.deck = [...this.discardPile];
                 this.discardPile = [];
                 this.shuffle();
             }
             if (this.deck.length > 0) {
-                drawnCards.push(this.deck.pop()!);
+                const card = this.deck.pop()!;
+                drawnCards.push(card);
+                console.log(`✅ DeckManager: Robada carta: ${card.rank} de ${card.suit}`);
             }
         }
         return drawnCards;
     }
 
     drawFromEcoDeck(count: number = 1): Card[] {
+        console.log(`🧪 DeckManager: Eco robando ${count} carta(s). Mazo Eco actual: ${this.ecoDeck.length}`);
         const drawnCards: Card[] = [];
         for (let i = 0; i < count; i++) {
             if (this.ecoDeck.length === 0) {
+                console.log(`🔄 DeckManager: Mazo Eco vacío, mezclando descarte (${this.ecoDiscardPile.length} cartas)`);
                 this.ecoDeck = [...this.ecoDiscardPile];
                 this.ecoDiscardPile = [];
                 this.shuffleEcoDeck();
             }
             if (this.ecoDeck.length > 0) {
-                drawnCards.push(this.ecoDeck.pop()!);
+                const card = this.ecoDeck.pop()!;
+                drawnCards.push(card);
+                console.log(`✅ DeckManager: Eco robó carta: ${card.rank} de ${card.suit}`);
             }
         }
         return drawnCards;

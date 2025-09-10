@@ -34,14 +34,14 @@ export const CSSCards: React.FC = () => {
 
   if (cards.length === 0) {
     return (
-      <div className="css-cards-container">
+      <div className="css-cards-container" style={{ display: 'none' }}>
         <div className="no-cards">No cards in hand</div>
       </div>
     );
   }
 
   return (
-    <div className="css-cards-container">
+    <div className="css-cards-container" style={{ display: 'none' }}>
       <div className="cards-hand">
         {cards.map((card, index) => (
           <div

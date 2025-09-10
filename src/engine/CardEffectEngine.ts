@@ -5,16 +5,32 @@ import { gameStateManager } from './GameStateManager';
 import { deckManager } from './DeckManager';
 import { gameLogSystem } from './GameLogSystem';
 import { nodeSystem } from './NodeSystem';
+import { scenarioRulesEngine } from './ScenarioRulesEngine';
 
 class CardEffectEngine {
     applyEffect(card: Card) {
-        if (gameStateManager.pa < 1) {
-            gameLogSystem.addMessage("No action points left.", 'system', 'info');
+        // Verificar efectos de alucinaciones
+        if (card.suit === 'Spades' && gameStateManager.playerStatusEffects.includes('cannotPlaySpades')) {
+            gameLogSystem.addMessage("No puedes jugar Espadas este turno debido a un efecto de alucinación.", 'player', 'info');
             return;
         }
 
-        if (card.suit === 'Spades' && gameStateManager.playerStatusEffects.includes('cannotPlaySpades')) {
-            gameLogSystem.addMessage("Cannot play Spades this turn due to a hallucination effect.", 'player', 'info');
+        // Intentar usar el sistema de reglas dinámicas primero
+        if (scenarioRulesEngine.hasRules) {
+            const applied = scenarioRulesEngine.applyPlayerCardEffect(card);
+            if (applied) {
+                // Descartar la carta jugada
+                deckManager.discard([card]);
+                console.log(`🎲 CardEffectEngine: Efecto aplicado usando reglas dinámicas para ${card.rank} ${card.suit}`);
+                return;
+            }
+        }
+
+        // Fallback al sistema hardcoded original
+        console.log(`🎲 CardEffectEngine: Usando sistema hardcoded para ${card.rank} ${card.suit}`);
+        
+        if (gameStateManager.pa < 1) {
+            gameLogSystem.addMessage("No action points left.", 'system', 'info');
             return;
         }
         

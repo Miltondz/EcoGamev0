@@ -22,70 +22,28 @@ interface PixiCard {
 export const VFX: React.FC = () => {
   const [pixiCards, setPixiCards] = useState<Record<string, PixiCard>>({});
   const [pixiApp, setPixiApp] = useState<PIXI.Application | null>(null);
+  const [debugMode, setDebugMode] = useState(false);
 
   // Callback to get the PIXI app instance when it's created
   const onAppInit = (app: PIXI.Application) => {
     console.log('🎨 VFX: PIXI App initialized', app);
+    
+    // CRITICAL: Make canvas completely transparent
+    app.renderer.background.alpha = 0;
+    
+    // Force canvas transparency
+    if (app.canvas) {
+      app.canvas.style.backgroundColor = 'transparent';
+    }
+    
+    // Clean any existing sprites from previous sessions
+    const childrenBeforeClear = app.stage.children.length;
+    app.stage.removeChildren();
+    console.log(`🎨 VFX: Stage cleared - removed ${childrenBeforeClear} existing children`);
+    
     setPixiApp(app);
-    
-    // MANUAL TEST: Load a single card immediately
-    console.log('🗠️ VFX: MANUAL TEST - Loading test card');
-    
-    // Create a bright test rectangle first
-    const testGraphics = new PIXI.Graphics()
-      .rect(0, 0, 120, 160)
-      .fill(0x00ff00) // Bright green
-      .rect(10, 10, 100, 140)
-      .fill(0x000000) // Black center
-      .rect(20, 20, 80, 20)
-      .fill(0xffffff); // White text area
-    
-    // Add text
-    const testText = new PIXI.Text('TEST', { 
-      fontSize: 16, 
-      fill: 0x000000, 
-      fontWeight: 'bold' 
-    });
-    testText.x = 30;
-    testText.y = 25;
-    testGraphics.addChild(testText);
-    
-    const testTexture = app.renderer.generateTexture(testGraphics);
-    const testSprite = new PIXI.Sprite(testTexture);
-    testSprite.x = 100;
-    testSprite.y = 700; // Bottom of screen
-    testSprite.anchor.set(0.5);
-    
-    app.stage.addChild(testSprite);
-    console.log('🗠️ VFX: Green test sprite added at (100, 700)');
-    
-    // Now try to load a real card image
-    const testImagePath = '/images/decks/default/1-espadas.png';
-    console.log('🗠️ VFX: Loading real card image:', testImagePath);
-    
-    PIXI.Assets.load(testImagePath)
-      .then((realTexture) => {
-        console.log('🗠️ VFX: Real card loaded successfully!', realTexture);
-        const realSprite = new PIXI.Sprite(realTexture);
-        realSprite.x = 250;
-        realSprite.y = 700;
-        realSprite.anchor.set(0.5);
-        realSprite.scale.set(0.6); // Scale down a bit
-        
-        app.stage.addChild(realSprite);
-        console.log('🗠️ VFX: Real card sprite added at (250, 700)', 'size:', realTexture.width, 'x', realTexture.height);
-        
-        // Also try to update the test sprite with the real texture
-        setTimeout(() => {
-          testSprite.texture = realTexture;
-          testSprite.scale.set(0.6);
-          console.log('🗠️ VFX: Green sprite updated with real texture');
-        }, 2000);
-        
-      })
-      .catch((error) => {
-        console.error('❌ VFX: Failed to load test card:', error);
-      });
+    console.log('🎨 VFX: Canvas setup complete - transparent background');
+    console.log('🎨 VFX: Ready for sprite lifecycle tracking');
   };
 
   // Effect to handle card removal from hand (discard animation)
@@ -114,11 +72,62 @@ export const VFX: React.FC = () => {
     }
   }, [gameStateManager.hand, pixiCards, pixiApp]);
 
+  // Handle debug mode changes
+  useEffect(() => {
+    if (!pixiApp) return;
+    
+    // Clean up existing debug sprites
+    const debugSprites = pixiApp.stage.children.filter(child => 
+      child.name && child.name.startsWith('debug')
+    );
+    debugSprites.forEach(sprite => {
+      pixiApp.stage.removeChild(sprite);
+    });
+    
+    // Add debug sprites if debug mode is on
+    if (debugMode) {
+      console.log('🔴 VFX: DEBUG MODE ON - Creating debug sprites');
+      
+      const basicSprites = [
+        { x: 50, y: 50, color: 0xff0000, label: 'TOP-LEFT' },
+        { x: 200, y: 150, color: 0x00ff00, label: 'NEAR-TOP' },
+        { x: 400, y: 250, color: 0x0000ff, label: 'CENTER' }
+      ];
+      
+      basicSprites.forEach((basic) => {
+        const circle = new PIXI.Graphics()
+          .circle(0, 0, 25)
+          .fill(basic.color);
+        
+        circle.x = basic.x;
+        circle.y = basic.y;
+        circle.name = `debug-${basic.label}`;
+        pixiApp.stage.addChild(circle);
+        console.log(`🔴 VFX: Debug ${basic.label} at (${basic.x}, ${basic.y})`);
+      });
+    } else {
+      console.log('🔴 VFX: DEBUG MODE OFF - Debug sprites removed');
+    }
+  }, [debugMode, pixiApp]);
+
+  // Handle window resize to adjust canvas size
+  useEffect(() => {
+    if (!pixiApp) return;
+    
+    const handleResize = () => {
+      console.log('🎨 VFX: Window resized, updating canvas size');
+      pixiApp.renderer.resize(window.innerWidth, window.innerHeight);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [pixiApp]);
+
   useEffect(() => {
     if (!pixiApp) return;
 
     const handleVFXEvent = (event: VFXEvent<VFXEventType>) => {
-      console.log('🎨 VFX: Received event', event.type, event.data);
+      console.log(`🎨 VFX: Received event ${event.type} - Stage has ${pixiApp?.stage?.children.length || 0} children, tracking ${Object.keys(pixiCards).length} cards`);
       const app = pixiApp;
       if (!app?.stage) {
         console.warn('⚠️ VFX: No PIXI app or stage available');
@@ -127,8 +136,7 @@ export const VFX: React.FC = () => {
 
       switch (event.type) {
         case 'dealCard': {
-          // This case will now primarily handle the initial animation of a card being dealt
-          // The 'updateHand' case will manage its ongoing position in the hand.
+          // DEPRECATED: dealCard now only logs, all sprite creation and animation handled by updateHand
           const dealData = event.data as {
             card: CardType;
             startPosition: { x: number; y: number };
@@ -136,164 +144,36 @@ export const VFX: React.FC = () => {
             delay: number;
           };
 
-          const { card, startPosition, endPosition, delay } = dealData;
-
-          // If the card already exists as a PixiSprite, just update its position
-          if (pixiCards[card.id]) {
-            const sprite = pixiCards[card.id].sprite;
-            gsap.to(sprite, {
-              x: endPosition.x,
-              y: endPosition.y,
-              rotation: 0,
-              duration: 0.8,
-              ease: 'back.out(1.7)',
-              delay: delay,
-            });
-            // Update original position in pixiCards state
-            setPixiCards(prev => ({
-              ...prev,
-              [card.id]: { ...prev[card.id], originalPosition: { x: endPosition.x, y: endPosition.y } }
-            }));
-            break;
-          }
-
-          // Create fallback texture first
-          const createFallbackTexture = () => {
-            const graphics = new PIXI.Graphics()
-              .rect(0, 0, 120, 160)
-              .fill(0x2a2a3a)
-              .rect(5, 5, 110, 150)
-              .stroke({ width: 2, color: 0x4a90e2 })
-              .rect(15, 20, 90, 20)
-              .fill(0xffffff);
-            
-            // Add card text
-            const text = new PIXI.Text(`${card.rank}${card.suit[0]}`, { 
-              fontSize: 16, 
-              fill: 0x000000, 
-              fontWeight: 'bold' 
-            });
-            text.x = 20;
-            text.y = 25;
-            graphics.addChild(text);
-            
-            return app.renderer.generateTexture(graphics);
-          };
+          const { card } = dealData;
+          console.log('🎴 VFX: dealCard event received for', card.rank, card.suit, '- updateHand will handle creation and animation');
           
-          // Start with fallback texture
-          const fallbackTexture = createFallbackTexture();
-          const texture = fallbackTexture;
-          
-          // Try to load real image asynchronously
-          PIXI.Assets.load(`/images/decks/default/${card.imageFile}`)
-            .then((loadedTexture) => {
-              sprite.texture = loadedTexture;
-            })
-            .catch((_error) => {
-              console.log(`Could not load ${card.imageFile}, using fallback`);
-              // Keep the fallback texture
-            });
-          const sprite = new PIXI.Sprite(texture);
-          sprite.anchor.set(0.5);
-          sprite.x = startPosition.x;
-          sprite.y = startPosition.y;
-          sprite.rotation = -1;
-          sprite.scale.set(0.8); // Smaller scale for dealt cards initially
-
-          // Make card interactive
-          sprite.interactive = true;
-
-          let dragging = false;
-          let dragData: PIXI.FederatedPointerEvent | null = null;
-          let originalCardPosition = { x: startPosition.x, y: startPosition.y }; // Store original position for drag return
-
-          sprite.on('pointerover', () => {
-            if (!dragging) {
-              gsap.to(sprite.scale, { x: 0.9, y: 0.9, duration: 0.2 });
-              gsap.to(sprite, { y: sprite.y - 30, duration: 0.2 });
-              sprite.filters = [new GlowFilter({ distance: 15, outerStrength: 1, color: 0xffffff })];
-            }
-          });
-
-          sprite.on('pointerout', () => {
-            if (!dragging) {
-              gsap.to(sprite.scale, { x: 0.8, y: 0.8, duration: 0.2 });
-              gsap.to(sprite, { y: originalCardPosition.y, duration: 0.2 });
-              sprite.filters = [];
-            }
-          });
-
-          sprite.on('pointerdown', (e: PIXI.FederatedPointerEvent) => {
-            dragData = e.data;
-            dragging = true;
-            originalCardPosition = { x: sprite.x, y: sprite.y }; // Save current position as original
-            gsap.to(sprite.scale, { x: 1, y: 1, duration: 0.2 });
-            sprite.filters = [new GlowFilter({ distance: 15, outerStrength: 2, color: 0x00ffcc })];
-            app.stage.addChild(sprite); // Bring to front
-          });
-
-          sprite.on('pointerup', () => {
-            dragging = false;
-            dragData = null;
-            sprite.filters = [];
-
-            const playAreaRect = uiPositionManager.get('playArea');
-            if (playAreaRect && playAreaRect.height !== undefined && sprite.y < playAreaRect.y + playAreaRect.height / 2) {
-              // Card played
-              turnManager.playCard(card); // This will eventually remove the card from hand
-            } else {
-              // Return to hand
-              gsap.to(sprite, {
-                x: originalCardPosition.x,
-                y: originalCardPosition.y,
-                duration: 0.5,
-                ease: "elastic.out(1, 0.4)"
-              });
-              gsap.to(sprite.scale, { x: 0.8, y: 0.8, duration: 0.2 });
-            }
-          });
-
-          sprite.on('pointermove', () => {
-            if (dragging && dragData) {
-              const parent = sprite.parent || app.stage;
-              const newPosition = dragData.getLocalPosition(parent);
-              sprite.x = newPosition.x;
-              sprite.y = newPosition.y;
-            }
-          });
-
-          app.stage.addChild(sprite);
-
-          gsap.to(sprite, {
-            x: endPosition.x,
-            y: endPosition.y,
-            rotation: 0,
-            duration: 0.8,
-            ease: 'back.out(1.7)',
-            delay: delay,
-            onComplete: (() => {
-              const newPixiCard = { sprite, card, originalPosition: { x: endPosition.x, y: endPosition.y } };
-              setPixiCards(prev => ({ ...prev, [card.id]: newPixiCard }));
-            }) as () => void
-          });
+          // All sprite creation and animation is now handled by updateHand event
+          // This event is now essentially a no-op to avoid race conditions
           break;
         }
 
         case 'updateHand': {
-          console.log('🎨 VFX: Processing updateHand event');
+          console.log('🌨 VFX: Processing updateHand event - CREATE NEW OR UPDATE EXISTING');
           const updateHandData = event.data as VFXEventData['updateHand'];
           const newHandCards = updateHandData.cards;
-          console.log('🎨 VFX: updateHand - received', newHandCards.length, 'cards:', newHandCards.map(c => `${c.card.rank}${c.card.suit[0]} at (${c.position.x}, ${c.position.y})`));
+          console.log('🌨 VFX: updateHand - received', newHandCards.length, 'cards:', newHandCards.map(c => `${c.card.rank}${c.card.suit[0]} (ID: ${c.card.id}) at (${c.position.x}, ${c.position.y})`));
+          console.log('🌨 VFX: Current stage children count BEFORE:', app.stage.children.length);
+          console.log('🎃 VFX: Current game state hand length:', gameStateManager.hand.length);
+          console.log('🎃 VFX: Actual game state hand IDs:', gameStateManager.hand.map(c => c.id));
 
           const currentPixiCardIds = new Set(Object.keys(pixiCards));
           const newHandCardIds = new Set(newHandCards.map((c: { card: CardType; }) => c.card.id));
           console.log('🎨 VFX: Current pixiCards keys:', Array.from(currentPixiCardIds));
           console.log('🎨 VFX: New hand card IDs:', Array.from(newHandCardIds));
+          
+          // Build new pixiCards state synchronously
+          let newPixiCards = { ...pixiCards };
 
           // Remove cards no longer in hand
           for (const cardId of currentPixiCardIds) {
             if (!newHandCardIds.has(cardId)) {
               const cardToDiscard = pixiCards[cardId];
+              console.log('🗑️ VFX: Removing sprite for card', cardId, 'no longer in hand');
               if (cardToDiscard && app.stage) {
                 gsap.to(cardToDiscard.sprite, {
                   alpha: 0,
@@ -303,14 +183,12 @@ export const VFX: React.FC = () => {
                     const currentStage = app.stage;
                     if (currentStage) {
                       currentStage.removeChild(cardToDiscard.sprite);
+                      console.log('🗑️ VFX: Sprite removed from stage for card', cardId);
                     }
-                    setPixiCards(prev => {
-                      const newCards = { ...prev };
-                      delete newCards[cardId];
-                      return newCards;
-                    });
                   }
                 });
+                // Remove from our synchronous state immediately
+                delete newPixiCards[cardId];
               }
             }
           }
@@ -318,69 +196,66 @@ export const VFX: React.FC = () => {
           // Add or update cards in hand
           newHandCards.forEach((handCardData: { card: CardType; position: { x: number; y: number; }; rotation: number; delay: number; }) => {
             const { card, position, rotation, delay } = handCardData;
-            let sprite = pixiCards[card.id]?.sprite;
+            const existingPixiCard = pixiCards[card.id];
 
-            if (!sprite) {
-              console.log('🎨 VFX: Creating new sprite for card', card.rank, card.suit, 'at position', position);
+            if (!existingPixiCard) {
+              console.log('🎨 VFX: Creating NEW sprite for card', card.rank, card.suit, 'at position', position);
               
-              // Try to load real texture first
-              const imagePath = `/images/decks/default/${card.imageFile}`;
-              console.log('🎨 VFX: Attempting to load texture FIRST:', imagePath);
+              // Create fallback texture first (will be replaced with real image)
+              console.log('🌨 VFX: Creating fallback texture for card', card.rank, card.suit);
               
-              // Load texture synchronously using PixiJS cache
-              let texture;
-              try {
-                // Check if texture is already in cache
-                if (PIXI.Assets.cache.has(imagePath)) {
-                  texture = PIXI.Assets.cache.get(imagePath);
-                  console.log('🎨 VFX: Using cached texture:', imagePath);
-                } else {
-                  // Load texture and add to cache
-                  console.log('🎨 VFX: Loading texture for first time:', imagePath);
-                  // Use fallback for now and load async  
-                  // Create a more visible temporary texture for debugging
-                  const tempGraphics = new PIXI.Graphics()
-                    .rect(0, 0, 120, 160)
-                    .fill(0xff0000) // Red background for visibility
-                    .rect(10, 10, 100, 140) 
-                    .fill(0xffffff); // White center
-                  texture = app.renderer.generateTexture(tempGraphics);
-                  
-                  // Load async and update
-                  PIXI.Assets.load(imagePath)
-                    .then((loadedTexture) => {
-                      console.log('🎨 VFX: Async texture loaded:', imagePath);
-                      if (sprite) {
-                        sprite.texture = loadedTexture;
-                        // Force sprite to update its bounds and re-render
-                        sprite.anchor.set(0.5); // Re-set anchor to trigger update
-                        console.log('🎨 VFX: Texture applied to sprite for', card.rank, card.suit, 'size:', loadedTexture.width, 'x', loadedTexture.height);
-                      }
-                    })
-                    .catch((error) => {
-                      console.error(`❌ VFX: Could not load ${card.imageFile}:`, error);
-                    });
-                }
-              } catch (error) {
-                console.error('❌ VFX: Error with texture loading:', error);
-                texture = PIXI.Texture.WHITE;
-              }
+              const createFallbackTexture = () => {
+                const graphics = new PIXI.Graphics()
+                  .rect(0, 0, 120, 160)
+                  .fill(0x2a2a3a)
+                  .rect(5, 5, 110, 150)
+                  .stroke({ width: 2, color: 0x4a90e2 })
+                  .rect(15, 20, 90, 20)
+                  .fill(0xffffff);
+                
+                // Add card text
+                const text = new PIXI.Text(`${card.rank}${card.suit[0]}`, { 
+                  fontSize: 16, 
+                  fill: 0x000000, 
+                  fontWeight: 'bold' 
+                });
+                text.x = 20;
+                text.y = 25;
+                graphics.addChild(text);
+                
+                return app.renderer.generateTexture(graphics);
+              };
               
-              sprite = new PIXI.Sprite(texture);
+              // Start with fallback texture
+              const texture = createFallbackTexture();
+              console.log('🌨 VFX: Fallback texture created successfully');
+              
+              const sprite = new PIXI.Sprite(texture);
+              console.log('🎨 VFX: Sprite created, setting anchor');
               sprite.anchor.set(0.5);
+              console.log('🎨 VFX: Anchor set, positioning sprite');
+              
+              // CRITICAL: Set position IMMEDIATELY to avoid flash at (0,0)
               sprite.x = position.x;
-              sprite.y = position.y; // Use correct position directly
+              sprite.y = position.y;
+              console.log('🎨 VFX: Position set to:', sprite.x, sprite.y);
+              console.log('🎨 VFX: Position should be:', position.x, position.y);
+              
               sprite.rotation = rotation;
               sprite.scale.set(0.8);
               sprite.interactive = true;
-              console.log('🎨 VFX: Sprite positioned at', sprite.x, sprite.y, 'should be visible');
+              console.log('🎨 VFX: Final sprite position before adding to stage:', sprite.x, sprite.y);
 
               let dragging = false;
               let dragData: PIXI.FederatedPointerEvent | null = null;
-              let originalCardPosition = { x: position.x, y: position.y };
+              
+              // Store original position directly on the sprite to avoid closure/state issues
+              (sprite as any).originalPosition = { x: position.x, y: position.y };
+              console.log('🌨 VFX: Original card position set to:', (sprite as any).originalPosition);
 
               sprite.on('pointerover', () => {
                 if (!dragging) {
+                  console.log('🎭 VFX: Hover ON - card', card.rank, card.suit, 'moving from y:', sprite.y, 'to y:', sprite.y - 30);
                   gsap.to(sprite.scale, { x: 0.9, y: 0.9, duration: 0.2 });
                   gsap.to(sprite, { y: sprite.y - 30, duration: 0.2 });
                   sprite.filters = [new GlowFilter({ distance: 15, outerStrength: 1, color: 0xffffff })];
@@ -390,7 +265,10 @@ export const VFX: React.FC = () => {
               sprite.on('pointerout', () => {
                 if (!dragging) {
                   gsap.to(sprite.scale, { x: 0.8, y: 0.8, duration: 0.2 });
-                  gsap.to(sprite, { y: originalCardPosition.y, duration: 0.2 });
+                  // Use the originalPosition stored directly on the sprite
+                  const targetY = (sprite as any).originalPosition.y;
+                  console.log('🎭 VFX: Hover OFF - card', card.rank, card.suit, 'returning from y:', sprite.y, 'to y:', targetY);
+                  gsap.to(sprite, { y: targetY, duration: 0.2 });
                   sprite.filters = [];
                 }
               });
@@ -398,10 +276,14 @@ export const VFX: React.FC = () => {
               sprite.on('pointerdown', (e: PIXI.FederatedPointerEvent) => {
                 dragData = e.data;
                 dragging = true;
-                originalCardPosition = { x: sprite.x, y: sprite.y };
+                // Update original position when drag starts
+                (sprite as any).originalPosition = { x: sprite.x, y: sprite.y };
                 gsap.to(sprite.scale, { x: 1, y: 1, duration: 0.2 });
                 sprite.filters = [new GlowFilter({ distance: 15, outerStrength: 2, color: 0x00ffcc })];
-                app.stage.addChild(sprite); // Bring to front
+                // Move to front without re-adding
+                if (sprite.parent) {
+                  sprite.parent.setChildIndex(sprite, sprite.parent.children.length - 1);
+                }
               });
 
               sprite.on('pointerup', () => {
@@ -413,9 +295,11 @@ export const VFX: React.FC = () => {
                 if (playAreaRect && playAreaRect.height !== undefined && sprite.y < playAreaRect.y + playAreaRect.height / 2) {
                   turnManager.playCard(card);
                 } else {
+                  // Return to stored original position
+                  const origPos = (sprite as any).originalPosition;
                   gsap.to(sprite, {
-                    x: originalCardPosition.x,
-                    y: originalCardPosition.y,
+                    x: origPos.x,
+                    y: origPos.y,
                     duration: 0.5,
                     ease: "elastic.out(1, 0.4)"
                   });
@@ -432,22 +316,60 @@ export const VFX: React.FC = () => {
                 }
               });
 
-              console.log('🎨 VFX: Adding sprite to stage for card', card.rank, card.suit, 'sprite position:', sprite.x, sprite.y);
+              console.log('🌨 VFX: Adding sprite to stage for card', card.rank, card.suit, 'at target position:', position.x, position.y);
+              
+              // Start sprite from deck position for deal animation
+              const deckPosition = { x: window.innerWidth / 2, y: 0 };
+              sprite.x = deckPosition.x;
+              sprite.y = deckPosition.y;
+              sprite.rotation = -0.3;
+              sprite.alpha = 1;
+              sprite.scale.set(0.6); // Start smaller
+              
+              const childrenBefore = app.stage.children.length;
               app.stage.addChild(sprite);
-              setPixiCards(prev => ({ ...prev, [card.id]: { sprite, card, originalPosition: { x: position.x, y: position.y } } }));
-              console.log('🎨 VFX: Sprite added to stage, total children:', app.stage.children.length);
+              const childrenAfter = app.stage.children.length;
+              console.log(`🌨 VFX: ✅ Sprite added! Stage children: ${childrenBefore} -> ${childrenAfter}`);
+              
+              // Add to our synchronous state immediately
+              newPixiCards[card.id] = { sprite, card, originalPosition: { x: position.x, y: position.y } };
 
-              // Simple fade in animation
-              sprite.alpha = 0;
+              // Animate to final position with deal effect
               gsap.to(sprite, {
-                alpha: 1,
-                duration: 0.3,
-                delay: delay,
-                ease: 'power2.out',
+                x: position.x,
+                y: position.y,
+                rotation: rotation,
+                duration: 0.6,
+                ease: 'back.out(1.2)',
+                delay: delay
+              });
+              
+              gsap.to(sprite.scale, {
+                x: 0.8,
+                y: 0.8,
+                duration: 0.6,
+                ease: 'back.out(1.2)',
+                delay: delay
               });
 
+              // Load real texture asynchronously
+              PIXI.Assets.load(`/images/decks/default/${card.imageFile}`)
+                .then((loadedTexture) => {
+                  console.log('🇺 VFX: Real texture loaded for', card.rank, card.suit);
+                  sprite.texture = loadedTexture;
+                })
+                .catch((_error) => {
+                  console.log('⚠️ VFX: Could not load real texture for', card.rank, card.suit, '- keeping fallback');
+                  // Keep the fallback texture
+                });
+
             } else {
-              console.log('🎨 VFX: Updating existing sprite for card', card.rank, card.suit, 'from', sprite.x, sprite.y, 'to', position.x, position.y);
+              const sprite = existingPixiCard.sprite;
+              console.log('🌨 VFX: Updating EXISTING sprite for card', card.rank, card.suit, 'from', sprite.x, sprite.y, 'to', position.x, position.y);
+              
+              // Update the sprite's stored original position
+              (sprite as any).originalPosition = { x: position.x, y: position.y };
+              
               // Update existing sprite's position
               gsap.to(sprite, {
                 x: position.x,
@@ -457,11 +379,57 @@ export const VFX: React.FC = () => {
                 delay: delay,
                 ease: 'power1.out',
               });
+              
+              // Update in our synchronous state
+              newPixiCards[card.id] = { ...existingPixiCard, originalPosition: { x: position.x, y: position.y } };
+            }
+          });
+          
+          // Apply all pixiCards state changes in a single batch update
+          setPixiCards(newPixiCards);
+          
+          // Summary logging
+          console.log(`🌨 VFX: 🆙 updateHand COMPLETE - Stage has ${app.stage.children.length} total children`);
+          console.log(`🌨 VFX: 🃏 Will track ${Object.keys(newPixiCards).length} cards in pixiCards state`);
+          break;
+        }
+        
+        case 'repositionHand': {
+          console.log('🎨 VFX: Processing repositionHand event - ONLY MOVING EXISTING SPRITES');
+          const repositionHandData = event.data as VFXEventData['repositionHand'];
+          const repositionCards = repositionHandData.cards;
+          console.log('🎨 VFX: repositionHand - received', repositionCards.length, 'cards for repositioning');
+          console.log('🎨 VFX: Current stage children count:', app.stage.children.length);
+
+          // Only update positions of existing sprites, don't create new ones
+          repositionCards.forEach((handCardData: { card: CardType; position: { x: number; y: number; }; rotation: number; delay: number; }) => {
+            const { card, position, rotation, delay } = handCardData;
+            const existingPixiCard = pixiCards[card.id];
+            
+            if (existingPixiCard) {
+              const sprite = existingPixiCard.sprite;
+              console.log('🌨 VFX: Repositioning', card.rank, card.suit, 'to', position.x, position.y);
+              
+              // Update the sprite's stored original position
+              (sprite as any).originalPosition = { x: position.x, y: position.y };
+              
+              // Animate to new position
+              gsap.to(sprite, {
+                x: position.x,
+                y: position.y,
+                rotation: rotation,
+                duration: 0.3,
+                delay: delay,
+                ease: 'power1.out',
+              });
+              
               // Update original position in pixiCards state
               setPixiCards(prev => ({
                 ...prev,
                 [card.id]: { ...prev[card.id], originalPosition: { x: position.x, y: position.y } }
               }));
+            } else {
+              console.warn('⚠️ VFX: Cannot reposition card', card.rank, card.suit, '- sprite does not exist');
             }
           });
           break;
@@ -598,13 +566,102 @@ export const VFX: React.FC = () => {
     return unsubscribe;
   }, [pixiCards, pixiApp]);
 
+  if (debugMode) {
+    return (
+      <div className="debug-vfx" style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: 'rgba(0,0,0,0.1)',
+        border: '3px solid red',
+        zIndex: 9999,
+        pointerEvents: 'none'
+      }}>
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          left: '10px',
+          color: 'white',
+          fontSize: '14px',
+          backgroundColor: 'rgba(0,0,0,0.8)',
+          padding: '5px'
+        }}>
+          DEBUG MODE - PixiJS Canvas Area
+        </div>
+        <Application 
+          width={window.innerWidth} 
+          height={window.innerHeight}
+          backgroundAlpha={0}
+          antialias={false}
+          clearBeforeRender={false}
+          onInit={onAppInit}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="vfx-layer absolute inset-0 z-20">
-      <Application 
-        width={window.innerWidth} 
-        height={window.innerHeight}
-        onInit={onAppInit}
-      />
-    </div>
+    <>
+      <div className="vfx-layer" style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 20,
+        pointerEvents: 'auto'
+      }}>
+        <Application 
+          width={window.innerWidth} 
+          height={window.innerHeight}
+          backgroundAlpha={0}
+          antialias={false}
+          clearBeforeRender={false}
+          onInit={onAppInit}
+        />
+      </div>
+      
+      {/* Debug toggle button */}
+      <div style={{
+        position: 'fixed',
+        top: '10px',
+        right: '10px',
+        zIndex: 9999,
+        pointerEvents: 'auto'
+      }}>
+        <button
+          onClick={() => setDebugMode(!debugMode)}
+          style={{
+            width: '24px',
+            height: '24px',
+            borderRadius: '50%',
+            border: 'none',
+            backgroundColor: debugMode ? '#ff4444' : 'rgba(255,255,255,0.1)',
+            color: debugMode ? 'white' : '#888',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s ease',
+            backdropFilter: 'blur(4px)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = debugMode ? '#ff6666' : 'rgba(255,255,255,0.2)';
+            e.currentTarget.style.transform = 'scale(1.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = debugMode ? '#ff4444' : 'rgba(255,255,255,0.1)';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+          title={debugMode ? 'Desactivar modo debug' : 'Activar modo debug VFX'}
+        >
+          🔧
+        </button>
+      </div>
+    </>
   );
 };

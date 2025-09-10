@@ -13,7 +13,8 @@ export type VFXEventType =
   | 'cardDefend'
   | 'cardResearch'
   | 'cardResource'
-  | 'updateHand'; // New event type
+  | 'updateHand' // New event type
+  | 'repositionHand'; // Reposition existing cards
 
 // 2. Interfaces para los datos de cada evento
 export interface VFXEventData {
@@ -64,6 +65,14 @@ export interface VFXEventData {
       delay: number;
     }[];
   };
+  repositionHand: { // Reposition existing cards without creating new ones
+    cards: {
+      card: Card;
+      position: { x: number; y: number };
+      rotation: number;
+      delay: number;
+    }[];
+  };
 }
 
 // 3. Evento genérico que usa un mapeo de tipos
@@ -99,6 +108,7 @@ class VFXSystem {
   selectCard = (data: VFXEventData['selectCard']) => this.dispatch('selectCard', data);
   discardCard = (data: VFXEventData['discardCard']) => this.dispatch('discardCard', data);
   updateHand = (data: VFXEventData['updateHand']) => this.dispatch('updateHand', data); // New helper method
+  repositionHand = (data: VFXEventData['updateHand']) => this.dispatch('repositionHand', data); // Reposition existing cards
   
   triggerSuitEffect(suit: Suit, startPosition: { x: number; y: number }, endPosition: { x: number; y: number }) {
     switch (suit) {

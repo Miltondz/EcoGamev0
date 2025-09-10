@@ -64,7 +64,8 @@ export const TestCardImages: React.FC = () => {
       padding: '20px',
       borderRadius: '8px',
       zIndex: 9999,
-      maxWidth: '300px'
+      maxWidth: '300px',
+      display: 'none' // Temporarily hidden
     }}>
       <h3 style={{ margin: '0 0 10px 0', fontSize: '14px' }}>
         🎴 Test de Carga de Imágenes

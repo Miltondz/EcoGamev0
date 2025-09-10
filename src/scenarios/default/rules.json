@@ -1,0 +1,71 @@
+{
+  "playerActions": [
+    {
+      "id": "rule_ace_of_spades",
+      "comment": "El As de Picas es un ataque devastador que ignora defensas y causa sangrado, pero te daña la cordura.",
+      "condition": { "id": "AS" },
+      "cost": 1,
+      "effects": [
+        { "type": "DEAL_DAMAGE", "target": "ECO", "targetStat": "HP", "value": 15, "properties": ["PIERCING"] },
+        { "type": "APPLY_STATUS", "target": "ECO", "status": "BLEEDING", "duration": 3 },
+        { "type": "DEAL_DAMAGE", "target": "PLAYER", "targetStat": "COR", "value": 3 }
+      ]
+    },
+    {
+      "id": "rule_king_of_hearts",
+      "comment": "El Rey de Corazones es una curación masiva de COR, pero requiere descartar otra carta.",
+      "condition": { "id": "KH" },
+      "cost": 1,
+      "effects": [
+        { "type": "HEAL_STAT", "target": "PLAYER", "targetStat": "COR", "value": 15 },
+        { "type": "DISCARD_CARDS", "target": "PLAYER", "value": 1, "targetSource": "CHOICE" }
+      ]
+    },
+
+    {
+      "id": "rule_default_spades",
+      "condition": { "suit": "spades" },
+      "cost": 1,
+      "effects": [
+        { "type": "DEAL_DAMAGE", "target": "ECO", "targetStat": "HP", "value": "CARD_VALUE" }
+      ]
+    },
+    {
+      "id": "rule_default_hearts",
+      "condition": { "suit": "hearts" },
+      "cost": 1,
+      "effects": [
+        { "type": "HEAL_STAT", "target": "PLAYER", "targetStat": "COR", "value": "CARD_VALUE" }
+      ]
+    },
+    {
+      "id": "rule_default_diamonds",
+      "condition": { "suit": "diamonds" },
+      "cost": 1,
+      "effects": [
+        { "type": "DRAW_CARDS", "target": "PLAYER", "value": 2 }
+      ]
+    },
+    {
+      "id": "rule_default_clubs",
+      "condition": { "suit": "clubs" },
+      "cost": 1,
+      "effects": [
+        { "type": "APPLY_STATUS", "target": "ECO", "status": "EXPOSED", "duration": -1 },
+        { "type": "REPAIR_NODE", "target": "CHOICE", "value": "floor(CARD_VALUE / 7)" }
+      ]
+    }
+  ],
+  "ecoAttacks": [
+     {
+      "comment": "Si el Eco roba un As, el ataque es imparable y daña ambas estadísticas.",
+      "condition": { "rank": "A" },
+      "effects": [
+        { "type": "DEAL_DAMAGE", "target": "PLAYER", "targetStat": "PV", "value": "floor(CARD_VALUE / 2)" },
+        { "type": "DEAL_DAMAGE", "target": "PLAYER", "targetStat": "COR", "value": "floor(CARD_VALUE / 2)" }
+      ]
+    },
+    { "condition": { "color": "black" }, "effects": [{ "type": "DEAL_DAMAGE", "target": "PLAYER", "targetStat": "PV", "value": "CARD_VALUE" }] },
+    { "condition": { "color": "red" }, "effects": [{ "type": "DEAL_DAMAGE", "target": "PLAYER", "targetStat": "COR", "value": "CARD_VALUE" }] }
+  ]
+}

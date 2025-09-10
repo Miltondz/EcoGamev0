@@ -14,6 +14,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
     }, []);
 
     const handleNewGame = () => {
+        console.log('🎮 MainMenu: Iniciando nuevo juego');
         turnManager.startGame();
         onStartGame();
     };

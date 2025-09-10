@@ -7,10 +7,12 @@ import { gsap } from 'gsap';
 interface StyledButtonProps {
   children: React.ReactNode;
   onClick: () => void;
-  variant?: 'primary' | 'secondary' | 'danger' | 'repair' | 'focus';
+  variant?: 'primary' | 'secondary' | 'danger' | 'repair' | 'focus' | 'urgent';
   disabled?: boolean;
   size?: 'sm' | 'md' | 'lg';
   icon?: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 export const StyledButton: React.FC<StyledButtonProps> = ({
@@ -19,7 +21,9 @@ export const StyledButton: React.FC<StyledButtonProps> = ({
   variant = 'primary',
   disabled = false,
   size = 'md',
-  icon
+  icon,
+  className = '',
+  style = {}
 }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
@@ -138,6 +142,15 @@ export const StyledButton: React.FC<StyledButtonProps> = ({
           glow: 'shadow-blue-500/50',
           glowColor: 'bg-blue-400'
         };
+      case 'urgent':
+        return {
+          bg: 'bg-gradient-to-r from-red-700 to-red-800',
+          bgHover: 'hover:from-red-600 hover:to-red-700',
+          border: 'border-red-400/50',
+          text: 'text-red-100',
+          glow: 'shadow-red-500/50',
+          glowColor: 'bg-red-400'
+        };
       default:
         return {
           bg: 'bg-gradient-to-r from-amber-600 to-amber-700',
@@ -185,6 +198,7 @@ export const StyledButton: React.FC<StyledButtonProps> = ({
         onMouseUp={handleMouseUp}
         disabled={disabled}
         whileTap={{ scale: 0.95 }}
+        style={style}
         className={`
           relative z-10 ${sizeStyles} rounded-lg font-semibold
           ${styles.bg} ${styles.bgHover} ${styles.text} ${styles.border}
@@ -193,6 +207,8 @@ export const StyledButton: React.FC<StyledButtonProps> = ({
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
           ${disabled ? '' : 'hover:shadow-xl active:shadow-md'}
           flex items-center justify-center space-x-2
+          ${className}
+          ${variant === 'urgent' ? 'animate-pulse' : ''}
         `}
       >
         {icon && <span className="flex items-center">{icon}</span>}

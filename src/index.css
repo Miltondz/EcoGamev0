@@ -75,8 +75,9 @@
   font-weight: bold !important;
 }
 
-/* CSS Cards styles */
+/* CSS Cards styles - TEMPORARILY DISABLED */
 .css-cards-container {
+  display: none !important;
   position: absolute;
   bottom: 20px;
   left: 50%;

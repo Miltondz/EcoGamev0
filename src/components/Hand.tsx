@@ -22,38 +22,78 @@ export const Hand: React.FC<HandProps> = () => {
         };
         updateHandPosition();
     }, []);
-
-    useEffect(() => {
+    const updateCardPositions = (createNew = false) => {
         const cardsInHand = gameStateManager.hand;
         const numCards = cardsInHand.length;
-        console.log('🃏 Hand: Processing', numCards, 'cards in hand - triggered by hand change');
+        console.log('🎃 Hand: Processing', numCards, 'cards in hand - createNew:', createNew);
         
         if (numCards === 0) {
-            console.log('🃏 Hand: No cards to display');
+            console.log('🎃 Hand: No cards to display');
             vfxSystem.updateHand({ cards: [] });
             return;
         }
 
-        // TEMPORARY FIX: Use fixed positions to stop the position chaos
-        const fixedY = 850; // Fixed Y position that should be visible
+        // Use screen-relative positioning for cards
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
+        
+        // Position cards in the bottom area of screen
+        const handCenterX = screenWidth / 2;
+        const handCenterY = screenHeight - 120; // Fixed position from bottom
+        
+        console.log(`🎃 Hand: Screen size: ${screenWidth}x${screenHeight}, hand center: (${handCenterX}, ${handCenterY})`);
+        
+        const cardSpacing = 120;
+        const totalWidth = (numCards - 1) * cardSpacing;
+        const startX = handCenterX - totalWidth / 2;
+        
         const handVFXData = cardsInHand.map((card, index) => {
-            const cardX = 200 + index * 120; // Fixed spacing
-            const cardY = fixedY;
+            const cardX = startX + index * cardSpacing;
+            const cardY = handCenterY;
 
-            console.log(`🃏 Hand: Card ${index} (${card.rank}${card.suit[0]}) FIXED position: x=${cardX}, y=${cardY}`);
+            // console.log(`🎃 Hand: Card ${index} (${card.rank}${card.suit[0]}) position: x=${cardX}, y=${cardY}`);
 
             return {
                 card,
                 position: { x: cardX, y: cardY },
                 rotation: 0,
-                delay: index * 0.1
+                delay: createNew ? index * 0.1 : 0 // Only delay for new cards
             };
         });
 
-        console.log('🃏 Hand: Calling vfxSystem.updateHand with', handVFXData.length, 'cards');
-        vfxSystem.updateHand({ cards: handVFXData });
+        if (createNew) {
+            console.log('🎃 Hand: Creating new hand with', handVFXData.length, 'cards');
+            vfxSystem.updateHand({ cards: handVFXData });
+        } else {
+            console.log('🎃 Hand: Repositioning existing cards');
+            vfxSystem.repositionHand({ cards: handVFXData });
+        }
+    };
 
-    }, [gameStateManager.hand.length]); // Only depend on hand length to avoid infinite updates
+    // Single consolidated effect to handle all hand changes
+    useEffect(() => {
+        const currentHandIds = gameStateManager.hand.map(c => c.id);
+        console.log('🎃 Hand: Hand state changed - IDs:', currentHandIds.join(','));
+        
+        // Single debounced update to avoid multiple rapid calls
+        const timer = setTimeout(() => {
+            console.log('🎃 Hand: Processing consolidated hand update');
+            updateCardPositions(true); // Always use createNew to handle all scenarios
+        }, 150); // Single delay for all hand changes
+        
+        return () => clearTimeout(timer);
+    }, [gameStateManager.hand.map(c => c.id).join(',')]); // Only depend on actual card composition
+
+    // Update card positions when window resizes
+    useEffect(() => {
+        const handleResize = () => {
+            console.log('🎃 Hand: Window resized, updating card positions');
+            updateCardPositions(false); // Only reposition existing cards on resize
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []); // Empty dependency array - set up once
 
     // Debug: Log hand changes
     useEffect(() => {

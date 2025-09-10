@@ -8,7 +8,7 @@ import { FaHeart, FaBrain, FaBolt, FaSkull, FaPlay } from 'react-icons/fa';
 
 export const TempStats: React.FC = () => {
   return (
-    <div className="debug-stats">
+    <div className="debug-stats" style={{ display: 'none' }}>
       <div style={{ fontSize: '12px', marginBottom: '8px' }}>DEBUG STATS</div>
       <div className="flex items-center space-x-6">
         {/* Player Stats */}

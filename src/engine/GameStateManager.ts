@@ -64,6 +64,8 @@ class GameStateManager {
     get maxAP() { return this._maxAP; }
     get maxHandSize() { return this._maxHandSize; }
     get criticalDamageBoost() { return this._criticalDamageBoost; }
+    get maxPV() { return 20; } // Valor máximo hardcoded por ahora
+    get maxSanity() { return this._maxSanity; }
 
     set pv(value: number) { this._pv = Math.max(0, value); this.notify(); }
     set sanity(value: number) { this._sanity = Math.max(0, value); this.notify(); }

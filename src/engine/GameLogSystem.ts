@@ -14,6 +14,11 @@ class GameLogSystem {
     private messages: LogMessage[] = [];
     private nextId = 0;
     private listeners: ((messages: LogMessage[]) => void)[] = [];
+    
+    constructor() {
+        // Mensaje de bienvenida para verificar que el log funciona
+        this.addMessage('🎮 Sistema de juego inicializado. ¡Bienvenido a Eco del Vacío!', 'system', 'info');
+    }
 
     subscribe(listener: (messages: LogMessage[]) => void) {
         this.listeners.push(listener);

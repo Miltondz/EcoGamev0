@@ -6,6 +6,7 @@ import { scenarioLoader } from './ScenarioLoader';
 import { deckManager } from './DeckManager';
 import { gameLogSystem } from './GameLogSystem';
 import { hallucinationSystem } from './HallucinationSystem';
+import { scenarioRulesEngine } from './ScenarioRulesEngine';
 import type { Card } from './types';
 
 export class EcoAI {
@@ -17,20 +18,27 @@ export class EcoAI {
     }
 
     takeTurn() {
+        console.log(`🧪 EcoAI: Iniciando turno del Eco`);
         this.updatePhase();
-        gameLogSystem.addMessage(`Eco enters ${this.currentPhase} phase.`, 'eco', 'info');
+        console.log(`🧪 EcoAI: Fase actual del Eco: ${this.currentPhase}`);
+        gameLogSystem.addMessage(`El Eco entra en fase ${this.currentPhase}.`, 'eco', 'info');
         
         const card = deckManager.drawFromEcoDeck(1)[0];
         if (!card) {
-            gameLogSystem.addMessage("Eco has no cards to play.", 'eco', 'info');
+            console.log(`⚠️ EcoAI: No hay cartas para el Eco`);
+            gameLogSystem.addMessage("El Eco no tiene cartas para jugar.", 'eco', 'info');
             return;
         }
 
+        console.log(`🃎 EcoAI: Eco roba carta: ${card.rank} de ${card.suit}`);
+        
         // Reveal the card to the UI
         gameStateManager.ecoRevealedCard = card;
+        console.log(`👁️ EcoAI: Carta revelada al jugador`);
 
         // Wait for animations, then execute the attack
         setTimeout(() => {
+            console.log(`⚔️ EcoAI: Ejecutando ataque con carta revelada`);
             this.executeAttack(card);
 
             // Phase-specific special actions
@@ -89,6 +97,22 @@ export class EcoAI {
             return;
         }
 
+        // Intentar usar las reglas dinámicas para ataques del Eco
+        if (scenarioRulesEngine.hasRules) {
+            console.log(`🔴 EcoAI: Usando reglas dinámicas para ataque con ${card.rank} ${card.suit}`);
+            scenarioRulesEngine.applyEcoAttackEffect(card);
+            
+            // Aplicar modificadores de fase si es devastador
+            if (this.currentPhase === 'devastador') {
+                gameLogSystem.addMessage("Fase Devastador: ¡Daño amplificado!", 'eco', 'special');
+                // El modificador se puede aplicar en las reglas dinámicas o aquí
+            }
+            return;
+        }
+
+        // Fallback al sistema hardcoded original
+        console.log(`🔴 EcoAI: Usando sistema hardcoded para ataque con ${card.rank} ${card.suit}`);
+        
         let damage = card.value;
         const damageType: 'PV' | 'COR' = ['spades', 'clubs'].includes(card.suit.toLowerCase()) ? 'PV' : 'COR';
 
