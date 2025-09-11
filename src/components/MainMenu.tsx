@@ -11,6 +11,7 @@ import {
     createCompactStoneButtonStyle,
     handleStoneButtonHover 
 } from '../utils/styles';
+import '../styles/vhs-effects.css';
 
 interface MainMenuProps {
     onStartGame: () => void;
@@ -45,29 +46,21 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                 const webpPath = '/images/scenarios/default/backgrounds/menu-bg.webp';
                 const staticFallback = '/images/scenarios/default/backgrounds/main-bg.png';
                 
-                console.log('🎨 MainMenu: Loading animated background...', webpPath);
-                
                 // Test if WebP is available
                 const webpImg = new Image();
                 webpImg.onload = () => {
-                    console.log('✅ MainMenu: WebP background loaded successfully');
-                    console.log('💹 MainMenu: Setting backgroundVideo to:', webpPath);
                     setBackgroundVideo(webpPath);
                     setBackgroundImage(''); // Clear static image
-                    console.log('🎨 MainMenu: Background state - video:', webpPath, 'image:', '');
                 };
                 
                 webpImg.onerror = () => {
-                    console.warn('⚠️ MainMenu: WebP failed, loading static fallback...');
                     // Load static fallback
                     const staticImg = new Image();
                     staticImg.onload = () => {
-                        console.log('✅ MainMenu: Static background loaded as fallback');
                         setBackgroundImage(staticFallback);
                         setBackgroundVideo('');
                     };
                     staticImg.onerror = () => {
-                        console.warn('⚠️ MainMenu: All backgrounds failed, using gradient');
                         setBackgroundImage('linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)');
                         setBackgroundVideo('');
                     };
@@ -300,7 +293,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
             padding: '24px',
             maxWidth: '700px', // Más compacto
             maxHeight: '500px', // Límite de altura
-            background: 'rgba(15, 23, 42, 0.85)', // Más transparente
+            background: 'rgba(15, 23, 42, 0.95)', // Levemente transparente
             backdropFilter: 'blur(20px)',
             borderRadius: '12px',
             border: `1px solid ${colors.stone.border}`,
@@ -462,7 +455,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
             color: colors.muted,
             padding: '40px',
             maxWidth: '1000px',
-            background: 'rgba(30, 41, 59, 0.75)',
+            background: 'rgba(30, 41, 59, 0.95)',
             backdropFilter: 'blur(12px)',
             borderRadius: '16px',
             border: `2px solid ${colors.stone.border}`,
@@ -592,7 +585,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
             padding: '24px',
             maxWidth: '800px', // Más compacto
             maxHeight: '550px', // Límite de altura
-            background: 'rgba(15, 23, 42, 0.85)', // Más transparente
+            background: 'rgba(15, 23, 42, 0.95)', // Levemente transparente
             backdropFilter: 'blur(20px)',
             borderRadius: '12px',
             border: `1px solid ${colors.stone.border}`,
@@ -647,7 +640,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                                 display: 'flex',
                                 gap: '16px', // Más compacto
                                 alignItems: 'flex-start',
-                                background: 'rgba(51, 65, 85, 0.4)' // Más transparente
+                                background: 'rgba(51, 65, 85, 0.8)' // Levemente transparente
                             }}
                         >
                             {/* Preview imagen del escenario - más pequeña */}
@@ -700,7 +693,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                     display: 'flex',
                     gap: '16px',
                     alignItems: 'center',
-                    background: 'rgba(51, 65, 85, 0.2)', // Más transparente
+                    background: 'rgba(51, 65, 85, 0.6)', // Levemente transparente
                     border: '2px dashed rgba(182, 149, 82, 0.3)', // Borde punteado
                     opacity: 0.7
                 }}>
@@ -754,7 +747,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
             padding: '24px',
             maxWidth: '600px', // Más compacto
             maxHeight: '500px', // Límite de altura
-            background: 'rgba(15, 23, 42, 0.85)', // Más transparente
+            background: 'rgba(15, 23, 42, 0.95)', // Levemente transparente
             backdropFilter: 'blur(20px)',
             borderRadius: '12px',
             border: `1px solid ${colors.stone.border}`,
@@ -800,7 +793,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                     ...panelStyles.primary,
                     padding: '16px',
                     textAlign: 'left',
-                    background: 'rgba(51, 65, 85, 0.4)' // Más transparente
+                    background: 'rgba(51, 65, 85, 0.8)' // Levemente transparente
                 }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                         {/* Columna Izquierda - Visual y Audio */}
@@ -928,10 +921,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                             opacity: 0.8 // Un poco más visible
                         }}
                         alt="Animated Background"
-                        onLoad={() => console.log('✅ MainMenu: WebP image rendered successfully')}
-                        onError={(e) => {
-                            console.error('❌ MainMenu: WebP image failed to render:', e);
-                            // Intentar cargar la imagen estática como backup
+                        onError={() => {
+                            // Fallback a imagen estática si el video falla al renderizar
                             setBackgroundVideo('');
                             setBackgroundImage('/images/scenarios/default/backgrounds/main-bg.png');
                         }}
@@ -949,20 +940,68 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                 </>
             )}
             
-            {/* Debug info */}
-            {import.meta.env.DEV && (
-                <div style={{
-                    position: 'absolute',
-                    top: '50px',
-                    right: '20px',
-                    background: 'rgba(0,0,0,0.8)',
-                    color: 'white',
-                    padding: '10px',
-                    fontSize: '12px',
-                    zIndex: 50
-                }}>
-                    <div>backgroundVideo: {backgroundVideo || 'none'}</div>
-                    <div>backgroundImage: {backgroundImage || 'none'}</div>
+            {/* Efectos VHS/Retro atmosféricos */}
+            {backgroundVideo && (
+                <div className="vhs-container">
+                    {/* Scanlines VHS */}
+                    <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.025) 2px, rgba(255,255,255,0.025) 4px)',
+                        pointerEvents: 'none',
+                        zIndex: 3
+                    }} />
+                    
+                    {/* Film grain con flicker sutil */}
+                    <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        background: `
+                            radial-gradient(circle at 25% 25%, rgba(255,255,255,0.01) 0%, transparent 50%),
+                            radial-gradient(circle at 75% 75%, rgba(255,255,255,0.008) 0%, transparent 50%),
+                            radial-gradient(circle at 50% 50%, rgba(255,255,255,0.006) 0%, transparent 70%)
+                        `,
+                        backgroundSize: '4px 4px, 6px 6px, 8px 8px',
+                        opacity: 0.7,
+                        pointerEvents: 'none',
+                        zIndex: 4,
+                        animation: 'vhsFlicker 3s infinite ease-in-out'
+                    }} />
+                    
+                    {/* Estática muy sutil ocasional */}
+                    <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        background: 'repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(255,255,255,0.008) 1px, rgba(255,255,255,0.008) 2px)',
+                        pointerEvents: 'none',
+                        zIndex: 5,
+                        animation: 'vhsStatic 6s infinite ease-in-out'
+                    }} />
+                    
+                    {/* Glitch ocasional muy sutil */}
+                    <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        background: 'linear-gradient(90deg, rgba(255,0,100,0.015) 0%, transparent 5%, transparent 95%, rgba(0,255,255,0.015) 100%)',
+                        pointerEvents: 'none',
+                        zIndex: 6,
+                        animation: 'vhsGlitch 12s infinite ease-in-out'
+                    }} />
+                    
+                    {/* Atmospheric noise overlay */}
+                    <div className="vhs-noise" style={{ zIndex: 7 }} />
                 </div>
             )}
             {loading && (

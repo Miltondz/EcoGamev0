@@ -1,0 +1,119 @@
+/* Efectos VHS atmosféricos optimizados para rendimiento */
+
+@keyframes vhsFlicker {
+    0% {
+        opacity: 0.6;
+        transform: translateX(0px);
+    }
+    25% {
+        opacity: 0.4;
+        transform: translateX(-0.5px);
+    }
+    50% {
+        opacity: 0.7;
+        transform: translateX(0.5px);
+    }
+    75% {
+        opacity: 0.3;
+        transform: translateX(-0.2px);
+    }
+    100% {
+        opacity: 0.6;
+        transform: translateX(0px);
+    }
+}
+
+@keyframes vhsGlitch {
+    0% {
+        transform: translateX(0px);
+    }
+    2% {
+        transform: translateX(-2px);
+    }
+    4% {
+        transform: translateX(0px);
+    }
+    94% {
+        transform: translateX(0px);
+    }
+    96% {
+        transform: translateX(1px);
+    }
+    98% {
+        transform: translateX(0px);
+    }
+    100% {
+        transform: translateX(0px);
+    }
+}
+
+@keyframes vhsStatic {
+    0% {
+        opacity: 0.02;
+    }
+    50% {
+        opacity: 0.06;
+    }
+    100% {
+        opacity: 0.02;
+    }
+}
+
+@keyframes vhsColorShift {
+    0% {
+        filter: hue-rotate(0deg);
+    }
+    25% {
+        filter: hue-rotate(1deg);
+    }
+    50% {
+        filter: hue-rotate(-1deg);
+    }
+    75% {
+        filter: hue-rotate(0.5deg);
+    }
+    100% {
+        filter: hue-rotate(0deg);
+    }
+}
+
+/* Efectos adicionales para atmosfera */
+.vhs-container {
+    position: relative;
+}
+
+/* Efecto de ruido estático muy sutil */
+.vhs-noise {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.2) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, rgba(120, 200, 255, 0.1) 0%, transparent 50%);
+    mix-blend-mode: overlay;
+    animation: vhsColorShift 8s infinite ease-in-out;
+    pointer-events: none;
+}
+
+/* Optimización: usar will-change solo cuando necesario */
+.vhs-optimized {
+    will-change: transform, opacity;
+}
+
+/* Media query para reducir efectos en dispositivos de bajo rendimiento */
+@media (prefers-reduced-motion: reduce) {
+    .vhs-container * {
+        animation: none !important;
+    }
+}
+
+/* Optimización para dispositivos móviles */
+@media screen and (max-width: 768px) {
+    @keyframes vhsFlicker {
+        0%, 100% { opacity: 0.6; }
+        50% { opacity: 0.4; }
+    }
+}
