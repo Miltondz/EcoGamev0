@@ -2,7 +2,7 @@
 ## Libro I: Los Susurros de Hualaihué
 *Un juego de cartas de horror roguelike desarrollado con tecnologías web de vanguardia*
 
-![Game Screenshot](public/images/scenarios/default/backgrounds/main-bg.png)
+![Game Screenshot](https://raw.githubusercontent.com/Miltondz/EcoGamev0/master/public/images/scenarios/default/backgrounds/main-bg.png)
 
 ---
 
@@ -17,63 +17,242 @@ Utilizando una baraja estándar de 52 cartas, cada palo representa una habilidad
 - **♣ Tréboles**: Ingeniería marítima e investigación
 - **♦ Diamantes**: Recursos náuticos y exploración costera
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🎭 **Narrativa y Ambientación**
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### **El Escenario**
+Los jugadores encarnan a un superviviente atrapado en una instalación marítima aislada en las costas de Hualaihué, Chile, donde una entidad ancestral conocida como "El Eco" ha comenzado a manifestarse desde las profundidades del abismo. Esta presencia sobrenatural no solo representa una amenaza física, sino que también corrompe la percepción de la realidad, inyectando alucinaciones y distorsionando los sentidos.
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+### **La Amenaza: El Eco**
+El Eco evoluciona a través de tres fases distintas:
+- **🔍 Vigilante**: Observa y aprende los patrones del jugador
+- **🦾 Predador**: Intensifica los ataques y manipula la psique
+- **💀 Devastador**: Desata todo su poder destructivo
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### **Sistemas Críticos**
+Cuatro nodos vitales mantienen la instalación operativa:
+- **📡 Comunicaciones**: Conexión con el exterior
+- **⚡ Energía**: Sistemas de soporte vital  
+- **🛡️ Defensa**: Protección contra intrusiones
+- **📦 Suministros**: Recursos de supervivencia
+
+---
+
+## 🎮 **Sistema de Juego**
+
+### **Mecánicas Core**
+- **Sistema de Turnos por Fases**: 4 fases por turno (Evento → Acción → Eco → Mantenimiento)
+- **Gestión de Recursos**: 2 Puntos de Acción por turno, mano máxima de 5 cartas
+- **Estadísticas Vitales**: HP (20), Cordura (20), Puntos de Acción (2)
+- **Sistema de Nodos**: Reparación y mantenimiento de infraestructura crítica
+
+### **Acciones del Jugador**
+- **⚔️ Atacar (♠)**: Infligir daño directo al Eco
+- **💖 Recuperar (♥)**: Restaurar cordura y resistencia mental
+- **🔧 Investigar (♣)**: Reparar nodos y exponer debilidades del Eco
+- **🔍 Buscar (♦)**: Obtener recursos adicionales y cartas extra
+- **🎯 Enfocar**: Intercambiar cartas por nuevas opciones estratégicas
+
+### **Sistema de Alucinaciones**
+El Eco puede inyectar cartas falsas en la baraja del jugador, creando decisiones engañosas que pueden resultar en consecuencias devastadoras cuando la cordura se ve comprometida.
+
+---
+
+## 🚀 **Stack Tecnológico**
+
+### **Frontend & Framework**
+- **React 19.1.1** - Framework principal con hooks modernos
+- **TypeScript 5.8.3** - Tipado fuerte y desarrollo robusto
+- **Vite 7.1.4** - Build system ultra-rápido con HMR
+
+### **Gráficos y Animaciones**
+- **PixiJS 8.13.1** - Motor gráfico WebGL con aceleración por hardware
+- **@pixi/react 8.0.3** - Integración React-PixiJS para componentes declarativos
+- **GSAP 3.13.0** - Animaciones de alta performance y timeline avanzado
+- **Framer Motion 12.23.12** - Animaciones de componentes React
+- **pixi-filters 6.1.4** - Filtros avanzados y efectos visuales
+
+### **Estilización y UI**
+- **TailwindCSS 4.1.13** - Framework CSS utility-first
+- **PostCSS 8.5.6** - Procesamiento CSS avanzado
+- **React Icons 5.5.0** - Iconografía completa y consistente
+
+---
+
+## ⚙️ **Engines y Sistemas Desarrollados**
+
+### **🧠 Core Game Engine**
+- **GameStateManager**: Gestión centralizada de estado reactivo
+- **TurnManager**: Orquestación del loop de juego por fases
+- **CardEffectEngine**: Sistema de efectos dinámicos por carta
+- **DeckManager**: Manejo completo de barajas, mezcla y distribución
+
+### **🤖 AI & Behavior Systems**
+- **EcoAI**: Inteligencia artificial con 3 fases de comportamiento
+- **HallucinationSystem**: Inyección procedural de elementos falsos
+- **ScenarioEventsEngine**: Motor de eventos narrativos dinámicos
+- **ScenarioRulesEngine**: Sistema de reglas modulares por escenario
+
+### **🎨 Advanced Visual Systems** 
+*Aprovechando todo el potencial de PixiJS:*
+- **PixiScreenEffects**: 12 efectos de pantalla hardware-accelerated
+  - ⚡ Lightning, 🔥 Fire, 📺 Glitch, 🌍 Shake, 📻 Static, ✨ Sparks
+  - 🌑 Darkness, 💫 Glow, 🦠 Corruption, ⚡ Energy, 🌫️ Fog
+- **VFXSystem**: Sistema de partículas y efectos de combate
+- **EventVisualSystem**: 4 tipos de presentación (Card/Image/GIF/Video)
+- **UIPositionManager**: Gestión dinámica de posiciones para animaciones
+
+### **📊 Management Systems**
+- **NodeSystem**: Gestión de infraestructura crítica con estados dinámicos
+- **GameLogSystem**: Sistema de logging con categorización y filtrado
+- **ScoreSystem**: Tracking de logros y puntuación avanzada
+- **AssetManager**: Carga dinámica de recursos por escenario
+
+---
+
+## 📊 **Estado Actual**
+
+### ✅ **COMPLETADO - Phase 4 (90%)**
+
+#### **Motor de Juego (100%)**
+- ✅ Sistema completo de gestión de estado
+- ✅ Loop de juego por turnos totalmente funcional
+- ✅ Motor de efectos de cartas (52 cartas únicas)
+- ✅ IA avanzada del Eco con 3 fases comportamentales
+- ✅ Sistema completo de nodos con daño/reparación
+- ✅ Sistema de alucinaciones procedurales
+- ✅ Carga de escenarios modulares
+
+#### **Sistemas Visuales Avanzados (100%)**
+- ✅ Layout fijo 1280×720 completamente implementado
+- ✅ Integración completa PixiJS con efectos hardware-accelerated
+- ✅ Sistema de eventos visuales con 4 tipos de presentación
+- ✅ 12 efectos de pantalla únicos usando PixiJS
+- ✅ UI animada con integración GSAP
+- ✅ Componentes estilizados con temática atmosférica
+
+#### **UX/UI Moderno (100%)**
+- ✅ Menú principal con fondo WebP animado
+- ✅ Ventanas modales semitransparentes y compactas
+- ✅ Botón de salida en pantalla de juego
+- ✅ Navegación intuitiva entre menús
+- ✅ Diseño responsivo y profesional
+
+#### **Características Avanzadas (100%)**
+- ✅ Sistema de logging en tiempo real
+- ✅ Sistema de puntuación y logros
+- ✅ Motor VFX con efectos de partículas PixiJS
+- ✅ Gestión dinámica de posiciones UI
+- ✅ Gestión de assets con soporte multi-escenario
+
+### ⚠️ **EN DESARROLLO - Phase 5 (10%)**
+
+#### **Integración de Assets**
+- [ ] Artwork final para 52 cartas (actualmente gráficos procedurales)
+- [ ] Retratos de personajes (jugador y fases del Eco)
+- [ ] Ilustraciones de eventos (52 imágenes únicas)
+- [ ] Integración completa del sistema de audio
+
+#### **Balance y Pulido**
+- [ ] Ajuste de curva de dificultad
+- [ ] Escenarios adicionales (Libro II, Libro III)  
+- [ ] Sistema de guardado/carga
+- [ ] Optimización de performance
+- [ ] Efectos de sonido y audio ambiental
+
+---
+
+## 🎯 **Roadmap Futuro**
+
+### **🎮 Expansiones de Contenido**
+- **Nuevos Libros**: Diferentes ubicaciones con mecánicas únicas
+- **Modos de Juego**: Survival, Time Attack, Endless Mode
+- **Sistema de Capítulos**: Progresión narrativa extendida
+- **Cartas Especiales**: Expansiones de la baraja con efectos únicos
+
+### **🔧 Mejoras Técnicas**
+- **Optimización PixiJS**: Mejores efectos visuales y rendimiento
+- **Sistema de Mods**: Soporte para contenido generado por usuarios
+- **Multijugador**: Cooperativo local o en línea
+- **Adaptación Móvil**: Versión responsive para tablets y móviles
+
+### **🎨 Mejoras Visuales**
+- **Efectos PixiJS Avanzados**: Shaders customizados y post-processing
+- **Animaciones Cinematográficas**: Secuencias de eventos mejoradas
+- **UI Dinámica**: Interfaces que reaccionan al estado del juego
+- **Temas Visuales**: Diferentes estilos artísticos por escenario
+
+---
+
+## 🛠️ **Instalación y Desarrollo**
+
+### **Requisitos**
+- Node.js 18+ 
+- npm o pnpm
+- Navegador moderno con soporte WebGL
+
+### **Setup Local**
+```bash
+# Clonar repositorio
+git clone https://github.com/Miltondz/EcoGamev0.git
+cd EcoGamev0
+
+# Instalar dependencias
+npm install
+
+# Desarrollo local con hot reload
+npm run dev
+
+# Build para producción
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### **Comandos Disponibles**
+- `npm run dev` - Servidor de desarrollo con HMR
+- `npm run build` - Build optimizado para producción
+- `npm run preview` - Preview del build de producción
+- `npm run lint` - Análisis de código con ESLint
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+---
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 📷 **Screenshots y Demos**
+
+### **Interfaz Actual del Juego**
+![Interfaz de Juego](https://raw.githubusercontent.com/Miltondz/EcoGamev0/master/public/images/scenarios/default/preview.png)
+
+*Interfaz completamente funcional con efectos PixiJS, cartas interactivas, y sistema de nodos dinámico*
+
+---
+
+## 🤝 **Contribuciones**
+
+Este proyecto está diseñado con arquitectura modular que facilita contribuciones:
+- **Sistema de Escenarios**: Fácil adición de nuevos contenidos
+- **Motor de Efectos**: Extensible para nuevos efectos PixiJS
+- **Sistema de Cartas**: Configurable para nuevas mecánicas
+- **Documentación**: Guías completas para desarrolladores
+
+---
+
+## 📄 **Licencia**
+
+MIT License - Ver [LICENSE](LICENSE) para más detalles.
+
+---
+
+## 🙏 **Agradecimientos**
+
+- **PixiJS Community** - Por el increíble motor gráfico WebGL
+- **React Team** - Por el framework que hace posible la arquitectura modular
+- **GSAP** - Por las animaciones de alta calidad y performance
+- **Vite** - Por la experiencia de desarrollo excepcional
+- **Comunidad de Hualaihué** - Por la inspiración para la ambientación
+
+---
+
+## 🌊 **Sobre "Los Susurros de Hualaihué"**
+
+Este primer libro de **Crónicas del Abismo** está ambientado en las mist eriosas y traicioneras costas de Hualaihué, Chile. La elección de esta ubicación no es casual: sus extensas costas, su aislamiento natural y su rica tradición marítima proporcionan el escenario perfecto para una historia de supervivencia contra fuerzas ancestrales que emergen desde las profundidades del abismo marítimo.
+
+*Desarrollado con ❤️ usando React, TypeScript, PixiJS y tecnologías web modernas*

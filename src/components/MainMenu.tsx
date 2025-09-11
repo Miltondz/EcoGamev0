@@ -50,8 +50,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                 const webpImg = new Image();
                 webpImg.onload = () => {
                     console.log('✅ MainMenu: WebP background loaded successfully');
+                    console.log('💹 MainMenu: Setting backgroundVideo to:', webpPath);
                     setBackgroundVideo(webpPath);
                     setBackgroundImage(''); // Clear static image
+                    console.log('🎨 MainMenu: Background state - video:', webpPath, 'image:', '');
                 };
                 
                 webpImg.onerror = () => {
@@ -184,7 +186,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
         <div style={{
             textAlign: 'center',
             color: '#f1f5f9',
-            padding: '40px'
+            padding: '40px',
+            position: 'relative',
+            zIndex: 10 // Asegurar que esté por encima del video
         }}>
                 {/* Saga Title */}
                 <div style={{
@@ -299,7 +303,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
             border: `1px solid ${colors.stone.border}`,
             boxShadow: '0 15px 35px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.1)',
             position: 'relative',
-            overflow: 'auto'
+            overflow: 'auto',
+            zIndex: 15 // Asegurar que esté por encima del video
         }}>
             {/* Efecto glassmorphism overlay */}
             <div style={{
@@ -460,7 +465,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
             border: `2px solid ${colors.stone.border}`,
             boxShadow: '0 20px 40px rgba(0,0,0,0.7), inset 0 1px 2px rgba(255,255,255,0.1)',
             position: 'relative',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            zIndex: 15 // Asegurar que esté por encima del video
         }}>
             {/* Efecto glassmorphism overlay */}
             <div style={{
@@ -589,7 +595,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
             border: `1px solid ${colors.stone.border}`,
             boxShadow: '0 15px 35px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.1)',
             position: 'relative',
-            overflow: 'auto'
+            overflow: 'auto',
+            zIndex: 15 // Asegurar que esté por encima del video
         }}>
             {/* Efecto glassmorphism overlay */}
             <div style={{
@@ -890,10 +897,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
             left: 0,
             width: '1280px',
             height: '720px',
-            background: backgroundImage.startsWith('linear-gradient') ? 
-                backgroundImage : 
-                backgroundImage ? `url(${backgroundImage}) center/cover, linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #020617 100%)` :
-                'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #020617 100%)',
+            background: backgroundVideo ? 
+                'transparent' : // Si hay video, no usar background estático
+                backgroundImage.startsWith('linear-gradient') ? 
+                    backgroundImage : 
+                    backgroundImage ? `url(${backgroundImage}) center/cover, linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #020617 100%)` :
+                    'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #020617 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -910,10 +919,29 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                         width: '100%',
                         height: '100%',
                         objectFit: 'cover',
-                        zIndex: -1
+                        zIndex: 1 // Cambiado a 1 para estar visible
                     }}
                     alt="Animated Background"
+                    onLoad={() => console.log('✅ MainMenu: WebP image rendered successfully')}
+                    onError={(e) => console.error('❌ MainMenu: WebP image failed to render:', e)}
                 />
+            )}
+            
+            {/* Debug info */}
+            {import.meta.env.DEV && (
+                <div style={{
+                    position: 'absolute',
+                    top: '50px',
+                    right: '20px',
+                    background: 'rgba(0,0,0,0.8)',
+                    color: 'white',
+                    padding: '10px',
+                    fontSize: '12px',
+                    zIndex: 100
+                }}>
+                    <div>backgroundVideo: {backgroundVideo || 'none'}</div>
+                    <div>backgroundImage: {backgroundImage || 'none'}</div>
+                </div>
             )}
             {loading && (
                 <div style={{
@@ -945,7 +973,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                     top: '20px',
                     left: '20px',
                     color: '#94a3b8',
-                    fontSize: '0.875rem'
+                    fontSize: '0.875rem',
+                    zIndex: 10 // Asegurar que esté por encima del video
                 }}>
                     <div>ECO DEL VACÍO v1.0</div>
                     <div>Total Score: {playerProfile.totalScore}</div>
