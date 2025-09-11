@@ -1,8 +1,8 @@
 [
   {
-    "id": "node-1",
-    "name": "Reactor",
-    "description": "Provides power.",
+    "id": "faro",
+    "name": "Faro de la Península",
+    "description": "La última guía en la niebla perpetua. Su luz lucha contra la oscuridad que se alza del mar. Mantenerlo operativo es clave para tu planificación.",
     "maxDamage": 3,
     "repairThreshold": 7,
     "reward": {
@@ -11,20 +11,20 @@
     }
   },
   {
-    "id": "node-2",
-    "name": "Comunicaciones",
-    "description": "Maintains contact.",
+    "id": "estacion_meteorologica",
+    "name": "Estación Meteorológica Abandonada",
+    "description": "Crucial para comprender los patrones anómalos del clima y detectar la perturbación del Eco. Una mejor comprensión mejora tu capacidad de respuesta.",
     "maxDamage": 3,
     "repairThreshold": 7,
     "reward": {
-      "type": "HAND_SIZE",
+      "type": "MAX_HAND_SIZE",
       "amount": 1
     }
   },
   {
-    "id": "node-3",
-    "name": "Soporte Vital",
-    "description": "Regulates the environment.",
+    "id": "generador_diesel",
+    "name": "Generador Diésel Corroído",
+    "description": "El corazón energético de la caleta. Mantiene encendidas las últimas luces, un baluarte contra la oscuridad mental y la precariedad.",
     "maxDamage": 3,
     "repairThreshold": 7,
     "reward": {
@@ -32,10 +32,10 @@
       "amount": 3
     }
   },
-    {
-    "id": "node-4",
-    "name": "Propulsión",
-    "description": "Controls movement.",
+  {
+    "id": "grua_descarga",
+    "name": "Grúa de Descarga del Puerto",
+    "description": "Una imponente estructura de metal macizo usada para mover las cargas más pesadas. Con su maquinaria restaurada, podría asestar un golpe decisivo al Eco.",
     "maxDamage": 3,
     "repairThreshold": 7,
     "reward": {

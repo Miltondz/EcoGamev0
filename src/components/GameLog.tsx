@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { gameLogSystem } from '../engine/GameLogSystem';
 import type { LogMessage, MessageSource, MessageType } from '../engine/GameLogSystem';
 import { FaCrosshairs, FaShieldAlt, FaSearch, FaWrench, FaEye, FaPlus, FaMinus, FaHeartbeat, FaBolt, FaExclamationTriangle, FaInfoCircle, FaSkullCrossbones } from 'react-icons/fa';
+import { textStyles, colors, panelStyles } from '../utils/styles';
 
 const iconMap: Record<MessageType, React.ComponentType<any>> = {
     attack: FaCrosshairs,
@@ -51,8 +52,16 @@ export const GameLog: React.FC = () => {
     return (
         <div className="embedded-gamelog" style={{ width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span style={{ color: '#fecaca', fontSize: '9px', fontWeight: 700 }}>REGISTRO</span>
-                <button onClick={() => setCollapsed(!collapsed)} style={{ fontSize: '9px', color: '#fecaca', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                <span style={{ ...textStyles.label, fontSize: '9px', color: '#fecaca' }}>REGISTRO</span>
+                <button onClick={() => setCollapsed(!collapsed)} style={{ 
+                    ...textStyles.bodySmall, 
+                    fontSize: '9px', 
+                    color: '#fecaca', 
+                    background: 'transparent', 
+                    border: 'none', 
+                    cursor: 'pointer',
+                    padding: '2px'
+                }}>
                     {collapsed ? '▼' : '▲'}
                 </button>
             </div>
@@ -61,8 +70,9 @@ export const GameLog: React.FC = () => {
                 ref={logContainerRef}
                 className="bg-black/90 backdrop-blur-sm overflow-y-auto rounded-lg shadow border"
                 style={{ 
+                    ...panelStyles.secondary,
                     padding: '6px',
-                    fontFamily: "'Courier New', Courier, monospace",
+                    fontFamily: textStyles.bodySmall.fontFamily,
                     height: '140px',
                     borderColor: 'rgba(220, 38, 38, 0.3)',
                     fontSize: '8px',
@@ -70,8 +80,8 @@ export const GameLog: React.FC = () => {
                 }}
             >
                 {messages.length === 0 ? (
-                    <div className="text-amber-400/60 text-center py-6">
-                        <FaInfoCircle className="mx-auto mb-2 text-lg" />
+                    <div style={{ ...textStyles.bodySmall, color: colors.mutedAlpha, textAlign: 'center', padding: '12px 0' }}>
+                        <FaInfoCircle style={{ margin: '0 auto 4px auto', fontSize: '12px' }} />
                         <div>Sin actividad registrada</div>
                     </div>
                 ) : (
@@ -79,9 +89,9 @@ export const GameLog: React.FC = () => {
                         const Icon = iconMap[msg.type] || FaInfoCircle;
                         const color = sourceColorMap[msg.source] || 'text-white';
                         return (
-                            <div key={msg.id} className={`flex items-start mb-1 ${color}`}>
-                                <Icon className="mr-1 flex-shrink-0 mt-0.5" size={8} />
-                                <span className="leading-tight text-xs">{msg.message}</span>
+                            <div key={msg.id} style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '2px' }} className={color}>
+                                <Icon style={{ marginRight: '4px', flexShrink: 0, marginTop: '1px', fontSize: '8px' }} />
+                                <span style={{ ...textStyles.bodySmall, fontSize: '8px', lineHeight: 1.2 }}>{msg.message}</span>
                             </div>
                         );
                     })

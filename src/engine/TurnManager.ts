@@ -11,6 +11,8 @@ import { gameLogSystem } from './GameLogSystem';
 import { vfxSystem } from './VFXSystem';
 import { uiPositionManager } from './UIPositionManager';
 import { scenarioEventsEngine } from './ScenarioEventsEngine';
+// import { chapterManager } from './ChapterManager'; // Reserved for future use
+import { scoreSystem } from './ScoreSystem';
 import type { Card, Event, HallucinationCard, DynamicEvent } from './types';
 
 class TurnManager {
@@ -18,6 +20,8 @@ class TurnManager {
     public currentEventCard: Card | null = null;
     public currentDynamicEvent: DynamicEvent | null = null;
     public onEventShow: ((eventCard: Card, event: DynamicEvent) => void) | null = null;
+    private lastTurnPV: number = 20;
+    private lastTurnSanity: number = 20;
 
     async startGame(scenarioId: string = 'default') {
         console.log(`🎮 TurnManager: Iniciando juego con escenario '${scenarioId}'`);
@@ -82,6 +86,10 @@ class TurnManager {
 
     endPlayerTurn() {
         if (gameStateManager.phase === GamePhase.PLAYER_ACTION) {
+            // Score for turn completion
+            const damageThisTurn = this.calculateDamageThisTurn();
+            scoreSystem.scoreTurnSurvival(gameStateManager.turn, damageThisTurn);
+            
             gameStateManager.removePlayerStatusEffect('cannotPlaySpades');
             gameStateManager.phase = GamePhase.ECO_ATTACK;
             this.advancePhase();
@@ -104,6 +112,11 @@ class TurnManager {
         vfxSystem.triggerSuitEffect(card.suit, startPosition, endPosition);
 
         gameStateManager.hand = gameStateManager.hand.filter(c => c.id !== card.id);
+        
+        // Score for card play with efficiency check
+        const wasEfficient = gameStateManager.pa === 1; // Spending last AP
+        scoreSystem.scoreCardPlay(card, wasEfficient);
+        
         cardEffectEngine.applyEffect(card);
     }
 
@@ -123,6 +136,9 @@ class TurnManager {
         deckManager.discard([cardToDiscard]);
         this.drawPlayerHand(1);
         gameLogSystem.addMessage(`Focused, discarded ${cardToDiscard.rank} and drew a new card.`, 'player', 'focus');
+        
+        // Score for resource management
+        scoreSystem.addScore('resource_saved', undefined, { action: 'focus', card: cardToDiscard });
     }
 
     drawCard() {
@@ -139,6 +155,9 @@ class TurnManager {
         gameStateManager.spendActionPoints(1);
         this.drawPlayerHand(1);
         gameLogSystem.addMessage('Spent 1 AP to draw a card.', 'player', 'draw');
+        
+        // Score for strategic card draw
+        scoreSystem.addScore('resource_saved', undefined, { action: 'draw' });
     }
 
     private drawPlayerHand(count: number) {
@@ -206,6 +225,9 @@ class TurnManager {
                     gameLogSystem.addMessage(result.event.flavor, 'system', 'info');
                 }
                 
+                // Score for handling events
+                scoreSystem.scoreEventHandling(result.event.event, 'success');
+                
                 console.log(`📅 TurnManager: Evento dinámico procesado: ${result.event.event}`);
             } else {
                 gameLogSystem.addMessage(`Evento desconocido para carta ${eventCard.rank} de ${eventCard.suit}`, 'system', 'info');
@@ -224,6 +246,27 @@ class TurnManager {
         // No descartar la carta inmediatamente si hay sistema visual - se descarta cuando se cierra el modal
         // La carta se descartará cuando se cierre el modal del evento
     }
+    
+    private calculateDamageThisTurn(): number {
+        const currentPV = gameStateManager.pv;
+        const currentSanity = gameStateManager.sanity;
+        
+        const pvDamage = Math.max(0, this.lastTurnPV - currentPV);
+        const sanityDamage = Math.max(0, this.lastTurnSanity - currentSanity);
+        
+        const totalDamage = pvDamage + sanityDamage;
+        
+        // Update for next turn
+        this.lastTurnPV = currentPV;
+        this.lastTurnSanity = currentSanity;
+        
+        return totalDamage;
+    }
+    
+    // private updateTurnTracking() {
+    //     this.lastTurnPV = gameStateManager.pv;
+    //     this.lastTurnSanity = gameStateManager.sanity;
+    // }
 
     private executePlayerActionPhase() {
         console.log(`💪 TurnManager: Ejecutando fase de acción del jugador`);

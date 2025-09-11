@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="280" height="392" xmlns="http://www.w3.org/2000/svg">
+    <rect width="280" height="392" fill="#0f172a" stroke="#666666" stroke-width="2"/>
+    
+        <rect x="10" y="10" width="260" height="372" 
+              fill="#1e293b" stroke="#475569" stroke-width="4" rx="8"/>
+        <text x="140" y="140" text-anchor="middle" fill="#cbd5e1" font-family="Arial" font-size="24">
+            MISSING EVENT
+        </text>
+        <text x="140" y="200" text-anchor="middle" fill="#64748b" font-family="Arial" font-size="16">
+            Event image not found
+        </text>
+        <circle cx="140" cy="280" r="30" fill="none" stroke="#475569" stroke-width="3"/>
+        <text x="140" y="290" text-anchor="middle" fill="#64748b" font-family="Arial" font-size="36">
+            ?
+        </text>
+    
+</svg>

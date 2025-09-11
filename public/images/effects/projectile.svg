@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="16" xmlns="http://www.w3.org/2000/svg">
+    <rect width="32" height="16" fill="transparent" stroke="#666666" stroke-width="2"/>
+    
+        <defs>
+            <linearGradient id="projectileGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#ef4444"/>
+                <stop offset="100%" stop-color="#dc2626"/>
+            </linearGradient>
+        </defs>
+        <ellipse cx="16" cy="8" rx="14" ry="6" fill="url(#projectileGrad)"/>
+        <polygon points="2,8 14,4 14,12" fill="#b91c1c"/>
+    
+</svg>

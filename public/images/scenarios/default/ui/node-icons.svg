@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#1e293b" stroke="#666666" stroke-width="2"/>
+    
+        <!-- Reactor Node -->
+        <g transform="translate(10,10)">
+            <circle cx="22" cy="22" r="20" fill="#22c55e" stroke="#16a34a" stroke-width="2"/>
+            <circle cx="22" cy="22" r="8" fill="#16a34a"/>
+            <text x="22" y="28" text-anchor="middle" fill="#ffffff" font-family="Arial" font-size="6">⚛</text>
+        </g>
+        
+        <!-- Communications Node -->
+        <g transform="translate(55,10)">
+            <circle cx="22" cy="22" r="20" fill="#3b82f6" stroke="#2563eb" stroke-width="2"/>
+            <text x="22" y="28" text-anchor="middle" fill="#ffffff" font-family="Arial" font-size="10">📡</text>
+        </g>
+        
+        <!-- Life Support Node -->
+        <g transform="translate(10,55)">
+            <circle cx="22" cy="22" r="20" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+            <text x="22" y="28" text-anchor="middle" fill="#ffffff" font-family="Arial" font-size="10">💓</text>
+        </g>
+        
+        <!-- Propulsion Node -->
+        <g transform="translate(55,55)">
+            <circle cx="22" cy="22" r="20" fill="#f59e0b" stroke="#d97706" stroke-width="2"/>
+            <text x="22" y="28" text-anchor="middle" fill="#ffffff" font-family="Arial" font-size="10">🚀</text>
+        </g>
+    
+</svg>

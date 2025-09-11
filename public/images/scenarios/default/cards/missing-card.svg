@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="70" height="98" xmlns="http://www.w3.org/2000/svg">
+    <rect width="70" height="98" fill="#0f172a" stroke="#666666" stroke-width="2"/>
+    
+        <rect x="5" y="5" width="60" height="88" 
+              fill="#1e293b" stroke="#475569" stroke-width="2" rx="4"/>
+        <text x="35" y="35" text-anchor="middle" fill="#cbd5e1" font-family="Arial" font-size="10">
+            MISSING
+        </text>
+        <text x="35" y="50" text-anchor="middle" fill="#cbd5e1" font-family="Arial" font-size="10">
+            CARD
+        </text>
+        <text x="35" y="70" text-anchor="middle" fill="#64748b" font-family="Arial" font-size="8">
+            ?
+        </text>
+    
+</svg>

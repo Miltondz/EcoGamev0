@@ -1,9 +1,13 @@
 // src/components/Hand.tsx
 
-import React, { useRef, useEffect } from 'react';
-import { gameStateManager } from '../engine/GameStateManager';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { gameStateManager, GamePhase } from '../engine/GameStateManager';
 import { vfxSystem } from '../engine/VFXSystem';
+import type { VFXEvent } from '../engine/VFXSystem';
 import { uiPositionManager } from '../engine/UIPositionManager';
+import { turnManager } from '../engine/TurnManager';
+import { CardActionButtons } from './CardActionButtons';
+import type { Card } from '../engine/types';
 
 interface HandProps {
     // No longer receives card-specific interaction props, as VFX handles them
@@ -11,6 +15,8 @@ interface HandProps {
 
 export const Hand: React.FC<HandProps> = () => {
     const handRef = useRef<HTMLDivElement>(null);
+    const [enlargedCard, setEnlargedCard] = useState<Card | null>(null);
+    const [actionButtonsPosition, setActionButtonsPosition] = useState<{ x: number; y: number } | null>(null);
 
     // Register position for UI manager (but don't track rect changes)
     useEffect(() => {
@@ -93,6 +99,77 @@ export const Hand: React.FC<HandProps> = () => {
         console.log('🃏 Hand: Current hand state:', gameStateManager.hand);
     }, [gameStateManager.hand]);
 
+    // Handle card click for enlargement
+    const handleCardClick = useCallback((card: Card, position: { x: number; y: number }) => {
+        if (gameStateManager.phase !== GamePhase.PLAYER_ACTION) {
+            console.log('🃏 Hand: Cannot interact with cards - not player turn');
+            return;
+        }
+
+        console.log('🃏 Hand: Card clicked:', card.id, 'at position:', position);
+        setEnlargedCard(card);
+        // Position buttons in the center of the screen, above the enlarged card
+        setActionButtonsPosition({
+            x: window.innerWidth / 2,
+            y: window.innerHeight * 0.25 // Above the enlarged card
+        });
+    }, []);
+
+    // Handle action button clicks
+    const handleCardAction = (action: 'play' | 'sacrifice' | 'research' | 'discard' | 'cancel') => {
+        if (!enlargedCard) return;
+
+        console.log('🃏 Hand: Card action:', action, 'for card:', enlargedCard.id);
+        
+        switch (action) {
+            case 'play':
+                turnManager.playCard(enlargedCard);
+                break;
+            case 'sacrifice':
+                // Implement sacrifice logic if needed
+                console.log('🃏 Hand: Sacrifice not yet implemented');
+                break;
+            case 'research':
+                turnManager.performFocus(enlargedCard);
+                break;
+            case 'discard':
+                turnManager.performFocus(enlargedCard); // Focus = discard + draw
+                break;
+            case 'cancel':
+                // Just close the action menu
+                break;
+        }
+        
+        // Close the enlarged card view
+        setEnlargedCard(null);
+        setActionButtonsPosition(null);
+    };
+
+    // Subscribe to VFX card click events
+    useEffect(() => {
+        const unsubscribe = vfxSystem.subscribe((event: VFXEvent<any>) => {
+            if (event.type === 'cardClick') {
+                const { card, position } = event.data;
+                handleCardClick(card, position);
+            }
+        });
+
+        return unsubscribe;
+    }, [handleCardClick]);
+
+    // Close enlarged card when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (enlargedCard && handRef.current && !handRef.current.contains(event.target as Node)) {
+                setEnlargedCard(null);
+                setActionButtonsPosition(null);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [enlargedCard]);
+
     return (
         <div 
             className="player-section flex flex-col items-center justify-center" 
@@ -108,7 +185,92 @@ export const Hand: React.FC<HandProps> = () => {
             <div className="flex justify-center items-center h-full w-full relative">
                 {/* No direct card rendering here - handled by VFX.tsx */}
             </div>
-            {/* Interaction buttons will be moved to App.tsx or handled by VFX.tsx */}
+            
+            {/* Enlarged Card Display */}
+            {enlargedCard && (
+                <>
+                    {/* Backdrop */}
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        zIndex: 8000,
+                        pointerEvents: 'auto'
+                    }} />
+                    
+                    {/* Enlarged Card */}
+                    <div style={{
+                        position: 'fixed',
+                        left: '50%',
+                        top: '40%',
+                        transform: 'translate(-50%, -50%)',
+                        width: '280px', // Increased size for better visibility
+                        height: '392px', // Maintain card aspect ratio
+                        borderRadius: '16px',
+                        backgroundColor: '#ffffff',
+                        border: '4px solid #d97706',
+                        boxShadow: '0 25px 80px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                        zIndex: 9000,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundImage: `url(/images/scenarios/default/cards/${enlargedCard.imageFile}), url(/images/scenarios/default/cards/missing-card.png)`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        overflow: 'hidden'
+                    }}>
+                        {/* Card details when no image available */}
+                        <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: enlargedCard.suit === 'Hearts' || enlargedCard.suit === 'Diamonds' 
+                                ? 'linear-gradient(135deg, #7f1d1d, #991b1b, #dc2626)' 
+                                : 'linear-gradient(135deg, #1e293b, #374151, #475569)',
+                            borderRadius: '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 1,
+                            border: '2px solid rgba(255, 255, 255, 0.1)'
+                        }}>
+                            <div style={{
+                                fontSize: '48px',
+                                fontWeight: 'bold',
+                                color: enlargedCard.suit === 'Hearts' || enlargedCard.suit === 'Diamonds' ? '#dc2626' : '#1f2937',
+                                marginBottom: '8px'
+                            }}>
+                                {enlargedCard.rank}
+                            </div>
+                            <div style={{
+                                fontSize: '32px',
+                                color: enlargedCard.suit === 'Hearts' || enlargedCard.suit === 'Diamonds' ? '#dc2626' : '#1f2937'
+                            }}>
+                                {enlargedCard.suit === 'Spades' ? '♠' : 
+                                 enlargedCard.suit === 'Hearts' ? '♥' : 
+                                 enlargedCard.suit === 'Diamonds' ? '♦' : '♣'}
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+            
+            {/* Action Buttons */}
+            {actionButtonsPosition && enlargedCard && (
+                <CardActionButtons
+                    card={enlargedCard}
+                    position={actionButtonsPosition}
+                    onAction={handleCardAction}
+                    isVisible={true}
+                />
+            )}
         </div>
     );
 };

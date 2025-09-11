@@ -1,11 +1,21 @@
-# React + TypeScript + Vite
+# 🌊 Crónicas del Abismo
+## Libro I: Los Susurros de Hualaihué
+*Un juego de cartas de horror roguelike desarrollado con tecnologías web de vanguardia*
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+![Game Screenshot](public/images/scenarios/default/backgrounds/main-bg.png)
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 📖 **Acerca del Proyecto**
+
+**Crónicas del Abismo** es una serie épica de juegos de cartas de horror psicológico que combina mecánicas roguelike con narrativa inmersiva. Esta primera entrega, **"Los Susurros de Hualaihué"**, transporta a los jugadores a las costas chilenas donde deben sobrevivir contra una entidad ancestral conocida como "El Eco" mientras gestionan recursos críticos, reparan sistemas dañados y mantienen su cordura en un ambiente marítimo claustrofóbico.
+
+### 🎯 **Concepto Central**
+Utilizando una baraja estándar de 52 cartas, cada palo representa una habilidad diferente del superviviente:
+- **♠ Picas**: Tecnología naval y combate directo
+- **♥ Corazones**: Voluntad marinera y resistencia psicológica  
+- **♣ Tréboles**: Ingeniería marítima e investigación
+- **♦ Diamantes**: Recursos náuticos y exploración costera
 
 ## Expanding the ESLint configuration
 

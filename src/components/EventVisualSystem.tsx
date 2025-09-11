@@ -5,6 +5,7 @@ import { gsap } from 'gsap';
 import type { Card, DynamicEvent } from '../engine/types';
 import { pixiScreenEffects } from '../engine/PixiScreenEffects';
 import type { ScreenEffectType } from '../engine/PixiScreenEffects';
+import { colors, textStyles, panelStyles, createStoneButtonStyle, handleStoneButtonHover } from '../utils/styles';
 
 interface EventVisualSystemProps {
   isVisible: boolean;
@@ -88,7 +89,7 @@ export const EventVisualSystem: React.FC<EventVisualSystemProps> = ({
   onClose
 }) => {
   const [showContent, setShowContent] = useState(false);
-  const [currentEffect, setCurrentEffect] = useState<string>('none');
+  const [, setCurrentEffect] = useState<string>('none');
 
   const config = eventCard ? EVENT_VISUAL_CONFIG[eventCard.id] || { presentationType: 'card' as const, screenEffect: 'none' as const } : null;
 
@@ -106,15 +107,9 @@ export const EventVisualSystem: React.FC<EventVisualSystemProps> = ({
       // 2. Mostrar contenido después de un breve delay
       timeline.call(() => setShowContent(true), [], 0.5);
       
-      // 3. Auto-cerrar según el tipo de presentación
-      const autocloseDelay = getAutoCloseDelay(config.presentationType);
-      timeline.call(() => {
-        onClose();
-        setShowContent(false);
-        setCurrentEffect('none');
-      }, [], autocloseDelay);
+      // NO auto-cerrar - esperamos que el usuario haga clic en OK
     }
-  }, [isVisible, eventCard, event, config, onClose]);
+  }, [isVisible, eventCard, event, config]);
 
   const applyScreenEffect = async (effect: ScreenEffectType, intensity: 'low' | 'medium' | 'high' = 'medium', duration?: number) => {
     const effectDuration = duration || 3000;
@@ -134,26 +129,34 @@ export const EventVisualSystem: React.FC<EventVisualSystemProps> = ({
     }
   };
 
-  const getAutoCloseDelay = (type: string): number => {
-    switch (type) {
-      case 'card': return 4;
-      case 'image': return 6;
-      case 'gif': return 8;
-      case 'video': return 10;
-      default: return 4;
-    }
-  };
 
   if (!isVisible || !eventCard || !event || !config) return null;
 
   return (
     <>
-      {/* Main Modal - Sin overlay CSS ya que PixiJS maneja los efectos */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        {/* Backdrop */}
+      {/* Main Modal - Con z-index muy alto para estar por encima de todo */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        {/* Backdrop - NO clickeable para forzar uso del botón OK */}
         <div 
-          className="absolute inset-0 bg-black bg-opacity-80 backdrop-blur-sm"
-          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(4px)'
+          }}
         />
         
         {showContent && (
@@ -177,19 +180,20 @@ const EventContentRenderer: React.FC<{
   onClose: () => void;
 }> = ({ presentationType, eventCard, event, onClose }) => {
   
-  const getSuitSymbol = (suit: string) => {
-    switch (suit) {
-      case 'Spades': return '♠';
-      case 'Hearts': return '♥';
-      case 'Diamonds': return '♦';
-      case 'Clubs': return '♣';
-      default: return '';
-    }
-  };
+  // Utility functions for card rendering (currently unused)
+  // const getSuitSymbol = (suit: string) => {
+  //   switch (suit) {
+  //     case 'Spades': return '♠';
+  //     case 'Hearts': return '♥';
+  //     case 'Diamonds': return '♦';
+  //     case 'Clubs': return '♣';
+  //     default: return '';
+  //   }
+  // };
 
-  const getSuitColor = (suit: string) => {
-    return ['Hearts', 'Diamonds'].includes(suit) ? '#ef4444' : '#1f2937';
-  };
+  // const getSuitColor = (suit: string) => {
+  //   return ['Hearts', 'Diamonds'].includes(suit) ? '#ef4444' : '#1f2937';
+  // };
 
   switch (presentationType) {
     case 'card':
@@ -215,10 +219,80 @@ const CardPresentation: React.FC<{
   event: DynamicEvent;
   onClose: () => void;
 }> = ({ eventCard, event, onClose }) => (
-  <div className="event-modal relative max-w-xl mx-4 p-6 bg-gray-900 rounded-xl border-2 border-blue-500 shadow-2xl">
-    <EventCardDisplay eventCard={eventCard} />
-    <EventDetails event={event} />
-    <CloseButton onClose={onClose} />
+  <div style={{
+    background: 'rgba(30, 41, 59, 0.85)',
+    backdropFilter: 'blur(12px)',
+    borderRadius: '12px',
+    border: `1px solid rgba(217, 119, 6, 0.3)`,
+    boxShadow: '0 8px 32px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.1)',
+    position: 'relative',
+    width: '1000px',
+    height: '300px',
+    margin: '0 auto',
+    padding: '20px 32px',
+    zIndex: 10000,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '24px'
+  }}>
+    {/* Efectos glassmorphism */}
+    <div style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: '2px',
+      background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+      pointerEvents: 'none'
+    }} />
+    <div style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      bottom: 0,
+      width: '2px',
+      background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.1), transparent)',
+      pointerEvents: 'none'
+    }} />
+    
+    {/* Imagen de la carta del evento */}
+    <div style={{
+      width: '160px',
+      height: '224px',
+      borderRadius: '8px',
+      backgroundImage: `url(/images/scenarios/default/events/${eventCard.imageFile}), url(/images/scenarios/default/events/missing-event.svg)`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      border: `2px solid ${colors.gold}`,
+      boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+      flexShrink: 0,
+      position: 'relative'
+    }}>
+      {/* Fallback si no carga la imagen - ahora funciona como overlay */}
+      <div
+        onError={() => console.log(`Event image not found: ${eventCard.id}.png`)}
+        style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'linear-gradient(135deg, #1e293b, #374151)',
+        borderRadius: '6px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1
+      }}>
+        <EventCardDisplay eventCard={eventCard} size="small" />
+      </div>
+    </div>
+    
+    {/* Contenido del evento */}
+    <div style={{ flex: 1 }}>
+      <EventDetails event={event} />
+      <OKButton onClose={onClose} />
+    </div>
   </div>
 );
 
@@ -227,24 +301,53 @@ const ImagePresentation: React.FC<{
   event: DynamicEvent;
   onClose: () => void;
 }> = ({ eventCard, event, onClose }) => (
-  <div className="event-modal relative max-w-4xl mx-4 bg-gray-900 rounded-xl border-2 border-purple-500 shadow-2xl overflow-hidden">
-    <div className="relative">
-      {/* Placeholder para imagen del evento */}
-      <div className="w-full h-80 bg-gradient-to-br from-purple-900 to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">🎭</div>
-          <div className="text-2xl font-bold text-white">{event.event}</div>
-          <div className="text-sm text-gray-400 mt-2">Imagen: {eventCard.id}.jpg</div>
-        </div>
-      </div>
-      <div className="absolute bottom-4 left-4">
-        <EventCardDisplay eventCard={eventCard} size="small" />
+  <div style={{
+    background: 'rgba(30, 41, 59, 0.85)',
+    backdropFilter: 'blur(12px)',
+    borderRadius: '12px',
+    border: `1px solid rgba(217, 119, 6, 0.3)`,
+    boxShadow: '0 8px 32px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.1)',
+    position: 'relative',
+    width: '1000px',
+    height: '300px',
+    margin: '0 auto',
+    overflow: 'hidden',
+    zIndex: 10000,
+    display: 'flex',
+    alignItems: 'center'
+  }}>
+    {/* Imagen del evento - lado izquierdo */}
+    <div style={{
+      width: '200px',
+      height: '260px',
+      borderRadius: '8px',
+      backgroundImage: `url(/images/scenarios/default/events/${eventCard.imageFile}), url(/images/scenarios/default/events/missing-event.svg)`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      border: `2px solid ${colors.gold}`,
+      boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+      flexShrink: 0,
+      position: 'relative',
+      background: 'linear-gradient(135deg, #581c87 0%, #1f2937 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}>
+      {/* Placeholder cuando no carga la imagen */}
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: '48px', marginBottom: '8px' }}>🎭</div>
+        <div style={{
+          ...textStyles.bodySmall,
+          color: colors.mutedAlpha
+        }}>Imagen: {eventCard.imageFile}</div>
       </div>
     </div>
-    <div className="p-6">
+    
+    {/* Contenido del evento - lado derecho */}
+    <div style={{ flex: 1, padding: '0 24px' }}>
       <EventDetails event={event} />
+      <OKButton onClose={onClose} />
     </div>
-    <CloseButton onClose={onClose} />
   </div>
 );
 
@@ -252,62 +355,183 @@ const GifPresentation: React.FC<{
   eventCard: Card;
   event: DynamicEvent;
   onClose: () => void;
-}> = ({ eventCard, event, onClose }) => (
-  <div className="event-modal relative max-w-5xl mx-4 bg-gray-900 rounded-xl border-2 border-orange-500 shadow-2xl overflow-hidden">
-    <div className="relative">
-      {/* Placeholder para GIF del evento */}
-      <div className="w-full h-96 bg-gradient-to-br from-orange-900 to-red-900 flex items-center justify-center animate-pulse">
-        <div className="text-center">
-          <div className="text-7xl mb-4 animate-bounce">⚡</div>
-          <div className="text-3xl font-bold text-white">{event.event}</div>
-          <div className="text-sm text-gray-400 mt-2">GIF Animado: {eventCard.id}.gif</div>
+}> = ({ eventCard, event, onClose }) => {
+  const [animating, setAnimating] = useState(true);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAnimating(prev => !prev);
+    }, 1500);
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <div style={{
+      background: 'rgba(30, 41, 59, 0.85)',
+      backdropFilter: 'blur(12px)',
+      borderRadius: '12px',
+      border: `1px solid rgba(217, 119, 6, 0.3)`,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.1)',
+      position: 'relative',
+      width: '1000px',
+      height: '300px',
+      margin: '0 auto',
+      overflow: 'hidden',
+      zIndex: 10000,
+      display: 'flex',
+      alignItems: 'center'
+    }}>
+      {/* GIF del evento - lado izquierdo */}
+      <div style={{
+        width: '200px',
+        height: '260px',
+        borderRadius: '8px',
+        backgroundImage: `url(/images/scenarios/default/events/${eventCard.imageFile.replace('.png', '.gif')}), url(/images/scenarios/default/events/missing-event.svg)`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        border: `2px solid ${colors.gold}`,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+        flexShrink: 0,
+        background: 'linear-gradient(135deg, #ea580c 0%, #dc2626 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: animating ? 1 : 0.8,
+        transition: 'opacity 0.5s ease'
+      }}>
+        {/* Placeholder cuando no carga el GIF */}
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            fontSize: '60px',
+            marginBottom: '8px',
+            transform: animating ? 'scale(1.1)' : 'scale(1)',
+            transition: 'transform 0.5s ease'
+          }}>⚡</div>
+          <div style={{
+            ...textStyles.bodySmall,
+            color: colors.mutedAlpha
+          }}>GIF: {eventCard.imageFile.replace('.png', '.gif')}</div>
         </div>
       </div>
-      <div className="absolute top-4 left-4">
-        <EventCardDisplay eventCard={eventCard} size="small" />
+      
+      {/* Contenido del evento - lado derecho */}
+      <div style={{ flex: 1, padding: '0 24px' }}>
+        <EventDetails event={event} />
+        <OKButton onClose={onClose} />
       </div>
     </div>
-    <div className="p-6">
-      <EventDetails event={event} />
-    </div>
-    <CloseButton onClose={onClose} />
-  </div>
-);
+  );
+};
 
 const VideoPresentation: React.FC<{
   eventCard: Card;
   event: DynamicEvent;
   onClose: () => void;
-}> = ({ eventCard, event, onClose }) => (
-  <div className="event-modal relative max-w-6xl mx-4 bg-black rounded-xl border-2 border-red-500 shadow-2xl overflow-hidden">
-    <div className="relative">
-      {/* Placeholder para Video del evento */}
-      <div className="w-full h-[32rem] bg-gradient-to-br from-red-900 via-black to-purple-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-8xl mb-6 animate-pulse">🎬</div>
-          <div className="text-4xl font-bold text-white mb-2">{event.event}</div>
-          <div className="text-lg text-gray-400 mb-4">Video Cinemático</div>
-          <div className="text-sm text-gray-500">Video: {eventCard.id}.mp4</div>
+}> = ({ eventCard, event, onClose }) => {
+  const [pulse, setPulse] = useState(true);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPulse(prev => !prev);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <div style={{
+      background: 'rgba(30, 41, 59, 0.85)',
+      backdropFilter: 'blur(12px)',
+      borderRadius: '12px',
+      border: `1px solid rgba(217, 119, 6, 0.3)`,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.1)',
+      position: 'relative',
+      width: '1000px',
+      height: '300px',
+      margin: '0 auto',
+      overflow: 'hidden',
+      zIndex: 10000,
+      display: 'flex',
+      alignItems: 'center'
+    }}>
+      {/* Video del evento - lado izquierdo */}
+      <div style={{
+        width: '280px',
+        height: '260px',
+        borderRadius: '8px',
+        backgroundImage: `url(/images/scenarios/default/events/${eventCard.imageFile.replace('.png', '.mp4')}), url(/images/scenarios/default/events/missing-event.svg)`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        border: `2px solid ${colors.gold}`,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+        flexShrink: 0,
+        background: 'linear-gradient(135deg, #dc2626 0%, #000000 50%, #7c3aed 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative'
+      }}>
+        {/* Placeholder y controles de video */}
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            fontSize: '64px',
+            marginBottom: '12px',
+            opacity: pulse ? 1 : 0.6,
+            transition: 'opacity 1s ease'
+          }}>🎬</div>
+          <div style={{
+            ...textStyles.bodySmall,
+            color: colors.mutedAlpha
+          }}>Video: {eventCard.imageFile.replace('.png', '.mp4')}</div>
+        </div>
+        
+        {/* Controles de video simulados */}
+        <div style={{
+          position: 'absolute',
+          bottom: '8px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          borderRadius: '12px',
+          padding: '4px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <div style={{
+            width: '12px',
+            height: '12px',
+            backgroundColor: colors.gold,
+            borderRadius: '50%'
+          }}></div>
+          <div style={{
+            width: '80px',
+            height: '3px',
+            backgroundColor: '#4b5563',
+            borderRadius: '2px',
+            position: 'relative'
+          }}>
+            <div style={{
+              width: '20px',
+              height: '3px',
+              backgroundColor: colors.gold,
+              borderRadius: '2px'
+            }}></div>
+          </div>
+          <span style={{
+            fontSize: '10px',
+            color: colors.muted
+          }}>0:15</span>
         </div>
       </div>
-      <div className="absolute top-6 left-6">
-        <EventCardDisplay eventCard={eventCard} size="small" />
-      </div>
-      {/* Controles de video simulados */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 rounded-full px-6 py-2 flex items-center space-x-4">
-        <div className="w-4 h-4 bg-white rounded-full"></div>
-        <div className="w-32 h-1 bg-gray-600 rounded">
-          <div className="w-8 h-1 bg-white rounded"></div>
-        </div>
-        <span className="text-white text-sm">0:15 / 2:30</span>
+      
+      {/* Contenido del evento - lado derecho */}
+      <div style={{ flex: 1, padding: '0 24px' }}>
+        <EventDetails event={event} />
+        <OKButton onClose={onClose} />
       </div>
     </div>
-    <div className="p-6">
-      <EventDetails event={event} />
-    </div>
-    <CloseButton onClose={onClose} />
-  </div>
-);
+  );
+};
 
 // Componentes auxiliares
 const EventCardDisplay: React.FC<{
@@ -315,9 +539,10 @@ const EventCardDisplay: React.FC<{
   size?: 'normal' | 'small';
 }> = ({ eventCard, size = 'normal' }) => {
   const isSmall = size === 'small';
-  const cardSize = isSmall ? 'w-16 h-20' : 'w-32 h-44';
-  const textSize = isSmall ? 'text-xs' : 'text-xl';
-  const symbolSize = isSmall ? 'text-lg' : 'text-4xl';
+  const cardWidth = isSmall ? 64 : 128;
+  const cardHeight = isSmall ? 80 : 176;
+  const fontSize = isSmall ? '12px' : '20px';
+  const symbolSize = isSmall ? '18px' : '48px';
 
   const getSuitSymbol = (suit: string) => {
     switch (suit) {
@@ -330,18 +555,47 @@ const EventCardDisplay: React.FC<{
   };
 
   const getSuitColor = (suit: string) => {
-    return ['Hearts', 'Diamonds'].includes(suit) ? '#ef4444' : '#1f2937';
+    return ['Hearts', 'Diamonds'].includes(suit) ? '#dc2626' : '#1f2937';
   };
 
   return (
-    <div className={`${cardSize} rounded-lg border-2 border-blue-400 bg-white shadow-xl relative`}>
-      <div className="absolute inset-1 flex flex-col">
-        <div className={`${textSize} font-bold`} style={{ color: getSuitColor(eventCard.suit) }}>
+    <div style={{
+      width: `${cardWidth}px`,
+      height: `${cardHeight}px`,
+      borderRadius: '8px',
+      border: `2px solid ${colors.gold}`,
+      backgroundColor: '#ffffff',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+      position: 'relative'
+    }}>
+      <div style={{
+        position: 'absolute',
+        top: '4px',
+        left: '4px',
+        right: '4px',
+        bottom: '4px',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        <div style={{
+          fontSize,
+          fontWeight: 'bold',
+          color: getSuitColor(eventCard.suit),
+          fontFamily: 'serif'
+        }}>
           {eventCard.rank}{getSuitSymbol(eventCard.suit)}
         </div>
         {!isSmall && (
-          <div className="flex-1 flex items-center justify-center">
-            <div className={symbolSize} style={{ color: getSuitColor(eventCard.suit) }}>
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <div style={{
+              fontSize: symbolSize,
+              color: getSuitColor(eventCard.suit)
+            }}>
               {getSuitSymbol(eventCard.suit)}
             </div>
           </div>
@@ -352,14 +606,33 @@ const EventCardDisplay: React.FC<{
 };
 
 const EventDetails: React.FC<{ event: DynamicEvent }> = ({ event }) => (
-  <div className="text-center space-y-4">
-    <h3 className="text-2xl font-bold text-white">{event.event}</h3>
-    <p className="text-lg text-gray-300 italic leading-relaxed">"{event.flavor}"</p>
+  <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+    <h3 style={{
+      ...textStyles.subsectionTitle,
+      marginBottom: '16px'
+    }}>{event.event}</h3>
+    <p style={{
+      ...textStyles.body,
+      fontStyle: 'italic',
+      lineHeight: 1.6,
+      marginBottom: '20px'
+    }}>"{event.flavor}"</p>
     {event.effects && event.effects.length > 0 && (
-      <div className="mt-4 p-3 bg-gray-800 rounded-lg border border-gray-600">
-        <div className="text-sm font-semibold text-gray-400 mb-1">EFECTOS:</div>
+      <div style={{
+        ...panelStyles.secondary,
+        marginTop: '16px',
+        padding: '16px'
+      }}>
+        <div style={{
+          ...textStyles.label,
+          color: colors.gold,
+          marginBottom: '8px'
+        }}>EFECTOS:</div>
         {event.effects.map((effect, index) => (
-          <div key={index} className="text-sm text-gray-300">
+          <div key={index} style={{
+            ...textStyles.bodySmall,
+            marginBottom: '4px'
+          }}>
             {getEffectDescription(effect)}
           </div>
         ))}
@@ -368,13 +641,21 @@ const EventDetails: React.FC<{ event: DynamicEvent }> = ({ event }) => (
   </div>
 );
 
-const CloseButton: React.FC<{ onClose: () => void }> = ({ onClose }) => (
-  <button
-    onClick={onClose}
-    className="absolute top-3 right-3 w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-  >
-    ×
-  </button>
+const OKButton: React.FC<{ onClose: () => void }> = ({ onClose }) => (
+  <div style={{
+    display: 'flex',
+    justifyContent: 'center',
+    marginTop: '24px'
+  }}>
+    <button
+      style={createStoneButtonStyle({ width: '200px' })}
+      onMouseEnter={(e) => handleStoneButtonHover(e, true)}
+      onMouseLeave={(e) => handleStoneButtonHover(e, false)}
+      onClick={onClose}
+    >
+      Continuar
+    </button>
+  </div>
 );
 
 // Efectos de pantalla ahora manejados por PixiScreenEffects

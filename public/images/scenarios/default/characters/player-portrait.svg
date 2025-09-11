@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="180" height="350" xmlns="http://www.w3.org/2000/svg">
+    <rect width="180" height="350" fill="#333333" stroke="#666666" stroke-width="2"/>
+    
+        <defs>
+            <linearGradient id="portraitGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#4a5568"/>
+                <stop offset="100%" stop-color="#2d3748"/>
+            </linearGradient>
+        </defs>
+        <rect width="180" height="350" fill="url(#portraitGrad)"/>
+        
+        <!-- Silhouette -->
+        <ellipse cx="90" cy="100" rx="40" ry="50" fill="#1a202c"/>
+        <rect x="50" y="140" width="80" height="120" fill="#1a202c" rx="10"/>
+        
+        <!-- Details -->
+        <text x="90" y="280" text-anchor="middle" fill="#cbd5e1" font-family="Arial" font-size="16">
+            PLAYER
+        </text>
+        <text x="90" y="320" text-anchor="middle" fill="#64748b" font-family="Arial" font-size="12">
+            Portrait
+        </text>
+    
+</svg>

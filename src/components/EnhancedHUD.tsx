@@ -18,6 +18,7 @@ import {
 import { gameStateManager, GamePhase } from '../engine/GameStateManager';
 import { ecoAI } from '../engine/EcoAI';
 import { nodeSystem } from '../engine/NodeSystem';
+import { textStyles, colors } from '../utils/styles';
 
 export const EnhancedHUD: React.FC = () => {
   const pvBarRef = useRef<HTMLDivElement>(null);
@@ -111,8 +112,8 @@ export const EnhancedHUD: React.FC = () => {
             <FaHeart className="text-red-400 text-xl" />
           </div>
           <div className="stat-info">
-            <div className="stat-label text-xs text-gray-400 uppercase tracking-wide">Vida</div>
-            <div className="stat-value text-lg font-bold text-red-300">
+            <div style={{ ...textStyles.label, fontSize: '10px', color: colors.mutedAlpha }}>Vida</div>
+            <div style={{ ...textStyles.body, fontSize: '18px', fontWeight: 'bold', color: '#fca5a5' }}>
               {gameStateManager.pv}/20
             </div>
             <div className="stat-bar w-16 h-1.5 bg-black/60 rounded-full overflow-hidden">
@@ -136,8 +137,8 @@ export const EnhancedHUD: React.FC = () => {
             <FaBrain className="text-purple-400 text-xl" />
           </div>
           <div className="stat-info">
-            <div className="stat-label text-xs text-gray-400 uppercase tracking-wide">Cordura</div>
-            <div className="stat-value text-lg font-bold text-purple-300">
+            <div style={{ ...textStyles.label, fontSize: '10px', color: colors.mutedAlpha }}>Cordura</div>
+            <div style={{ ...textStyles.body, fontSize: '18px', fontWeight: 'bold', color: '#c4b5fd' }}>
               {gameStateManager.sanity}/20
             </div>
             <div className="stat-bar w-16 h-1.5 bg-black/60 rounded-full overflow-hidden">
@@ -161,8 +162,8 @@ export const EnhancedHUD: React.FC = () => {
             <FaBolt className="text-yellow-400 text-xl" />
           </div>
           <div className="stat-info">
-            <div className="stat-label text-xs text-gray-400 uppercase tracking-wide">PA</div>
-            <div className="stat-value text-2xl font-bold text-yellow-300">
+            <div style={{ ...textStyles.label, fontSize: '10px', color: colors.mutedAlpha }}>PA</div>
+            <div style={{ ...textStyles.body, fontSize: '24px', fontWeight: 'bold', color: '#fde047' }}>
               {gameStateManager.pa}
             </div>
           </div>
@@ -177,10 +178,10 @@ export const EnhancedHUD: React.FC = () => {
         className="turn-info text-center"
       >
         <div className="bg-gradient-to-r from-amber-900/60 to-amber-800/60 px-6 py-3 rounded-lg border border-amber-600/40 shadow-lg">
-          <div className="text-amber-300 text-sm font-semibold">
+          <div style={{ ...textStyles.smallTitle, fontSize: '14px', color: '#fcd34d' }}>
             Turno {gameStateManager.turn}
           </div>
-          <div className="text-amber-100 text-lg font-bold uppercase tracking-wide">
+          <div style={{ ...textStyles.smallTitle, fontSize: '18px', color: '#fef3c7' }}>
             {GamePhase[gameStateManager.phase].replace('_', ' ')}
           </div>
         </div>
@@ -197,8 +198,8 @@ export const EnhancedHUD: React.FC = () => {
           className="eco-status flex items-center space-x-3"
         >
           <div className="eco-info text-right">
-            <div className="text-xs text-gray-400 uppercase tracking-wide">ECO</div>
-            <div className="text-lg font-bold text-red-300">
+            <div style={{ ...textStyles.label, fontSize: '10px', color: colors.mutedAlpha }}>ECO</div>
+            <div style={{ ...textStyles.body, fontSize: '18px', fontWeight: 'bold', color: '#fca5a5' }}>
               {gameStateManager.ecoHp}/{gameStateManager.maxEcoHp}
             </div>
             <div className="stat-bar w-20 h-1.5 bg-black/60 rounded-full overflow-hidden">

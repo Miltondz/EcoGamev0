@@ -12,10 +12,11 @@ import type { Card as CardType } from './engine/types';
 import { cardEffectEngine } from './engine/CardEffectEngine';
 import { RepairButton, FocusButton, EndTurnButton, StyledButton } from './components/StyledButton';
 import { FaWrench, FaEye, FaArrowRight, FaCrosshairs, FaSearch } from 'react-icons/fa';
-
+import { PlayerPortrait, EcoPortrait } from './components/CharacterPortraits';
 import { VFX } from './components/VFX';
 import { GameLog } from './components/GameLog';
 import EventVisualSystem from './components/EventVisualSystem';
+import { textStyles, colors, panelStyles } from './utils/styles';
 // import { CSSCards } from './components/CSSCards'; // Commented out - using only PixiJS VFX
 
 const App: React.FC = () => {
@@ -167,46 +168,40 @@ const App: React.FC = () => {
                          }}>
                         {/* Stats Jugador - Izquierda */}
                         <div style={{
-                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                          backdropFilter: 'blur(4px)',
-                          borderRadius: '8px',
-                          padding: '8px 16px',
+                          ...panelStyles.hud,
+                          padding: '10px 18px',
                           border: '1px solid rgba(217, 119, 6, 0.3)'
                         }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '14px' }}>
-                                <span style={{ color: '#fef3c7', fontWeight: 'bold' }}>JUGADOR</span>
-                                <span style={{ color: '#fde68a' }}>HP: {gameStateManager.pv}/{gameStateManager.maxPV}</span>
-                                <span style={{ color: '#fde68a' }}>Cor: {gameStateManager.sanity}</span>
-                                <span style={{ color: '#fde68a' }}>AP: {gameStateManager.pa}/{gameStateManager.maxAP}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                <span style={{ ...textStyles.label, color: colors.gold, fontSize: '12px' }}>SOBREVIVIENTE</span>
+                                <span style={{ ...textStyles.bodySmall, color: colors.muted }}>HP: {gameStateManager.pv}/{gameStateManager.maxPV}</span>
+                                <span style={{ ...textStyles.bodySmall, color: colors.muted }}>Cor: {gameStateManager.sanity}</span>
+                                <span style={{ ...textStyles.bodySmall, color: colors.muted }}>AP: {gameStateManager.pa}/{gameStateManager.maxAP}</span>
                             </div>
                         </div>
                         
                         {/* Turno - Centro */}
                         <div style={{
-                          backgroundColor: 'rgba(30, 41, 59, 0.8)',
-                          backdropFilter: 'blur(4px)',
-                          borderRadius: '8px',
-                          padding: '8px 24px',
+                          ...panelStyles.hud,
+                          padding: '10px 28px',
                           border: '1px solid rgba(71, 85, 105, 0.5)'
                         }}>
                             <div style={{ textAlign: 'center' }}>
-                                <div style={{ color: '#e2e8f0', fontWeight: 'bold' }}>TURNO {gameStateManager.turn}</div>
-                                <div style={{ color: '#cbd5e1', fontSize: '12px' }}>FASE: {gameStateManager.phase === GamePhase.PLAYER_ACTION ? "JUGADOR" : "ECO"}</div>
+                                <div style={{ ...textStyles.smallTitle, fontSize: '16px', margin: 0 }}>TURNO {gameStateManager.turn}</div>
+                                <div style={{ ...textStyles.label, fontSize: '10px', color: colors.mutedAlpha }}>FASE: {gameStateManager.phase === GamePhase.PLAYER_ACTION ? "JUGADOR" : "ECO"}</div>
                             </div>
                         </div>
                         
                         {/* Stats Eco - Derecha */}
                         <div style={{
-                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                          backdropFilter: 'blur(4px)',
-                          borderRadius: '8px',
-                          padding: '8px 16px',
+                          ...panelStyles.hud,
+                          padding: '10px 18px',
                           border: '1px solid rgba(220, 38, 38, 0.3)'
                         }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '14px' }}>
-                                <span style={{ color: '#fecaca' }}>HP: {gameStateManager.ecoHp}/{gameStateManager.maxEcoHp}</span>
-                                <span style={{ color: '#fecaca' }}>Vigilante</span>
-                                <span style={{ color: '#fee2e2', fontWeight: 'bold' }}>ECO</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                <span style={{ ...textStyles.bodySmall, color: '#fecaca' }}>HP: {gameStateManager.ecoHp}/{gameStateManager.maxEcoHp}</span>
+                                <span style={{ ...textStyles.bodySmall, color: '#fecaca' }}>Vigilante</span>
+                                <span style={{ ...textStyles.label, color: '#fee2e2', fontSize: '12px' }}>ECO</span>
                             </div>
                         </div>
                         
@@ -216,30 +211,30 @@ const App: React.FC = () => {
                     <div style={{ 
                            position: 'absolute',
                            top: '80px',  
-                           left: '200px', 
-                           width: '880px', 
-                           height: '80px',
+                           left: '150px', 
+                           width: '980px', 
+                           height: '120px',
                            zIndex: 25,
                            display: 'flex',
                            alignItems: 'center',
                            justifyContent: 'center',
-                           gap: '12px'
+                           gap: '16px'
                          }}>
                         {Array.from({ length: 5 }, (_, i) => (
                             <div
                                 key={i}
                                 style={{
-                                    width: '48px',
-                                    height: '64px',
-                                    borderRadius: '4px',
+                                    width: '108px',
+                                    height: '150px',
+                                    borderRadius: '6px',
                                     border: '2px solid rgba(185, 28, 28, 0.8)',
-                                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                                    boxShadow: '0 6px 16px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1)',
                                     transition: 'transform 0.2s ease',
-                                    backgroundImage: 'url("/images/decks/default/card-back.jpg")',
+                                    backgroundImage: 'url("/images/scenarios/default/cards/card-back.png")',
                                     backgroundSize: 'cover',
                                     backgroundPosition: 'center',
                                     backgroundColor: '#1e293b',
-                                    filter: 'drop-shadow(0 2px 4px rgba(185, 28, 28, 0.3))'
+                                    filter: 'drop-shadow(0 3px 6px rgba(185, 28, 28, 0.4))'
                                 }}
                             />
                         ))}
@@ -262,24 +257,16 @@ const App: React.FC = () => {
                          }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div style={{ textAlign: 'center' }}>
-                                <div style={{ 
-                                  width: '64px', 
-                                  height: '64px', 
-                                  borderRadius: '50%', 
-                                  backgroundColor: 'rgba(146, 64, 14, 0.5)', 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center', 
-                                  fontSize: '1.5rem', 
-                                  margin: '0 auto 8px auto' 
-                                }}>👤</div>
-                                <div style={{ color: '#fde68a', fontWeight: 'bold', fontSize: '12px' }}>SURVIVOR</div>
+                                <div style={{ margin: '0 auto 8px auto' }}>
+                                    <PlayerPortrait />
+                                </div>
+                                <div style={{ ...textStyles.label, color: colors.gold, fontSize: '11px' }}>SOBREVIVIENTE</div>
                             </div>
                             
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '100%' }}>
                                 <div>
-                                    <div style={{ color: '#fde68a', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>Estado:</div>
-                                    <div style={{ color: '#fcd34d', fontSize: '9px' }}>
+                                    <div style={{ ...textStyles.label, fontSize: '10px', color: colors.gold, marginBottom: '4px' }}>Estado:</div>
+                                    <div style={{ ...textStyles.bodySmall, fontSize: '9px', color: colors.muted }}>
                                         <div style={{ marginBottom: '2px' }}>• Normal</div>
                                         <div style={{ marginBottom: '2px' }}>• Sin efectos</div>
                                         <div style={{ marginBottom: '2px' }}>• Cartas: {gameStateManager.hand.length}</div>
@@ -287,8 +274,8 @@ const App: React.FC = () => {
                                 </div>
                                 
                                 <div>
-                                    <div style={{ color: '#fde68a', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>Habilidades:</div>
-                                    <div style={{ color: '#fcd34d', fontSize: '9px' }}>
+                                    <div style={{ ...textStyles.label, fontSize: '10px', color: colors.gold, marginBottom: '4px' }}>Habilidades:</div>
+                                    <div style={{ ...textStyles.bodySmall, fontSize: '9px', color: colors.muted }}>
                                         <div style={{ marginBottom: '2px' }}>• Reparación: Tréboles</div>
                                         <div style={{ marginBottom: '2px' }}>• Ataque: Picas</div>
                                         <div style={{ marginBottom: '2px' }}>• Búsqueda: Diamantes</div>
@@ -297,8 +284,8 @@ const App: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <div style={{ color: '#fde68a', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>Objetivos:</div>
-                                    <div style={{ color: '#fcd34d', fontSize: '9px' }}>
+                                    <div style={{ ...textStyles.label, fontSize: '10px', color: colors.gold, marginBottom: '4px' }}>Objetivos:</div>
+                                    <div style={{ ...textStyles.bodySmall, fontSize: '9px', color: colors.muted }}>
                                         <div style={{ marginBottom: '2px' }}>• Reactivar sistemas críticos</div>
                                         <div style={{ marginBottom: '2px' }}>• Resistir ataques del Eco</div>
                                         <div style={{ marginBottom: '2px' }}>• Sobrevivir hasta el amanecer</div>
@@ -306,8 +293,8 @@ const App: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <div style={{ color: '#fde68a', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>Eventos Recientes:</div>
-                                    <div style={{ color: '#fcd34d', fontSize: '9px' }}>
+                                    <div style={{ ...textStyles.label, fontSize: '10px', color: colors.gold, marginBottom: '4px' }}>Eventos Recientes:</div>
+                                    <div style={{ ...textStyles.bodySmall, fontSize: '9px', color: colors.muted }}>
                                         <div style={{ marginBottom: '2px' }}>• Juego iniciado</div>
                                         <div style={{ marginBottom: '2px' }}>• Cartas repartidas</div>
                                         <div style={{ marginBottom: '2px' }}>• Esperando acción</div>
@@ -316,7 +303,7 @@ const App: React.FC = () => {
 
                                 {/* Nodos grandes en parte inferior izquierda */}
                                 <div style={{ marginTop: 'auto' }}>
-                                    <div style={{ color: '#fde68a', fontSize: '10px', fontWeight: 'bold', marginBottom: '6px' }}>NODOS</div>
+                                    <div style={{ ...textStyles.label, fontSize: '10px', color: colors.gold, marginBottom: '6px' }}>NODOS</div>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                                         {['communications','energy','defense','supplies'].map((id) => {
                                             const nd = getNodeDisplay(id);
@@ -351,25 +338,16 @@ const App: React.FC = () => {
                          }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div style={{ textAlign: 'center' }}>
-                                <div style={{ 
-                                  width: '64px', 
-                                  height: '64px', 
-                                  borderRadius: '50%', 
-                                  backgroundColor: 'rgba(153, 27, 27, 0.5)', 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center', 
-                                  fontSize: '1.5rem', 
-                                  margin: '0 auto 8px auto',
-                                  animation: 'pulse 2s infinite'
-                                }}>👹</div>
-                                <div style={{ color: '#fecaca', fontWeight: 'bold', fontSize: '12px' }}>ECO - VIGILANTE</div>
+                                <div style={{ margin: '0 auto 8px auto' }}>
+                                    <EcoPortrait />
+                                </div>
+                                <div style={{ ...textStyles.label, color: '#fecaca', fontSize: '11px' }}>ECO - VIGILANTE</div>
                             </div>
                             
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '100%' }}>
                                 <div>
-                                    <div style={{ color: '#fecaca', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>Estado:</div>
-                                    <div style={{ color: '#f87171', fontSize: '9px' }}>
+                                    <div style={{ ...textStyles.label, fontSize: '10px', color: '#fecaca', marginBottom: '4px' }}>Estado:</div>
+                                    <div style={{ ...textStyles.bodySmall, fontSize: '9px', color: '#f87171' }}>
                                         <div style={{ marginBottom: '2px' }}>• Vigilante</div>
                                         <div style={{ marginBottom: '2px' }}>• Cartas: 5</div>
                                         <div style={{ marginBottom: '2px' }}>• Última acción: Esperando</div>
@@ -377,8 +355,8 @@ const App: React.FC = () => {
                                 </div>
                                 
                                 <div>
-                                    <div style={{ color: '#fecaca', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>Amenaza:</div>
-                                    <div style={{ color: '#f87171', fontSize: '9px' }}>
+                                    <div style={{ ...textStyles.label, fontSize: '10px', color: '#fecaca', marginBottom: '4px' }}>Amenaza:</div>
+                                    <div style={{ ...textStyles.bodySmall, fontSize: '9px', color: '#f87171' }}>
                                         <div style={{ marginBottom: '2px' }}>• Nivel: Moderado</div>
                                         <div style={{ marginBottom: '2px' }}>• Preparando ataque</div>
                                     </div>
@@ -404,8 +382,15 @@ const App: React.FC = () => {
                     {/* Turn overlay */}
                     {turnOverlay.visible && (
                         <div style={{ position: 'absolute', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)' }}>
-                            <div style={{ padding: '16px 32px', borderRadius: '8px', border: '1px solid rgba(217,119,6,0.5)', background: 'rgba(0,0,0,0.8)', color: '#fde68a', fontWeight: 'bold', fontSize: '18px' }}>
-                                {turnOverlay.text}
+                            <div style={{ 
+                                ...panelStyles.hud, 
+                                padding: '20px 40px', 
+                                border: '2px solid rgba(217,119,6,0.6)', 
+                                background: 'rgba(0,0,0,0.9)' 
+                            }}>
+                                <div style={{ ...textStyles.subsectionTitle, fontSize: '20px', color: colors.gold, margin: 0 }}>
+                                    {turnOverlay.text}
+                                </div>
                             </div>
                         </div>
                     )}
@@ -519,11 +504,11 @@ const App: React.FC = () => {
                     {eventMessage && (
                         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
                             <div className="bg-gradient-to-br from-amber-900/90 to-amber-800/90 p-8 rounded-lg border-2 border-amber-600/50 shadow-2xl max-w-md mx-4">
-                                <h2 className="text-2xl font-bold text-amber-100 mb-4 text-center">Event</h2>
-                                <p className="text-amber-200 mb-6 text-center leading-relaxed">{eventMessage}</p>
+                                <h2 style={{ ...textStyles.subsectionTitle, fontSize: '28px', color: '#fbbf24', marginBottom: '16px', textAlign: 'center' }}>Evento</h2>
+                                <p style={{ ...textStyles.body, color: '#fde68a', marginBottom: '24px', textAlign: 'center' }}>{eventMessage}</p>
                                 <div className="flex justify-center">
                                     <EndTurnButton onClick={handleContinue} size="lg">
-                                        Continue
+                                        Continuar
                                     </EndTurnButton>
                                 </div>
                             </div>
@@ -538,10 +523,13 @@ const App: React.FC = () => {
                                     ? 'bg-gradient-to-br from-green-900/90 to-green-800/90 border-green-600/50'
                                     : 'bg-gradient-to-br from-red-900/90 to-red-800/90 border-red-600/50'
                             }`}>
-                                <h1 className={`text-4xl font-bold mb-6 ${
-                                    gameStateManager.victory ? 'text-green-100' : 'text-red-100'
-                                }`}>
-                                    {gameStateManager.victory ? 'Victory!' : 'Defeat'}
+                                <h1 style={{
+                                    ...textStyles.bookTitle,
+                                    fontSize: '42px',
+                                    color: gameStateManager.victory ? '#86efac' : '#fca5a5',
+                                    marginBottom: '24px'
+                                }}>
+                                    {gameStateManager.victory ? '¡Victoria!' : 'Derrota'}
                                 </h1>
                                 <div className="flex justify-center">
                                     <EndTurnButton 
@@ -551,7 +539,7 @@ const App: React.FC = () => {
                                         }}
                                         size="lg"
                                     >
-                                        Play Again
+                                        Jugar de Nuevo
                                     </EndTurnButton>
                                 </div>
                             </div>

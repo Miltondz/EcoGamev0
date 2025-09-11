@@ -8,11 +8,14 @@ import { gameLogSystem } from './GameLogSystem';
 import { hallucinationSystem } from './HallucinationSystem';
 import { scenarioRulesEngine } from './ScenarioRulesEngine';
 import { vfxSystem } from './VFXSystem';
+import { chapterManager } from './ChapterManager';
+import { scoreSystem } from './ScoreSystem';
 import type { Card } from './types';
 
 export class EcoAI {
     public hand: Card[] = [];
     public currentPhase: string = 'vigilante';
+    private difficultyMultiplier: number = 1.0;
 
     setHand(hand: Card[]) {
         this.hand = hand;
@@ -20,6 +23,7 @@ export class EcoAI {
 
     takeTurn() {
         console.log(`🧪 EcoAI: Iniciando turno del Eco`);
+        this.updateDifficultyMultiplier();
         this.updatePhase();
         console.log(`🧪 EcoAI: Fase actual del Eco: ${this.currentPhase}`);
         gameLogSystem.addMessage(`El Eco entra en fase ${this.currentPhase}.`, 'eco', 'info');
@@ -53,8 +57,9 @@ export class EcoAI {
             console.log(`⚔️ EcoAI: Ejecutando ataque con carta revelada`);
             this.executeAttack(card);
 
-            // Phase-specific special actions
-            if (this.currentPhase === 'predador' && Math.random() < 0.2) {
+            // Phase-specific special actions with difficulty scaling
+            const doubleAttackChance = this.getPhaseSpecialChance('predador', 0.2);
+            if (this.currentPhase === 'predador' && Math.random() < doubleAttackChance) {
                 gameLogSystem.addMessage("Eco performs a frenzied double attack!", 'eco', 'special');
                 this.performDoubleAttack();
             } else {
@@ -63,12 +68,15 @@ export class EcoAI {
             }
 
             if (this.currentPhase === 'predador') {
-                hallucinationSystem.addHallucinationToDeck();
-                gameLogSystem.addMessage("A hallucination seeps into your deck.", 'eco', 'hallucination');
+                const hallucinationChance = this.getPhaseSpecialChance('predador', 0.7);
+                if (Math.random() < hallucinationChance) {
+                    hallucinationSystem.addHallucinationToDeck();
+                    gameLogSystem.addMessage("A hallucination seeps into your deck.", 'eco', 'hallucination');
+                }
             }
     
             if (this.currentPhase === 'devastador') {
-                this.performDevastatiorActions();
+                this.performDevastatorActions();
             }
 
         }, 1500); // 1.5 second delay for the player to see the card
@@ -90,17 +98,42 @@ export class EcoAI {
         }
     }
 
-    private performDevastatiorActions() {
+    private updateDifficultyMultiplier() {
+        const chapter = chapterManager.currentChapterConfig;
+        if (chapter) {
+            this.difficultyMultiplier = chapter.difficultyModifiers.ecoAIDifficulty;
+            console.log(`🎯 EcoAI: Difficulty multiplier set to ${this.difficultyMultiplier}`);
+        } else {
+            this.difficultyMultiplier = 1.0;
+        }
+    }
+    
+    private getPhaseSpecialChance(phase: string, baseChance: number): number {
+        if (this.currentPhase !== phase) return 0;
+        return Math.min(1.0, baseChance * this.difficultyMultiplier);
+    }
+    
+    // private applyDifficultyToDoubleAttack(): boolean {
+    //     // In higher difficulties, eco is more likely to perform special actions
+    //     const enhancedChance = this.difficultyMultiplier >= 1.5;
+    //     return enhancedChance && Math.random() < 0.3;
+    // }
+
+    private performDevastatorActions() {
         const allNodes = nodeSystem.allNodes.filter(n => n.damage < n.maxDamage);
         if (allNodes.length > 0) {
             const randomNode = allNodes[Math.floor(Math.random() * allNodes.length)];
-            nodeSystem.dealDamage(randomNode.id, 2);
-            gameLogSystem.addMessage(`The Eco lashes out, damaging node ${randomNode.name}.`, 'eco', 'node_damage');
+            const nodeDamage = Math.ceil(2 * this.difficultyMultiplier);
+            nodeSystem.dealDamage(randomNode.id, nodeDamage);
+            gameLogSystem.addMessage(`The Eco lashes out, damaging node ${randomNode.name} for ${nodeDamage} damage.`, 'eco', 'node_damage');
         }
 
-        hallucinationSystem.addHallucinationToDeck();
-        hallucinationSystem.addHallucinationToDeck();
-        gameLogSystem.addMessage("Two hallucinations corrupt your deck.", 'eco', 'hallucination');
+        // Scale hallucination count with difficulty
+        const hallucinationCount = Math.ceil(2 * Math.min(this.difficultyMultiplier, 2.0));
+        for (let i = 0; i < hallucinationCount; i++) {
+            hallucinationSystem.addHallucinationToDeck();
+        }
+        gameLogSystem.addMessage(`${hallucinationCount} hallucinations corrupt your deck.`, 'eco', 'hallucination');
     }
 
     private executeAttack(card: Card) {
@@ -116,8 +149,9 @@ export class EcoAI {
             
             // Aplicar modificadores de fase si es devastador
             if (this.currentPhase === 'devastador') {
-                gameLogSystem.addMessage("Fase Devastador: ¡Daño amplificado!", 'eco', 'special');
-                // El modificador se puede aplicar en las reglas dinámicas o aquí
+                const amplification = 1.5 * this.difficultyMultiplier;
+                gameLogSystem.addMessage(`Fase Devastador: ¡Daño amplificado! (x${amplification.toFixed(1)})`, 'eco', 'special');
+                // Los modificadores se pueden aplicar en las reglas dinámicas
             }
             return;
         }
@@ -128,9 +162,14 @@ export class EcoAI {
         let damage = card.value;
         const damageType: 'PV' | 'COR' = ['spades', 'clubs'].includes(card.suit.toLowerCase()) ? 'PV' : 'COR';
 
+        // Apply difficulty multiplier to base damage
+        damage = Math.ceil(damage * this.difficultyMultiplier);
+
         if (this.currentPhase === 'devastador') {
             damage = Math.ceil(damage * 1.5);
-            gameLogSystem.addMessage("Devastator phase: Damage amplified!", 'eco', 'special');
+            gameLogSystem.addMessage(`Devastator phase: Damage amplified! (x${(1.5 * this.difficultyMultiplier).toFixed(1)})`, 'eco', 'special');
+        } else if (this.difficultyMultiplier > 1.0) {
+            gameLogSystem.addMessage(`Difficulty scaling: Damage increased! (x${this.difficultyMultiplier})`, 'eco', 'special');
         }
 
         if (damageType === 'PV') {
@@ -140,6 +179,9 @@ export class EcoAI {
             gameStateManager.dealSanityDamage(damage);
             gameLogSystem.addMessage(`Eco attacks with ${card.rank} of ${card.suit}, dealing ${damage} COR.`, 'eco', 'damage');
         }
+        
+        // Add score for surviving eco attack
+        scoreSystem.addScore('turn_survived', undefined, { ecoAttack: true, damage });
     }
 
     private updatePhase() {

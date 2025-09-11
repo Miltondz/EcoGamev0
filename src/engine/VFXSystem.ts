@@ -18,7 +18,8 @@ export type VFXEventType =
   | 'ecoPlayCard' // ECO plays a card with full animation
   | 'dealEcoCard' // Deal card to ECO hand
   | 'nodeRepaired' // Node gets repaired
-  | 'nodeDamaged'; // Node gets damaged
+  | 'nodeDamaged' // Node gets damaged
+  | 'cardClick'; // Card clicked for action menu
 
 // 2. Interfaces para los datos de cada evento
 export interface VFXEventData {
@@ -98,6 +99,10 @@ export interface VFXEventData {
     damageAmount: number;
     position: { x: number; y: number };
   };
+  cardClick: { // Card clicked for enlargement and actions
+    card: Card;
+    position: { x: number; y: number };
+  };
 }
 
 // 3. Evento genérico que usa un mapeo de tipos
@@ -136,6 +141,7 @@ class VFXSystem {
   repositionHand = (data: VFXEventData['updateHand']) => this.dispatch('repositionHand', data); // Reposition existing cards
   ecoPlayCard = (data: VFXEventData['ecoPlayCard']) => this.dispatch('ecoPlayCard', data); // ECO card play animation
   dealEcoCard = (data: VFXEventData['dealEcoCard']) => this.dispatch('dealEcoCard', data); // Deal to ECO
+  cardClick = (data: VFXEventData['cardClick']) => this.dispatch('cardClick', data); // Card clicked for actions
   
   triggerSuitEffect(suit: Suit, startPosition: { x: number; y: number }, endPosition: { x: number; y: number }) {
     switch (suit) {

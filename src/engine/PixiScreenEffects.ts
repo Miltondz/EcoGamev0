@@ -175,7 +175,7 @@ export class PixiScreenEffects {
     const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff];
     const glitchLayers: PIXI.Graphics[] = [];
     
-    colors.forEach((color, index) => {
+    colors.forEach((color) => {
       const glitchRect = new PIXI.Graphics()
         .rect(0, 0, this.app!.screen.width, this.app!.screen.height)
         .fill(color);
@@ -192,7 +192,7 @@ export class PixiScreenEffects {
     // Animación de glitch
     const maxAlpha = intensity === 'high' ? 0.5 : intensity === 'medium' ? 0.3 : 0.2;
     const glitchInterval = setInterval(() => {
-      glitchLayers.forEach((layer, index) => {
+      glitchLayers.forEach((layer) => {
         if (Math.random() < 0.3) {
           layer.alpha = maxAlpha * Math.random();
           layer.x = (Math.random() - 0.5) * 10;
@@ -372,7 +372,7 @@ export class PixiScreenEffects {
     }, duration);
   }
 
-  private async createCorruptionEffect(intensity: string, duration: number): Promise<void> {
+  private async createCorruptionEffect(_intensity: string, duration: number): Promise<void> {
     const container = new PIXI.Container();
     container.name = 'corruption-effect';
     
@@ -380,12 +380,12 @@ export class PixiScreenEffects {
     const corruptionLayers: PIXI.Graphics[] = [];
     const colors = [0x4a0080, 0x800040, 0x000000];
     
-    colors.forEach((color, index) => {
+    colors.forEach((color, _index) => {
       const layer = new PIXI.Graphics()
         .rect(0, 0, this.app!.screen.width, this.app!.screen.height)
         .fill(color);
       
-      const maxAlpha = (intensity === 'high' ? 0.4 : intensity === 'medium' ? 0.3 : 0.2) / (index + 1);
+      // const maxAlpha = (intensity === 'high' ? 0.4 : intensity === 'medium' ? 0.3 : 0.2) / (index + 1);
       layer.alpha = 0;
       layer.blendMode = 'multiply';
       
@@ -632,9 +632,9 @@ export class PixiScreenEffects {
   }
 
   clearAllEffects() {
-    for (const [type, container] of this.activeEffects) {
+    for (const [, container] of this.activeEffects) {
       this.effectsContainer.removeChild(container);
-      container.destroy({ children: true);
+      container.destroy({ children: true });
     }
     this.activeEffects.clear();
     console.log('🧹 PixiScreenEffects: Todos los efectos limpiados');

@@ -6,6 +6,7 @@ import { deckManager } from './DeckManager';
 import { gameLogSystem } from './GameLogSystem';
 import { nodeSystem } from './NodeSystem';
 import { scenarioRulesEngine } from './ScenarioRulesEngine';
+import { scoreSystem } from './ScoreSystem';
 
 class CardEffectEngine {
     applyEffect(card: Card) {
@@ -43,24 +44,42 @@ class CardEffectEngine {
         switch (card.suit) {
             case 'Spades': { // ♠ Ataque
                 let damage = card.value + gameStateManager.criticalDamageBoost;
+                let isCritical = gameStateManager.criticalDamageBoost > 0;
+                
                 if (gameStateManager.isEcoExposed) {
                     damage *= 2;
                     gameLogSystem.addMessage("Eco is exposed! Damage doubled.", 'system', 'info');
                     gameStateManager.isEcoExposed = false;
+                    isCritical = true;
                 }
+                
                 gameStateManager.dealDamageToEco(damage);
                 gameLogSystem.addMessage(`Dealt ${damage} damage to the Eco.`, 'player', 'attack');
+                
+                // Score the damage dealt
+                scoreSystem.scoreEcoDamage(damage, isCritical);
+                
+                // Check if Eco is defeated
+                if (gameStateManager.ecoHp <= 0) {
+                    scoreSystem.scoreEcoDefeat();
+                }
                 break;
             }
             case 'Hearts': // ♥ Recuperar COR
                 gameStateManager.recoverSanity(card.value);
                 gameLogSystem.addMessage(`Recovered ${card.value} COR.`, 'player', 'heal');
+                
+                // Score the healing
+                scoreSystem.addScore('heal_received', card.value * scoreSystem['SCORE_VALUES']?.heal_received || card.value * 5, { amount: card.value });
                 break;
             case 'Clubs': // ♣ Investigar/Reparar
                 // This action now has a dual purpose. The UI will decide which one to call.
                 // For now, playing it directly will "expose" the Eco.
                 gameStateManager.isEcoExposed = true;
                 gameLogSystem.addMessage("Eco is now exposed. Next attack deals double damage.", 'player', 'research');
+                
+                // Score the tactical advantage
+                scoreSystem.addScore('status_applied', undefined, { status: 'exposed', target: 'eco' });
                 break;
             case 'Diamonds': { // ♦ Buscar
                 const drawnCards = deckManager.drawCards(card.value);
@@ -120,6 +139,9 @@ class CardEffectEngine {
                 deckManager.discard(cards);
                 gameLogSystem.addMessage(`Used ${cards.length} card(s) to repair ${repairAmount} damage on node ${node.name}.`, 'player', 'node_repair');
                 
+                // Score the node repair
+                scoreSystem.scoreNodeAction('repaired', nodeId);
+                
                 // Remove cards from hand
                 cards.forEach(card => {
                     gameStateManager.hand = gameStateManager.hand.filter(c => c.id !== card.id);
@@ -156,6 +178,12 @@ class CardEffectEngine {
         if (apSpent) {
             deckManager.discard(heartCards);
             gameLogSystem.addMessage(`Used ${heartCards.length} Heart card(s) to recover ${sanityRecovered} sanity and gain +${criticalBoost} critical damage.`, 'player', 'focus');
+            
+            // Score the tactical healing and boost
+            scoreSystem.addScore('heal_received', sanityRecovered * 5, { amount: sanityRecovered, type: 'focus' });
+            if (criticalBoost > 0) {
+                scoreSystem.addScore('status_applied', undefined, { status: 'critical_boost', amount: criticalBoost });
+            }
             
             // Remove cards from hand
             heartCards.forEach(card => {
@@ -195,6 +223,15 @@ class CardEffectEngine {
             if (apSpent) {
                 deckManager.discard(diamondCards);
                 gameLogSystem.addMessage(`Used ${diamondCards.length} Diamond card(s) to search and drew ${drawnCards.length} cards.`, 'player', 'search');
+                
+                // Score the resource gathering
+                const efficiency = drawnCards.length >= diamondCards.length * 2;
+                scoreSystem.addScore('resource_saved', efficiency ? 50 : 30, { 
+                    action: 'search', 
+                    cardsUsed: diamondCards.length, 
+                    cardsDrawn: drawnCards.length,
+                    efficient: efficiency
+                });
                 
                 // Remove cards from hand
                 diamondCards.forEach(card => {

@@ -38,34 +38,7 @@ export const Board: React.FC<BoardProps> = (_props: BoardProps) => {
                 borderRadius: '8px'
             }}
         >
-            {/* Central atmospheric display */}
-            <div style={{
-                textAlign: 'center',
-                color: 'rgba(217, 119, 6, 0.4)',
-                fontSize: '48px',
-                fontWeight: 'bold',
-                textShadow: '0 0 20px rgba(217, 119, 6, 0.2)',
-                userSelect: 'none',
-                pointerEvents: 'none'
-            }}>
-                ECO-SURVIVOR
-            </div>
-            
-            {/* Subtle grid pattern overlay */}
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                backgroundImage: `
-                    linear-gradient(rgba(217, 119, 6, 0.05) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(217, 119, 6, 0.05) 1px, transparent 1px)
-                `,
-                backgroundSize: '40px 40px',
-                borderRadius: '8px',
-                pointerEvents: 'none'
-            }} />
+            {/* Área de juego central - limpia y funcional */}
         </div>
     );
 };

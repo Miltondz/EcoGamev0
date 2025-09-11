@@ -8,7 +8,6 @@ import { GlowFilter } from 'pixi-filters';
 import { vfxSystem } from '../engine/VFXSystem';
 import type { VFXEvent, VFXEventType, VFXEventData } from '../engine/VFXSystem';
 import type { Card as CardType } from '../engine/types';
-import { turnManager } from '../engine/TurnManager';
 import { gameStateManager } from '../engine/GameStateManager';
 import { uiPositionManager } from '../engine/UIPositionManager';
 import { pixiScreenEffects } from '../engine/PixiScreenEffects';
@@ -532,83 +531,52 @@ export const VFX: React.FC = () => {
                 const isInPlayArea = playAreaRect && playAreaRect.height !== undefined && sprite.y < playAreaRect.y + playAreaRect.height / 2;
                 
                 if (isInPlayArea) {
-                  // Card is played - SPECTACULAR EFFECTS!
-                  console.log('🎲 VFX: Playing card with advanced effects!');
-                  
-                  // Flash effect
-                  const flash = new PIXI.Graphics().rect(0, 0, 1280, 800).fill(0xffffff);
-                  flash.alpha = 0.3;
-                  app.stage.addChild(flash);
-                  gsap.to(flash, { alpha: 0, duration: 0.2, onComplete: () => { app.stage.removeChild(flash); } });
-                  
-                  // Shockwave from card position
-                  for (let wave = 0; wave < 3; wave++) {
-                    const shockwave = new PIXI.Graphics().circle(0, 0, 30).stroke({ width: 4 + wave * 2, color: 0x00ffcc, alpha: 0.8 - wave * 0.2 });
-                    shockwave.x = sprite.x;
-                    shockwave.y = sprite.y;
-                    app.stage.addChild(shockwave);
-                    
-                    gsap.to(shockwave, {
-                      scaleX: 12 + wave * 2,
-                      scaleY: 12 + wave * 2,
-                      alpha: 0,
-                      duration: 1.0 + wave * 0.3,
-                      delay: wave * 0.1,
-                      ease: 'power2.out',
-                      onComplete: () => { app.stage.removeChild(shockwave); }
-                    });
-                  }
-                  
-                  // Explosion particles
-                  for (let i = 0; i < 20; i++) {
-                    const particle = new PIXI.Graphics().circle(0, 0, 2 + Math.random() * 3).fill(0x00ffcc + Math.random() * 0x0000ff);
-                    particle.x = sprite.x;
-                    particle.y = sprite.y;
-                    app.stage.addChild(particle);
-                    
-                    const angle = (Math.PI * 2 * i) / 20;
-                    const speed = 50 + Math.random() * 100;
-                    
-                    gsap.to(particle, {
-                      x: sprite.x + Math.cos(angle) * speed,
-                      y: sprite.y + Math.sin(angle) * speed - Math.random() * 50,
-                      alpha: 0,
-                      scale: 0,
-                      duration: 1.5,
-                      ease: 'power2.out',
-                      onComplete: () => { app.stage.removeChild(particle); }
-                    });
-                  }
-                  
-                  // Scale and fade the played card
-                  gsap.to(sprite.scale, { x: 1.5, y: 1.5, duration: 0.3, ease: 'back.out(1.6)' });
-                  gsap.to(sprite, { alpha: 0, duration: 0.6, delay: 0.3 });
-                  
-                  turnManager.playCard(card);
-                  
-                } else {
-                  // Return to original position with enhanced animation
-                  const origPos = (sprite as any).originalPosition;
-                  
-                  // Return effects
-                  gsap.to(sprite, {
-                    x: origPos.x,
-                    y: origPos.y,
-                    rotation: 0,
-                    duration: 0.8,
-                    ease: "elastic.out(1, 0.6)"
+                  // Dispatch cardClick event instead of auto-playing
+                  console.log('🎲 VFX: Card clicked for action menu');
+                  vfxSystem.cardClick({ 
+                    card, 
+                    position: { x: sprite.x, y: sprite.y } 
                   });
-                  gsap.to(sprite.scale, { x: 0.8, y: 0.8, duration: 0.4, ease: 'back.out(1.2)' });
                   
-                  // Brief color shift to indicate return
-                  const returnGlow = new GlowFilter({ distance: 12, outerStrength: 1.2, innerStrength: 0.3, color: 0xffaa00 });
-                  sprite.filters = [returnGlow];
+                  // Return card to original position for now
+                  const originalPos = (sprite as any).originalPosition;
+                  gsap.to(sprite, {
+                    x: originalPos.x,
+                    y: originalPos.y,
+                    scale: 0.8,
+                    rotation: 0,
+                    duration: 0.3,
+                    ease: 'back.out(1.4)'
+                  });
                   
-                  setTimeout(() => {
-                    const baseOutline = new GlowFilter({ distance: 8, outerStrength: 0.8, innerStrength: 0.2, color: 0x4a90e2 });
-                    sprite.filters = [baseOutline];
-                  }, 400);
+                  // Reset filters
+                  const baseGlow = new GlowFilter({ distance: 8, outerStrength: 0.8, innerStrength: 0.2, color: 0x4a90e2 });
+                  sprite.filters = [baseGlow];
+                  
+                  return;
                 }
+                
+                // If not in play area, return to original position
+                const origPos = (sprite as any).originalPosition;
+                
+                // Return effects
+                gsap.to(sprite, {
+                  x: origPos.x,
+                  y: origPos.y,
+                  rotation: 0,
+                  duration: 0.8,
+                  ease: "elastic.out(1, 0.6)"
+                });
+                gsap.to(sprite.scale, { x: 0.8, y: 0.8, duration: 0.4, ease: 'back.out(1.2)' });
+                
+                // Brief color shift to indicate return
+                const returnGlow = new GlowFilter({ distance: 12, outerStrength: 1.2, innerStrength: 0.3, color: 0xffaa00 });
+                sprite.filters = [returnGlow];
+                
+                setTimeout(() => {
+                  const baseOutline = new GlowFilter({ distance: 8, outerStrength: 0.8, innerStrength: 0.2, color: 0x4a90e2 });
+                  sprite.filters = [baseOutline];
+                }, 400);
               });
 
               let trailTimer: number | null = null;
@@ -975,7 +943,7 @@ export const VFX: React.FC = () => {
           dealSprite.anchor.set(0.5);
           dealSprite.x = startPosition.x;
           dealSprite.y = startPosition.y;
-          dealSprite.scale.set(0.6);
+          dealSprite.scale.set(0.9);
           dealSprite.rotation = -0.2 + Math.random() * 0.4;
           dealSprite.alpha = 0;
           
@@ -1020,7 +988,7 @@ export const VFX: React.FC = () => {
             }
           });
           
-          gsap.to(dealSprite.scale, { x: 0.8, y: 0.8, duration: 0.8, delay, ease: 'back.out(1.4)' });
+          gsap.to(dealSprite.scale, { x: 1.2, y: 1.2, duration: 0.8, delay, ease: 'back.out(1.4)' });
           
           break;
         }
