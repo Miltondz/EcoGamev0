@@ -146,13 +146,38 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className="fixed-game-container flex justify-center items-center min-h-screen bg-black">
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: '#000000', // Fondo negro sólido
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            overflow: 'hidden' // Evitar scroll bars
+        }}>
             { !inGame ? (
-                <div className="game-viewport relative" style={{ width: '1280px', height: '720px' }}>
+                <div style={{ 
+                    width: '1280px', 
+                    height: '720px',
+                    position: 'relative',
+                    boxShadow: '0 0 50px rgba(0,0,0,0.8)', // Sombra sutil alrededor del canvas
+                    borderRadius: '8px',
+                    overflow: 'hidden'
+                }}>
                     <MainMenu onStartGame={handleStartGame} />
                 </div>
             ) : (
-                <div className="game-viewport relative overflow-hidden" style={{ width: '1280px', height: '720px' }}>
+                <div style={{ 
+                    width: '1280px', 
+                    height: '720px',
+                    position: 'relative',
+                    boxShadow: '0 0 50px rgba(0,0,0,0.8)', // Sombra sutil alrededor del canvas
+                    borderRadius: '8px',
+                    overflow: 'hidden'
+                }}>
                     <GameLayout>
                     {/* Botón de Salida */}
                     <div style={{

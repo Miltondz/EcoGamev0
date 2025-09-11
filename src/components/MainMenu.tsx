@@ -28,6 +28,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
     const [loading, setLoading] = useState(false);
     const [backgroundImage, setBackgroundImage] = useState<string>('');
     const [backgroundVideo, setBackgroundVideo] = useState<string>('');
+    const [isVideoBackground, setIsVideoBackground] = useState<boolean>(false); // Para saber si es video MP4 o imagen
     const [scenarioPreviewImages, setScenarioPreviewImages] = useState<Record<string, string>>({});
 
     useEffect(() => {
@@ -40,7 +41,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
         // Load background image and video
         const loadBackground = async () => {
             try {
-                // Try to load WebP background video/animation first
+                // Try to load WebP background animation first
                 const webpPath = '/images/scenarios/default/backgrounds/menu-bg.webp';
                 const staticFallback = '/images/scenarios/default/backgrounds/main-bg.png';
                 
@@ -74,6 +75,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                 };
                 
                 webpImg.src = webpPath;
+                testVideo.src = videoPath;
+                testVideo.load();
                 
             } catch (error) {
                 console.error('❌ MainMenu: Error loading background:', error);
@@ -188,7 +191,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
             color: '#f1f5f9',
             padding: '40px',
             position: 'relative',
-            zIndex: 10 // Asegurar que esté por encima del video
+            zIndex: 20 // Asegurar que esté por encima del video y overlay
         }}>
                 {/* Saga Title */}
                 <div style={{
@@ -910,21 +913,40 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
         }}>
             {/* Background WebP animado */}
             {backgroundVideo && (
-                <img 
-                    src={backgroundVideo}
-                    style={{
+                <>
+                    {/* Intentar con img primero */}
+                    <img 
+                        src={backgroundVideo}
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            zIndex: 1,
+                            opacity: 0.8 // Un poco más visible
+                        }}
+                        alt="Animated Background"
+                        onLoad={() => console.log('✅ MainMenu: WebP image rendered successfully')}
+                        onError={(e) => {
+                            console.error('❌ MainMenu: WebP image failed to render:', e);
+                            // Intentar cargar la imagen estática como backup
+                            setBackgroundVideo('');
+                            setBackgroundImage('/images/scenarios/default/backgrounds/main-bg.png');
+                        }}
+                    />
+                    {/* Overlay sutil para mejorar legibilidad */}
+                    <div style={{
                         position: 'absolute',
                         top: 0,
                         left: 0,
                         width: '100%',
                         height: '100%',
-                        objectFit: 'cover',
-                        zIndex: 1 // Cambiado a 1 para estar visible
-                    }}
-                    alt="Animated Background"
-                    onLoad={() => console.log('✅ MainMenu: WebP image rendered successfully')}
-                    onError={(e) => console.error('❌ MainMenu: WebP image failed to render:', e)}
-                />
+                        background: 'linear-gradient(135deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.3) 100%)',
+                        zIndex: 2
+                    }} />
+                </>
             )}
             
             {/* Debug info */}
@@ -937,7 +959,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                     color: 'white',
                     padding: '10px',
                     fontSize: '12px',
-                    zIndex: 100
+                    zIndex: 50
                 }}>
                     <div>backgroundVideo: {backgroundVideo || 'none'}</div>
                     <div>backgroundImage: {backgroundImage || 'none'}</div>
