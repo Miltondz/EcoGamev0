@@ -154,6 +154,32 @@ const App: React.FC = () => {
             ) : (
                 <div className="game-viewport relative overflow-hidden" style={{ width: '1280px', height: '720px' }}>
                     <GameLayout>
+                    {/* Botón de Salida */}
+                    <div style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        zIndex: 100
+                    }}>
+                        <StyledButton
+                            onClick={() => {
+                                if (confirm('¿Estás seguro de que quieres volver al menú principal? Se perderá el progreso no guardado.')) {
+                                    setInGame(false);
+                                }
+                            }}
+                            size="sm"
+                            variant="danger"
+                            style={{
+                                padding: '8px 12px',
+                                fontSize: '12px',
+                                background: 'rgba(0, 0, 0, 0.7)',
+                                border: '1px solid rgba(220, 38, 38, 0.5)'
+                            }}
+                        >
+                            ← Menú
+                        </StyledButton>
+                    </div>
+                    
                     {/* HUD Superior - Stats del jugador y Eco */}
                     <div style={{ 
                            position: 'absolute',
