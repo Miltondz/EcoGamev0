@@ -30,7 +30,7 @@ export class PixiScreenEffects {
 
   constructor() {
     this.effectsContainer = new PIXI.Container();
-    this.effectsContainer.name = 'screen-effects';
+    this.effectsContainer.label = 'screen-effects';
     this.effectsContainer.zIndex = 1000; // Muy alto para estar encima de todo
   }
 
@@ -98,7 +98,7 @@ export class PixiScreenEffects {
 
   private async createLightningEffect(intensity: string, duration: number): Promise<void> {
     const container = new PIXI.Container();
-    container.name = 'lightning-effect';
+    container.label = 'lightning-effect';
     
     // Crear flash de lightning
     const lightning = new PIXI.Graphics()
@@ -169,7 +169,7 @@ export class PixiScreenEffects {
 
   private async createGlitchEffect(intensity: string, duration: number): Promise<void> {
     const container = new PIXI.Container();
-    container.name = 'glitch-effect';
+    container.label = 'glitch-effect';
     
     // Crear múltiples capas de glitch con diferentes colores
     const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff];
@@ -214,7 +214,12 @@ export class PixiScreenEffects {
     }, duration);
   }
 
-  private async createStaticEffect(intensity: string, duration: number): Promise<void> {
+  private async createStaticEffect(intensity: string, _duration: number): Promise<void> {
+    // TEMPORALMENTE DESHABILITADO - El efecto static interfiere con los controles
+    console.log(`🎆 PixiScreenEffects: Static effect (${intensity}) temporalmente deshabilitado para evitar interferencia con UI`);
+    return;
+    
+    /* CÓDIGO ORIGINAL COMENTADO
     const container = new PIXI.Container();
     container.name = 'static-effect';
 
@@ -250,11 +255,12 @@ export class PixiScreenEffects {
       clearInterval(staticInterval);
       this.clearEffect('static');
     }, duration);
+    */
   }
 
   private async createSparksEffect(intensity: string, duration: number): Promise<void> {
     const container = new PIXI.Container();
-    container.name = 'sparks-effect';
+    container.label = 'sparks-effect';
     
     const sparkCount = intensity === 'high' ? 100 : intensity === 'medium' ? 60 : 30;
     const sparks: PIXI.Graphics[] = [];
@@ -301,7 +307,7 @@ export class PixiScreenEffects {
 
   private async createDarknessEffect(intensity: string, duration: number): Promise<void> {
     const container = new PIXI.Container();
-    container.name = 'darkness-effect';
+    container.label = 'darkness-effect';
     
     const darkness = new PIXI.Graphics()
       .rect(0, 0, this.app!.screen.width, this.app!.screen.height)
@@ -331,7 +337,7 @@ export class PixiScreenEffects {
 
   private async createGlowEffect(intensity: string, duration: number): Promise<void> {
     const container = new PIXI.Container();
-    container.name = 'glow-effect';
+    container.label = 'glow-effect';
     
     // Crear gradiente radial para glow
     const glow = new PIXI.Graphics();
@@ -374,7 +380,7 @@ export class PixiScreenEffects {
 
   private async createCorruptionEffect(_intensity: string, duration: number): Promise<void> {
     const container = new PIXI.Container();
-    container.name = 'corruption-effect';
+    container.label = 'corruption-effect';
     
     // Crear efecto de corrupción con múltiples capas
     const corruptionLayers: PIXI.Graphics[] = [];
@@ -424,7 +430,7 @@ export class PixiScreenEffects {
 
   private async createEnergyEffect(intensity: string, duration: number): Promise<void> {
     const container = new PIXI.Container();
-    container.name = 'energy-effect';
+    container.label = 'energy-effect';
     
     // Crear efecto de energía con líneas eléctricas
     const energyLines: PIXI.Graphics[] = [];
@@ -600,7 +606,7 @@ export class PixiScreenEffects {
     }, duration);
   }
 
-  private createNoiseTexture(width: number, height: number): PIXI.Texture {
+  /*private _createNoiseTexture(width: number, height: number): PIXI.Texture { // Reserved for future use
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
@@ -619,7 +625,7 @@ export class PixiScreenEffects {
     
     ctx.putImageData(imageData, 0, 0);
     return PIXI.Texture.from(canvas);
-  }
+  }*/
 
   private clearEffect(type: ScreenEffectType) {
     const effectContainer = this.activeEffects.get(type);

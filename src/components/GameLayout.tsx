@@ -1,7 +1,8 @@
 // src/components/GameLayout.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { assetManager } from '../engine/AssetManager';
+import { Z_INDEX } from '../constants/zIndex';
 
 interface GameLayoutProps {
   children: React.ReactNode;
@@ -22,28 +23,36 @@ export const GameLayout: React.FC<GameLayoutProps> = ({
           frameBorder: assets.ui.frameBorder
         });
         
-        // Load background image
-        const backgroundResult = await assetManager.loadImage(assets.scenario.backgrounds.main);
-        if (backgroundResult.loaded) {
-          const cachedImage = assetManager.getCachedImage(assets.scenario.backgrounds.main);
-          if (cachedImage) {
-            setBackgroundImage(cachedImage.src);
-            console.log('✅ GameLayout: Game background loaded successfully');
+        // Load background image with fallback
+        try {
+          const backgroundResult = await assetManager.loadImage(assets.scenario.backgrounds.main);
+          if (backgroundResult.loaded) {
+            const cachedImage = assetManager.getCachedImage(assets.scenario.backgrounds.main);
+            if (cachedImage) {
+              setBackgroundImage(cachedImage.src);
+              console.log('✅ GameLayout: Game background loaded successfully');
+            }
+          } else {
+            console.log('🎨 GameLayout: Using fallback gradient background (main image not available)');
           }
-        } else {
-          console.warn('⚠️ GameLayout: Game background failed to load');
+        } catch (error) {
+          console.log('🎨 GameLayout: Using fallback gradient background (load error)');
         }
         
-        // Load frame border image
-        const frameBorderResult = await assetManager.loadImage(assets.ui.frameBorder);
-        if (frameBorderResult.loaded) {
-          const cachedBorder = assetManager.getCachedImage(assets.ui.frameBorder);
-          if (cachedBorder) {
-            setFrameBorderImage(cachedBorder.src);
-            console.log('✅ GameLayout: Frame border loaded successfully');
+        // Load frame border image (optional)
+        try {
+          const frameBorderResult = await assetManager.loadImage(assets.ui.frameBorder);
+          if (frameBorderResult.loaded) {
+            const cachedBorder = assetManager.getCachedImage(assets.ui.frameBorder);
+            if (cachedBorder) {
+              setFrameBorderImage(cachedBorder.src);
+              console.log('✅ GameLayout: Frame border loaded successfully');
+            }
+          } else {
+            console.log('🖼️ GameLayout: No frame border (optional UI element)');
           }
-        } else {
-          console.warn('⚠️ GameLayout: Frame border failed to load');
+        } catch (error) {
+          console.log('🖼️ GameLayout: No frame border (load error)');
         }
       } catch (error) {
         console.error('❌ GameLayout: Error loading game assets:', error);
@@ -119,7 +128,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
             pointerEvents: 'none', // Permitir interacción con elementos debajo
-            zIndex: 1000 // Muy alto para estar encima de todo
+            zIndex: Z_INDEX.FRAME_BORDER // Frame border debe estar en su capa apropiada
           }}
         />
       )}

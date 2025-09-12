@@ -604,14 +604,18 @@ class ChapterManager {
     }
 
     try {
-      // Import AssetManager dynamically to avoid circular dependencies
+      // Import AssetManager and ChapterNarrativeSystem dynamically to avoid circular dependencies
       const { assetManager } = await import('./AssetManager');
+      const { chapterNarrativeSystem } = await import('./ChapterNarrativeSystem');
       
       // Set scenario in asset manager
       assetManager.setScenario(scenario.id);
       
       // Preload scenario assets using PIXI.Assets
       await assetManager.preloadScenarioAssets(scenario.id);
+      
+      // Load chapter narrative
+      await chapterNarrativeSystem.loadNarrativeForChapter(chapterId);
       
       this.currentChapter = chapter;
       this.currentScenario = scenario;
@@ -872,10 +876,10 @@ class ChapterManager {
 
   // Utilities
   resetProgress() {
-    if (confirm('¿Estás seguro de que quieres reiniciar todo tu progreso? Esta acción no se puede deshacer.')) {
-      this.resetPlayerProfile();
-      this.notify();
-    }
+    // Esta función ya no maneja la confirmación directamente
+    // La confirmación debe manejarse desde el componente que la invoque
+    this.resetPlayerProfile();
+    this.notify();
   }
 
   exportProgress(): string {
@@ -891,6 +895,65 @@ class ChapterManager {
       return true;
     } catch (error) {
       console.error('Error importing progress:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Verifica si hay un siguiente capítulo disponible después del actual
+   */
+  hasNextChapter(): boolean {
+    if (!this.currentChapter) return false;
+    
+    const currentChapterIndex = this.availableChapters.findIndex(c => c.id === this.currentChapter?.id);
+    return currentChapterIndex !== -1 && currentChapterIndex < this.availableChapters.length - 1;
+  }
+
+  /**
+   * Avanza al siguiente capítulo si está disponible
+   */
+  async goToNextChapter(): Promise<boolean> {
+    if (!this.hasNextChapter()) return false;
+    
+    const currentChapterIndex = this.availableChapters.findIndex(c => c.id === this.currentChapter?.id);
+    const nextChapter = this.availableChapters[currentChapterIndex + 1];
+    
+    if (nextChapter) {
+      console.log(`📚 ChapterManager: Avanzando al siguiente capítulo: ${nextChapter.name}`);
+      return await this.selectChapter(nextChapter.id);
+    }
+    
+    return false;
+  }
+
+  /**
+   * Reproduce un elemento narrativo del capítulo actual
+   */
+  async playChapterNarrative(act: 'beginning' | 'middle' | 'end'): Promise<void> {
+    if (!this.currentChapter) {
+      console.warn('🚫 ChapterManager: No current chapter for narrative');
+      return;
+    }
+
+    try {
+      const { chapterNarrativeSystem } = await import('./ChapterNarrativeSystem');
+      await chapterNarrativeSystem.playNarrativeElement(act);
+    } catch (error) {
+      console.error('🚨 ChapterManager: Error playing chapter narrative:', error);
+    }
+  }
+
+  /**
+   * Verifica si el capítulo actual tiene narrativa configurada
+   */
+  async hasChapterNarrative(): Promise<boolean> {
+    if (!this.currentChapter) return false;
+    
+    try {
+      const { chapterNarrativeSystem } = await import('./ChapterNarrativeSystem');
+      return chapterNarrativeSystem.hasNarrativeForChapter(this.currentChapter.id);
+    } catch (error) {
+      console.error('🚨 ChapterManager: Error checking chapter narrative:', error);
       return false;
     }
   }

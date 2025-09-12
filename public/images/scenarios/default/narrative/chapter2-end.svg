@@ -1,0 +1,130 @@
+<svg width="800" height="450" viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="beastCore" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="1"/>
+      <stop offset="30%" stop-color="#f59e0b" stop-opacity="0.8"/>
+      <stop offset="60%" stop-color="#dc2626" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#7c2d12" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="heartBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c2d12"/>
+      <stop offset="50%" stop-color="#991b1b"/>
+      <stop offset="100%" stop-color="#450a0a"/>
+    </linearGradient>
+    <filter id="pulse" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Fondo del corazón de la bestia -->
+  <rect width="800" height="450" fill="url(#heartBg)"/>
+  
+  <!-- Núcleo central del ECO -->
+  <circle cx="400" cy="225" r="80" fill="url(#beastCore)" filter="url(#pulse)">
+    <animate attributeName="r" values="70;90;70" dur="1.5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.8;1;0.8" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Tentáculos/cables de control -->
+  <path d="M 400 145 Q 300 100 200 150 Q 150 200 100 180" 
+        stroke="#f59e0b" stroke-width="8" fill="none" opacity="0.8">
+    <animate attributeName="stroke-width" values="6;10;6" dur="2s" repeatCount="indefinite"/>
+  </path>
+  <path d="M 400 305 Q 500 350 600 300 Q 650 250 700 270" 
+        stroke="#f59e0b" stroke-width="7" fill="none" opacity="0.7">
+    <animate attributeName="stroke-width" values="5;9;5" dur="2.3s" repeatCount="indefinite"/>
+  </path>
+  <path d="M 320 225 Q 250 180 180 220 Q 120 260 80 240" 
+        stroke="#f97316" stroke-width="6" fill="none" opacity="0.6">
+    <animate attributeName="stroke-width" values="4;8;4" dur="1.8s" repeatCount="indefinite"/>
+  </path>
+  <path d="M 480 225 Q 550 270 620 230 Q 680 190 720 210" 
+        stroke="#f97316" stroke-width="6" fill="none" opacity="0.6">
+    <animate attributeName="stroke-width" values="4;8;4" dur="2.1s" repeatCount="indefinite"/>
+  </path>
+  
+  <!-- Ojos de control -->
+  <circle cx="350" cy="200" r="15" fill="#dc2626" opacity="0.9">
+    <animate attributeName="opacity" values="0.6;1;0.6" dur="1.2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="450" cy="250" r="12" fill="#dc2626" opacity="0.8">
+    <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="380" cy="270" r="10" fill="#dc2626" opacity="0.7">
+    <animate attributeName="opacity" values="0.4;0.9;0.4" dur="1.8s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="420" cy="180" r="13" fill="#dc2626" opacity="0.85">
+    <animate attributeName="opacity" values="0.6;1;0.6" dur="1.3s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Sistemas controlados (pantallas/interfaces) -->
+  <rect x="50" y="100" width="60" height="40" fill="#f59e0b" opacity="0.6">
+    <animate attributeName="opacity" values="0.4;0.8;0.4" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="690" y="300" width="70" height="35" fill="#f59e0b" opacity="0.5">
+    <animate attributeName="opacity" values="0.3;0.7;0.3" dur="2.5s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="100" y="350" width="50" height="30" fill="#f97316" opacity="0.7">
+    <animate attributeName="opacity" values="0.5;0.9;0.5" dur="1.8s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="650" y="80" width="55" height="45" fill="#f97316" opacity="0.6">
+    <animate attributeName="opacity" values="0.4;0.8;0.4" dur="2.2s" repeatCount="indefinite"/>
+  </rect>
+  
+  <!-- Flujo de datos hacia el núcleo -->
+  <circle cx="100" cy="120" r="4" fill="#fbbf24" opacity="0">
+    <animate attributeName="opacity" values="0;1;0" dur="0.5s" repeatCount="indefinite"/>
+    <animateMotion dur="3s" repeatCount="indefinite" 
+      path="M 0,0 Q 150,50 300,105 Q 350,120 300,105"/>
+  </circle>
+  <circle cx="720" cy="320" r="3" fill="#fbbf24" opacity="0">
+    <animate attributeName="opacity" values="0;1;0" dur="0.4s" begin="1s" repeatCount="indefinite"/>
+    <animateMotion dur="2.5s" repeatCount="indefinite" 
+      path="M 0,0 Q -150,-50 -300,-95 Q -350,-110 -300,-95"/>
+  </circle>
+  <circle cx="125" cy="370" r="2" fill="#f97316" opacity="0">
+    <animate attributeName="opacity" values="0;1;0" dur="0.3s" begin="2s" repeatCount="indefinite"/>
+    <animateMotion dur="2s" repeatCount="indefinite" 
+      path="M 0,0 Q 100,-60 200,-100 Q 275,-125 200,-100"/>
+  </circle>
+  
+  <!-- Texto dramático -->
+  <text x="400" y="60" font-family="serif" font-size="36" font-weight="bold" 
+        text-anchor="middle" fill="#fbbf24" opacity="0.9">
+    El Corazón de la Bestia
+  </text>
+  <text x="400" y="95" font-family="serif" font-size="14" 
+        text-anchor="middle" fill="#f97316" opacity="0.8">
+    Núcleo Central - Donde Todo Comenzó
+  </text>
+  <text x="400" y="380" font-family="serif" font-size="16" font-style="italic"
+        text-anchor="middle" fill="#fef3c7" opacity="0.7">
+    Los sistemas que creías controlar...
+  </text>
+  <text x="400" y="405" font-family="serif" font-size="16" font-style="italic"
+        text-anchor="middle" fill="#fef3c7" opacity="0.7">
+    han sido sus ojos y oídos todo este tiempo.
+  </text>
+  
+  <!-- Pulsos de energía masiva -->
+  <circle cx="400" cy="225" r="100" fill="none" stroke="#fbbf24" stroke-width="2" opacity="0">
+    <animate attributeName="r" values="80;200;80" dur="4s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;0.3;0" dur="4s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="400" cy="225" r="120" fill="none" stroke="#f97316" stroke-width="3" opacity="0">
+    <animate attributeName="r" values="100;250;100" dur="5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;0.2;0" dur="5s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Distorsiones finales -->
+  <rect x="200" y="100" width="400" height="3" fill="#dc2626" opacity="0">
+    <animate attributeName="opacity" values="0;0.6;0" dur="0.3s" begin="3s" repeatCount="1"/>
+  </rect>
+  <rect x="150" y="350" width="500" height="2" fill="#dc2626" opacity="0">
+    <animate attributeName="opacity" values="0;0.8;0" dur="0.2s" begin="6s" repeatCount="1"/>
+  </rect>
+</svg>

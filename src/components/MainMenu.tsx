@@ -12,6 +12,7 @@ import {
     handleStoneButtonHover 
 } from '../utils/styles';
 import '../styles/vhs-effects.css';
+import { useGameModalContext } from '../context/GameModalContext';
 
 interface MainMenuProps {
     onStartGame: () => void;
@@ -29,8 +30,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
     const [loading, setLoading] = useState(false);
     const [backgroundImage, setBackgroundImage] = useState<string>('');
     const [backgroundVideo, setBackgroundVideo] = useState<string>('');
-    const [isVideoBackground, setIsVideoBackground] = useState<boolean>(false); // Para saber si es video MP4 o imagen
     const [scenarioPreviewImages, setScenarioPreviewImages] = useState<Record<string, string>>({});
+    
+    // Sistema de ventanas modales
+    const { showMessage, showConfirm } = useGameModalContext();
 
     useEffect(() => {
         const savedGame = localStorage.getItem('ecoGameState');
@@ -68,8 +71,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                 };
                 
                 webpImg.src = webpPath;
-                testVideo.src = videoPath;
-                testVideo.load();
                 
             } catch (error) {
                 console.error('❌ MainMenu: Error loading background:', error);
@@ -138,12 +139,22 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
     const handleStartChapter = async (chapter: ChapterConfig) => {
         setLoading(true);
         try {
-            console.log(`🎮 MainMenu: Iniciando capítulo '${chapter.name}'`);
+            console.log(`🎮 MainMenu: Iniciando capítulo '${chapter.name}' DESDE CERO`);
+            
+            // IMPORTANTE: Para nueva partida, limpiar todo el estado previo
+            console.log(`🧽 MainMenu: Limpiando estado previo para nueva partida`);
             
             // Select chapter and load assets
             const success = await chapterManager.selectChapter(chapter.id);
             if (!success) {
-                alert('Error al cargar el capítulo. Por favor, inténtalo de nuevo.');
+                showMessage(
+                    'Error al cargar el capítulo. Por favor, inténtalo de nuevo.',
+                    { 
+                        title: 'Error de Carga', 
+                        type: 'error',
+                        buttonText: 'Entendido'
+                    }
+                );
                 setLoading(false);
                 return;
             }
@@ -154,18 +165,27 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                 assetManager.setScenario(scenario.id);
             }
             
-            // Start the game with the chapter configuration
+            // Start the game with the chapter configuration (sin repartir cartas)
             const gameConfig = chapterManager.getGameConfiguration();
             if (gameConfig) {
                 await turnManager.startGame(gameConfig.id);
                 chapterManager.startChapter();
+                
+                // Pasar información al App para que maneje la narrativa y luego complete el inicio
                 onStartGame();
             } else {
                 throw new Error('No se pudo obtener la configuración del juego');
             }
         } catch (error) {
             console.error('Error starting chapter:', error);
-            alert('Error al iniciar el capítulo. Por favor, inténtalo de nuevo.');
+            showMessage(
+                'Error al iniciar el capítulo. Por favor, inténtalo de nuevo.',
+                { 
+                    title: 'Error de Inicio', 
+                    type: 'error',
+                    buttonText: 'Entendido'
+                }
+            );
         } finally {
             setLoading(false);
         }
@@ -175,6 +195,59 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
         setCurrentView('main');
         setSelectedChapter(null);
     };
+    
+    // Estilo estandarizado para todas las ventanas modales
+    const createModalStyle = (width: string, height: string, opacity = 0.7, allowScroll = false) => ({
+        textAlign: 'center' as const,
+        color: colors.muted,
+        padding: '20px',
+        maxWidth: width,
+        maxHeight: height,
+        background: `rgba(15, 23, 42, ${opacity})`,
+        backdropFilter: 'blur(20px)',
+        borderRadius: '12px',
+        border: `1px solid ${colors.stone.border}`,
+        boxShadow: '0 15px 35px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.1)',
+        position: 'relative' as const,
+        overflow: allowScroll ? 'auto' as const : 'hidden' as const,
+        zIndex: 15
+    });
+    
+    // Overlay de glassmorphism para todas las ventanas
+    const GlassmorphismOverlay = () => (
+        <>
+            <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '2px',
+                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                pointerEvents: 'none'
+            }} />
+            <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                bottom: 0,
+                width: '2px',
+                background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.1), transparent)',
+                pointerEvents: 'none'
+            }} />
+        </>
+    );
+    
+    // Título estandarizado para todas las ventanas
+    const ModalTitle = ({ children }: { children: React.ReactNode }) => (
+        <h2 style={{
+            ...textStyles.sectionTitle,
+            fontSize: '22px',
+            marginBottom: '20px',
+            textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 20px rgba(182,149,82,0.3)'
+        }}>
+            {children}
+        </h2>
+    );
     
     // Using shared style utilities from utils/styles.ts
 
@@ -287,66 +360,38 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
     );
     
     const renderChapterSelection = () => (
-        <div style={{
-            textAlign: 'center',
-            color: colors.muted,
-            padding: '24px',
-            maxWidth: '700px', // Más compacto
-            maxHeight: '500px', // Límite de altura
-            background: 'rgba(15, 23, 42, 0.95)', // Levemente transparente
-            backdropFilter: 'blur(20px)',
-            borderRadius: '12px',
-            border: `1px solid ${colors.stone.border}`,
-            boxShadow: '0 15px 35px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.1)',
-            position: 'relative',
-            overflow: 'auto',
-            zIndex: 15 // Asegurar que esté por encima del video
-        }}>
-            {/* Efecto glassmorphism overlay */}
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '2px',
-                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                pointerEvents: 'none'
-            }} />
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                bottom: 0,
-                width: '2px',
-                background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.1), transparent)',
-                pointerEvents: 'none'
-            }} />
+        <div style={createModalStyle('800px', '420px')}>
+            <GlassmorphismOverlay />
+            <ModalTitle>Nueva Partida</ModalTitle>
             
-            <h2 style={{
-                ...textStyles.sectionTitle,
-                fontSize: '20px',
-                marginBottom: '12px',
-                textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 20px rgba(182,149,82,0.3)'
-            }}>Nueva Partida</h2>
-            
-            {/* Mostrar escenario seleccionado */}
+            {/* Escenario seleccionado - más compacto */}
             <div style={{
-                background: 'rgba(51, 65, 85, 0.4)',
+                background: 'rgba(51, 65, 85, 0.6)',
                 padding: '12px',
                 borderRadius: '8px',
                 marginBottom: '16px',
-                border: `1px solid ${colors.stone.border}`
+                border: `1px solid ${colors.stone.border}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
             }}>
-                <div style={{ ...textStyles.label, fontSize: '12px', color: colors.gold, marginBottom: '4px' }}>ESCENARIO SELECCIONADO:</div>
-                <div style={{ ...textStyles.body, fontSize: '14px' }}>Libro I: Los Susurros de Hualaihué (Default)</div>
+                <div>
+                    <div style={{ ...textStyles.label, fontSize: '11px', color: colors.gold, marginBottom: '2px' }}>ESCENARIO:</div>
+                    <div style={{ ...textStyles.bodySmall, fontSize: '13px' }}>Libro I: Los Susurros de Hualaihué</div>
+                </div>
+                <div style={{ ...textStyles.label, fontSize: '10px', color: colors.muted, opacity: 0.7 }}>Default</div>
             </div>
             
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-                gap: '24px',
-                marginBottom: '40px'
-            }}>
+            {/* Lista de capítulos compacta */}
+            <div 
+                className="modal-scroll"
+                style={{
+                    maxHeight: '260px',
+                    overflowY: 'auto',
+                    paddingRight: '6px',
+                    marginBottom: '16px'
+                }}
+            >
                 {availableChapters.map((chapter) => {
                     const progress = playerProfile.chaptersProgress[chapter.id];
                     const isCompleted = progress?.completed || false;
@@ -357,138 +402,111 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                         <div
                             key={chapter.id}
                             style={{
-                                ...panelStyles.primary,
-                                padding: '24px',
+                                background: 'rgba(51, 65, 85, 0.6)',
+                                padding: '12px',
+                                borderRadius: '8px',
                                 cursor: 'pointer',
-                                transition: 'all 0.3s ease',
-                                border: `2px solid ${colors.stone.border}`
+                                transition: 'all 0.2s ease',
+                                border: `1px solid ${colors.stone.border}`,
+                                marginBottom: '8px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                textAlign: 'left'
                             }}
                             onMouseEnter={(e) => {
                                 e.currentTarget.style.borderColor = colors.gold;
-                                e.currentTarget.style.transform = 'translateY(-4px)';
-                                e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.8)';
+                                e.currentTarget.style.background = 'rgba(51, 65, 85, 0.8)';
+                                e.currentTarget.style.transform = 'translateY(-2px)';
                             }}
                             onMouseLeave={(e) => {
                                 e.currentTarget.style.borderColor = colors.stone.border;
+                                e.currentTarget.style.background = 'rgba(51, 65, 85, 0.6)';
                                 e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.6)';
                             }}
                             onClick={() => handleStartChapter(chapter)}
                         >
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                                <h3 style={{
-                                    ...textStyles.subsectionTitle,
-                                    margin: 0
-                                }}>{chapter.name}</h3>
-                                {isCompleted && (
-                                    <span style={{
-                                        ...textStyles.label,
-                                        background: '#22c55e',
-                                        color: 'white',
-                                        padding: '6px 12px',
-                                        borderRadius: '16px',
-                                        fontSize: '12px'
-                                    }}>✓ Completado</span>
-                                )}
-                            </div>
-                            
-                            <p style={{
-                                ...textStyles.body,
-                                marginBottom: '16px',
-                                textAlign: 'left'
-                            }}>{chapter.description}</p>
-                            
-                            <div style={{ display: 'flex', justifyContent: 'space-between', ...textStyles.bodySmall }}>
-                                <span>Dificultad: <strong style={{ color: getDifficultyColor(chapter.difficulty) }}>
-                                    {chapter.difficulty.toUpperCase()}
-                                </strong></span>
-                                <span>Multiplicador: <strong style={{ color: colors.gold }}>x{chapter.scoreMultiplier}</strong></span>
-                            </div>
-                            
-                            {progress && (
-                                <div style={{ 
-                                    ...panelStyles.secondary, 
-                                    marginTop: '16px', 
-                                    padding: '12px' 
-                                }}>
-                                    <div style={{ 
-                                        display: 'flex', 
-                                        justifyContent: 'space-between',
-                                        ...textStyles.bodySmall 
-                                    }}>
-                                        <span>Mejor Puntuación: <strong style={{ color: '#22c55e' }}>{bestScore}</strong></span>
-                                        <span>Intentos: <strong>{attempts}</strong></span>
-                                    </div>
+                            {/* Contenido principal del capítulo */}
+                            <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
+                                    <h3 style={{
+                                        ...textStyles.subsectionTitle,
+                                        margin: 0,
+                                        fontSize: '16px'
+                                    }}>{chapter.name}</h3>
+                                    {isCompleted && (
+                                        <span style={{
+                                            background: '#22c55e',
+                                            color: 'white',
+                                            padding: '2px 8px',
+                                            borderRadius: '12px',
+                                            fontSize: '10px',
+                                            fontWeight: 'bold'
+                                        }}>✓</span>
+                                    )}
                                 </div>
-                            )}
+                                
+                                <div style={{ 
+                                    display: 'flex', 
+                                    gap: '16px', 
+                                    alignItems: 'center',
+                                    ...textStyles.bodySmall,
+                                    fontSize: '12px',
+                                    color: colors.muted
+                                }}>
+                                    <span>Dif: <strong style={{ color: getDifficultyColor(chapter.difficulty) }}>
+                                        {chapter.difficulty.charAt(0).toUpperCase() + chapter.difficulty.slice(1)}
+                                    </strong></span>
+                                    <span>x{chapter.scoreMultiplier}</span>
+                                    {progress && (
+                                        <span>Mejor: <strong style={{ color: '#22c55e' }}>{bestScore}</strong></span>
+                                    )}
+                                    {progress && (
+                                        <span>Intentos: <strong>{attempts}</strong></span>
+                                    )}
+                                </div>
+                            </div>
                             
+                            {/* Botón de acción compacto */}
                             <div style={{ 
-                                marginTop: '12px', 
-                                ...textStyles.bodySmall
+                                alignSelf: 'center',
+                                padding: '6px 12px',
+                                background: 'rgba(182, 149, 82, 0.2)',
+                                borderRadius: '6px',
+                                border: `1px solid ${colors.gold}`,
+                                fontSize: '12px',
+                                color: colors.gold,
+                                fontWeight: 'bold'
                             }}>
-                                <div style={{ ...textStyles.label, fontSize: '12px', color: colors.gold, marginBottom: '6px' }}>Condiciones de Victoria:</div>
-                                <ul style={{ margin: '8px 0', paddingLeft: '20px', textAlign: 'left' }}>
-                                    {chapter.victoryConditions.map((condition, idx) => (
-                                        <li key={idx} style={{ marginBottom: '4px' }}>{condition.description}</li>
-                                    ))}
-                                </ul>
+                                JUGAR
                             </div>
                         </div>
                     );
                 })}
             </div>
             
-            <button 
-                style={createStoneButtonStyle()}
-                onMouseEnter={(e) => handleStoneButtonHover(e, true)}
-                onMouseLeave={(e) => handleStoneButtonHover(e, false)}
-                onClick={handleBackToMain}
-            >
-                ← Volver al Menú Principal
-            </button>
+            <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                <button 
+                    style={{
+                        ...createStoneButtonStyle(),
+                        width: '200px',
+                        fontSize: '14px',
+                        padding: '10px 20px'
+                    }}
+                    onMouseEnter={(e) => handleStoneButtonHover(e, true)}
+                    onMouseLeave={(e) => handleStoneButtonHover(e, false)}
+                    onClick={handleBackToMain}
+                >
+                    ← Volver
+                </button>
+            </div>
         </div>
     );
     
     const renderProfileView = () => (
-        <div style={{
-            textAlign: 'center',
-            color: colors.muted,
-            padding: '40px',
-            maxWidth: '1000px',
-            background: 'rgba(30, 41, 59, 0.95)',
-            backdropFilter: 'blur(12px)',
-            borderRadius: '16px',
-            border: `2px solid ${colors.stone.border}`,
-            boxShadow: '0 20px 40px rgba(0,0,0,0.7), inset 0 1px 2px rgba(255,255,255,0.1)',
-            position: 'relative',
-            overflow: 'hidden',
-            zIndex: 15 // Asegurar que esté por encima del video
-        }}>
-            {/* Efecto glassmorphism overlay */}
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '2px',
-                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                pointerEvents: 'none'
-            }} />
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                bottom: 0,
-                width: '2px',
-                background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.1), transparent)',
-                pointerEvents: 'none'
-            }} />
-            
-            <h2 style={{
-                ...textStyles.sectionTitle,
-                marginBottom: '32px',
-                textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 20px rgba(182,149,82,0.3)'
-            }}>Perfil del Jugador</h2>
+        <div style={createModalStyle('950px', '520px')}>
+            <GlassmorphismOverlay />
+            <ModalTitle>Perfil del Jugador</ModalTitle>
             
             <div style={{
                 display: 'grid',
@@ -554,9 +572,26 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                         e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)';
                     }}
                     onClick={() => {
-                        if (confirm('¿Estás seguro de que quieres resetear todo el progreso? Esta acción no se puede deshacer.')) {
-                            chapterManager.resetProgress();
-                        }
+                        showConfirm(
+                            '¿Estás seguro de que quieres resetear todo el progreso? Esta acción no se puede deshacer.',
+                            () => {
+                                chapterManager.resetProgress();
+                                showMessage(
+                                    'El progreso ha sido reseteado completamente. Todos los datos de capítulos y puntuaciones han sido eliminados.',
+                                    {
+                                        title: 'Progreso Reseteado',
+                                        type: 'success',
+                                        buttonText: 'Entendido'
+                                    }
+                                );
+                            },
+                            {
+                                title: 'Confirmar Reset de Progreso',
+                                type: 'danger',
+                                confirmText: 'Sí, Resetear',
+                                cancelText: 'Cancelar'
+                            }
+                        );
                     }}
                 >
                     Resetear Progreso
@@ -579,47 +614,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
     );
     
     const renderScenariosView = () => (
-        <div style={{
-            textAlign: 'center',
-            color: colors.muted,
-            padding: '24px',
-            maxWidth: '800px', // Más compacto
-            maxHeight: '550px', // Límite de altura
-            background: 'rgba(15, 23, 42, 0.95)', // Levemente transparente
-            backdropFilter: 'blur(20px)',
-            borderRadius: '12px',
-            border: `1px solid ${colors.stone.border}`,
-            boxShadow: '0 15px 35px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.1)',
-            position: 'relative',
-            overflow: 'auto',
-            zIndex: 15 // Asegurar que esté por encima del video
-        }}>
-            {/* Efecto glassmorphism overlay */}
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '2px',
-                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                pointerEvents: 'none'
-            }} />
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                bottom: 0,
-                width: '2px',
-                background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.1), transparent)',
-                pointerEvents: 'none'
-            }} />
-            
-            <h2 style={{
-                ...textStyles.sectionTitle,
-                fontSize: '20px',
-                marginBottom: '16px',
-                textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 20px rgba(182,149,82,0.3)'
-            }}>Escenarios</h2>
+        <div style={createModalStyle('900px', '500px')}>
+            <GlassmorphismOverlay />
+            <ModalTitle>Escenarios</ModalTitle>
             
             <div style={{
                 display: 'grid',
@@ -640,7 +637,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                                 display: 'flex',
                                 gap: '16px', // Más compacto
                                 alignItems: 'flex-start',
-                                background: 'rgba(51, 65, 85, 0.8)' // Levemente transparente
+                                background: 'rgba(51, 65, 85, 0.7)' // Consistente con el estilo general
                             }}
                         >
                             {/* Preview imagen del escenario - más pequeña */}
@@ -693,7 +690,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                     display: 'flex',
                     gap: '16px',
                     alignItems: 'center',
-                    background: 'rgba(51, 65, 85, 0.6)', // Levemente transparente
+                    background: 'rgba(51, 65, 85, 0.5)', // Menos opaco para el contenido "próximamente"
                     border: '2px dashed rgba(182, 149, 82, 0.3)', // Borde punteado
                     opacity: 0.7
                 }}>
@@ -741,59 +738,22 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
     );
     
     const renderConfigView = () => (
-        <div style={{
-            textAlign: 'center',
-            color: colors.muted,
-            padding: '24px',
-            maxWidth: '600px', // Más compacto
-            maxHeight: '500px', // Límite de altura
-            background: 'rgba(15, 23, 42, 0.95)', // Levemente transparente
-            backdropFilter: 'blur(20px)',
-            borderRadius: '12px',
-            border: `1px solid ${colors.stone.border}`,
-            boxShadow: '0 15px 35px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.1)',
-            position: 'relative',
-            overflow: 'auto' // Scroll si es necesario
-        }}>
-            {/* Efecto glassmorphism overlay */}
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '2px',
-                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                pointerEvents: 'none'
-            }} />
-            <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                bottom: 0,
-                width: '2px',
-                background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.1), transparent)',
-                pointerEvents: 'none'
-            }} />
-            
-            <h2 style={{
-                ...textStyles.sectionTitle,
-                fontSize: '20px', // Más pequeño
-                marginBottom: '16px',
-                textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 20px rgba(182,149,82,0.3)'
-            }}>Configuración</h2>
+        <div style={createModalStyle('750px', '450px')}>
+            <GlassmorphismOverlay />
+            <ModalTitle>Configuración</ModalTitle>
             
             <div style={{
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '12px', // Más compacto
-                marginBottom: '20px'
+                gap: '16px',
+                marginBottom: '24px'
             }}>
                 {/* Panel único compacto con todas las configuraciones */}
                 <div style={{
                     ...panelStyles.primary,
                     padding: '16px',
                     textAlign: 'left',
-                    background: 'rgba(51, 65, 85, 0.8)' // Levemente transparente
+                    background: 'rgba(51, 65, 85, 0.7)' // Consistente con el estilo general
                 }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                         {/* Columna Izquierda - Visual y Audio */}

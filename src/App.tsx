@@ -16,10 +16,23 @@ import { PlayerPortrait, EcoPortrait } from './components/CharacterPortraits';
 import { VFX } from './components/VFX';
 import { GameLog } from './components/GameLog';
 import EventVisualSystem from './components/EventVisualSystem';
+import { GameEndSystem } from './components/GameEndSystem';
 import { textStyles, colors, panelStyles } from './utils/styles';
+import { GameModalProvider, useGameModalContext, setGlobalModalContext } from './context/GameModalContext';
+import { chapterManager } from './engine/ChapterManager';
+import { NarrativeModal } from './components/NarrativeModal';
+import { chapterNarrativeSystem } from './engine/ChapterNarrativeSystem';
+import type { NarrativeElement, ChapterNarrativeConfig } from './engine/ChapterNarrativeSystem';
 // import { CSSCards } from './components/CSSCards'; // Commented out - using only PixiJS VFX
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
+    const modalContext = useGameModalContext();
+    
+    // Establecer contexto global para uso fuera de React
+    useEffect(() => {
+        setGlobalModalContext(modalContext);
+    }, [modalContext]);
+    
     const [inGame, setInGame] = useState<boolean>(false);
     const [eventMessage, setEventMessage] = useState<string | null>(null);
     const [isRepairMode, setRepairMode] = useState<boolean>(false);
@@ -27,6 +40,7 @@ const App: React.FC = () => {
     const [cardPlayMode, setCardPlayMode] = useState<'attack' | 'search'>('attack'); // Modo de juego de cartas
     const [turnOverlay, setTurnOverlay] = useState<{ visible: boolean; text: string }>({ visible: false, text: '' });
     const [eventVisual, setEventVisual] = useState<{ visible: boolean; card: CardType | null; event: any | null }>({ visible: false, card: null, event: null });
+    const [narrativeModal, setNarrativeModal] = useState<{ visible: boolean; element: NarrativeElement | null; config: ChapterNarrativeConfig | null }>({ visible: false, element: null, config: null });
     const [, setTick] = useState(0); // Used to force re-renders
 
     useEffect(() => {
@@ -46,10 +60,20 @@ const App: React.FC = () => {
             // Forzar re-render cuando cambien stats importantes
             console.log('🔄 App: GameState changed - PV:', gameStateManager.pv, 'EcoHP:', gameStateManager.ecoHp, 'AP:', gameStateManager.pa);
         });
-        return unsubscribe;
+        
+        // Configurar listener para narrativa
+        const unsubscribeNarrative = chapterNarrativeSystem.subscribe((element, config) => {
+            console.log('📖 App: Mostrando elemento narrativo:', element.id);
+            setNarrativeModal({ visible: true, element, config });
+        });
+        
+        return () => {
+            unsubscribe();
+            unsubscribeNarrative();
+        };
     }, []);
 
-    const handleStartGame = () => {
+    const handleStartGame = async () => {
         setInGame(true);
         setEventMessage(null);
         setRepairMode(false);
@@ -64,6 +88,19 @@ const App: React.FC = () => {
         // Show start overlay
         setTurnOverlay({ visible: true, text: 'Comienza la partida' });
         setTimeout(() => setTurnOverlay({ visible: false, text: '' }), 1200);
+        
+        // NUEVO FLUJO: Mostrar narrativa inicial ANTES de repartir cartas
+        setTimeout(async () => {
+            try {
+                console.log('📚 App: Iniciando narrativa inicial del capítulo');
+                await chapterManager.playChapterNarrative('beginning');
+                console.log('✅ App: Narrativa inicial mostrada, el handler se encargará del resto');
+            } catch (error) {
+                console.warn('⚠️ App: No se pudo mostrar narrativa inicial, completando inicio sin ella:', error);
+                // Si no hay narrativa, completar inicio directamente
+                turnManager.completeGameStart();
+            }
+        }, 1500); // Esperar a que termine la animación inicial
     };
 
     const handleContinue = () => {
@@ -145,6 +182,29 @@ const App: React.FC = () => {
         };
     };
 
+    // Handlers para el modal de narrativa
+    const handleNarrativeComplete = () => {
+        console.log('📚 App: Narrativa completada');
+        setNarrativeModal({ visible: false, element: null, config: null });
+        
+        // Si es narrativa inicial (comienza con 'ch' y contiene 'begin'), completar el inicio del juego
+        if (narrativeModal.element?.id && narrativeModal.element.id.includes('begin')) {
+            console.log('🎴 App: Completando inicio del juego tras narrativa inicial');
+            setTimeout(() => turnManager.completeGameStart(), 200);
+        }
+    };
+
+    const handleNarrativeSkip = () => {
+        console.log('⏩ App: Narrativa saltada');
+        setNarrativeModal({ visible: false, element: null, config: null });
+        
+        // Si es narrativa inicial (comienza con 'ch' y contiene 'begin'), completar el inicio del juego
+        if (narrativeModal.element?.id && narrativeModal.element.id.includes('begin')) {
+            console.log('🎴 App: Completando inicio del juego tras saltar narrativa inicial');
+            setTimeout(() => turnManager.completeGameStart(), 200);
+        }
+    };
+
     return (
         <div style={{
             position: 'fixed',
@@ -188,9 +248,16 @@ const App: React.FC = () => {
                     }}>
                         <StyledButton
                             onClick={() => {
-                                if (confirm('¿Estás seguro de que quieres volver al menú principal? Se perderá el progreso no guardado.')) {
-                                    setInGame(false);
-                                }
+                                modalContext.showConfirm(
+                                    '¿Estás seguro de que quieres volver al menú principal? Se perderá el progreso no guardado.',
+                                    () => setInGame(false),
+                                    {
+                                        title: 'Volver al Menú',
+                                        type: 'warning',
+                                        confirmText: 'Sí, Volver',
+                                        cancelText: 'Continuar Jugando'
+                                    }
+                                );
                             }}
                             size="sm"
                             variant="danger"
@@ -261,8 +328,8 @@ const App: React.FC = () => {
                     {/* Cartas del Eco - Zona debajo del HUD */}
                     <div style={{ 
                            position: 'absolute',
-                           top: '80px',  
-                           left: '150px', 
+                           top: '220px', // Movido hacia abajo para mejor alineación con panel ECO
+                           left: '150px',
                            width: '980px', 
                            height: '120px',
                            zIndex: 25,
@@ -376,9 +443,9 @@ const App: React.FC = () => {
                     <div style={{ 
                            position: 'absolute',
                            left: '1080px', 
-                           top: '90px',
+                           top: '150px', // Movido hacia abajo desde 90px para mejor alineación
                            width: '200px', 
-                           height: '580px',
+                           height: '520px', // Reducido proporcionalmente
                            zIndex: 30,
                            backgroundColor: 'rgba(0, 0, 0, 0.4)',
                            backdropFilter: 'blur(4px)',
@@ -462,10 +529,7 @@ const App: React.FC = () => {
                            top: '120px', 
                            width: '880px', 
                            height: '350px',
-                           zIndex: 20,
-                           backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                           borderRadius: '8px',
-                           border: '1px solid rgba(217, 119, 6, 0.2)'
+                           zIndex: 20
                          }}>
                         <Board 
                             onNodeClick={handleNodeClick} 
@@ -551,51 +615,121 @@ const App: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Event Modal with enhanced styling */}
+                    {/* Event Modal with standard translucent styling */}
                     {eventMessage && (
-                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-                            <div className="bg-gradient-to-br from-amber-900/90 to-amber-800/90 p-8 rounded-lg border-2 border-amber-600/50 shadow-2xl max-w-md mx-4">
-                                <h2 style={{ ...textStyles.subsectionTitle, fontSize: '28px', color: '#fbbf24', marginBottom: '16px', textAlign: 'center' }}>Evento</h2>
-                                <p style={{ ...textStyles.body, color: '#fde68a', marginBottom: '24px', textAlign: 'center' }}>{eventMessage}</p>
-                                <div className="flex justify-center">
-                                    <EndTurnButton onClick={handleContinue} size="lg">
-                                        Continuar
-                                    </EndTurnButton>
+                        <div style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            background: 'rgba(0, 0, 0, 0.7)',
+                            backdropFilter: 'blur(8px)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 1000,
+                            animation: 'fadeIn 0.2s ease-out'
+                        }}>
+                            <div style={{
+                                ...panelStyles.primary,
+                                padding: '32px',
+                                minWidth: '400px',
+                                maxWidth: '600px',
+                                background: 'rgba(15, 23, 42, 0.95)',
+                                backdropFilter: 'blur(20px)',
+                                borderRadius: '12px',
+                                border: `2px solid ${colors.stone.border}`,
+                                boxShadow: '0 20px 60px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.1)',
+                                textAlign: 'center' as const,
+                                position: 'relative' as const
+                            }}>
+                                {/* Glassmorphism overlay effects */}
+                                <div style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    height: '2px',
+                                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                                    pointerEvents: 'none' as const
+                                }} />
+                                <div style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    bottom: 0,
+                                    width: '2px',
+                                    background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.1), transparent)',
+                                    pointerEvents: 'none' as const
+                                }} />
+
+                                {/* Icono del evento */}
+                                <div style={{
+                                    fontSize: '48px',
+                                    marginBottom: '16px',
+                                    opacity: 0.9
+                                }}>
+                                    🎭
                                 </div>
+
+                                {/* Título */}
+                                <h3 style={{
+                                    ...textStyles.sectionTitle,
+                                    fontSize: '24px',
+                                    marginBottom: '20px',
+                                    color: colors.gold,
+                                    textShadow: '0 4px 12px rgba(0,0,0,0.8)'
+                                }}>
+                                    Evento
+                                </h3>
+
+                                {/* Mensaje */}
+                                <p style={{
+                                    ...textStyles.body,
+                                    fontSize: '16px',
+                                    lineHeight: '1.6',
+                                    marginBottom: '32px',
+                                    textAlign: 'center' as const,
+                                    color: colors.muted
+                                }}>
+                                    {eventMessage}
+                                </p>
+
+                                {/* Botón */}
+                                <EndTurnButton onClick={handleContinue} size="lg">
+                                    Continuar
+                                </EndTurnButton>
                             </div>
                         </div>
                     )}
                     
-                    {/* Game Over Modal with enhanced styling */}
-                    {gameStateManager.isGameOver && (
-                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-                            <div className={`p-12 rounded-lg border-2 shadow-2xl max-w-lg mx-4 text-center ${
-                                gameStateManager.victory 
-                                    ? 'bg-gradient-to-br from-green-900/90 to-green-800/90 border-green-600/50'
-                                    : 'bg-gradient-to-br from-red-900/90 to-red-800/90 border-red-600/50'
-                            }`}>
-                                <h1 style={{
-                                    ...textStyles.bookTitle,
-                                    fontSize: '42px',
-                                    color: gameStateManager.victory ? '#86efac' : '#fca5a5',
-                                    marginBottom: '24px'
-                                }}>
-                                    {gameStateManager.victory ? '¡Victoria!' : 'Derrota'}
-                                </h1>
-                                <div className="flex justify-center">
-                                    <EndTurnButton 
-                                        onClick={() => {
-                                            turnManager.startGame();
-                                            handleStartGame();
-                                        }}
-                                        size="lg"
-                                    >
-                                        Jugar de Nuevo
-                                    </EndTurnButton>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    {/* Sistema de Final de Partida Mejorado */}
+                    <GameEndSystem
+                        isVisible={gameStateManager.isGameOver}
+                        onReturnToMenu={() => setInGame(false)}
+                        onPlayAgain={() => {
+                            turnManager.startGame();
+                            handleStartGame();
+                        }}
+                        onContinueToNext={async () => {
+                            const success = await chapterManager.goToNextChapter();
+                            if (success) {
+                                turnManager.startGame();
+                                handleStartGame();
+                            } else {
+                                console.warn('⚠️ App: No se pudo avanzar al siguiente capítulo');
+                                setInGame(false); // Volver al menú si no hay siguiente
+                            }
+                        }}
+                        onTriggerEndNarrative={async () => {
+                            try {
+                                await chapterManager.playChapterNarrative('end');
+                            } catch (error) {
+                                console.warn('⚠️ App: No se pudo mostrar narrativa de final:', error);
+                            }
+                        }}
+                    />
                     
                     {/* Event Visual System */}
                     <EventVisualSystem
@@ -613,10 +747,28 @@ const App: React.FC = () => {
                             }
                         }}
                     />
+                    
+                    {/* Narrative Modal */}
+                    {narrativeModal.visible && narrativeModal.element && narrativeModal.config && (
+                        <NarrativeModal
+                            element={narrativeModal.element}
+                            config={narrativeModal.config}
+                            onComplete={handleNarrativeComplete}
+                            onSkip={handleNarrativeSkip}
+                        />
+                    )}
                     </GameLayout>
                 </div>
             )}
         </div>
+    );
+};
+
+const App: React.FC = () => {
+    return (
+        <GameModalProvider>
+            <AppContent />
+        </GameModalProvider>
     );
 };
 

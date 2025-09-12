@@ -1,6 +1,6 @@
 // src/components/VFX.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Application } from '@pixi/react';
 import * as PIXI from 'pixi.js';
 import { gsap } from 'gsap';
@@ -11,6 +11,9 @@ import type { Card as CardType } from '../engine/types';
 import { gameStateManager } from '../engine/GameStateManager';
 import { uiPositionManager } from '../engine/UIPositionManager';
 import { pixiScreenEffects } from '../engine/PixiScreenEffects';
+import { floatingNumbersSystem } from '../engine/FloatingNumbersSystem';
+import { vfxController } from '../engine/VFXController';
+import { Z_INDEX } from '../constants/zIndex';
 
 interface PixiCard {
   sprite: PIXI.Sprite;
@@ -23,6 +26,51 @@ export const VFX: React.FC = () => {
   const [pixiCards, setPixiCards] = useState<Record<string, PixiCard>>({});
   const [pixiApp, setPixiApp] = useState<PIXI.Application | null>(null);
   const [debugMode, setDebugMode] = useState(false);
+  const [_activeZoomContainer, setActiveZoomContainer] = useState<PIXI.Container | null>(null);
+  
+  /**
+   * Cleanup function for removing active zoom containers
+   * Called when context menu actions are taken
+   */
+  const cleanupActiveZoom = useCallback(() => {
+    const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+    const logPrefix = `[${timestamp}] 🧽 VFX.cleanupActiveZoom`;
+    
+    console.log(`${logPrefix}: Cleaning up active zoom containers`);
+    
+    if (!pixiApp || !pixiApp.stage) {
+      console.warn(`${logPrefix}: No PIXI app available for cleanup`);
+      return;
+    }
+    
+    // Find and remove all zoom containers
+    const zoomContainers = pixiApp.stage.children.filter(child => 
+      child.label && child.label.startsWith('cardZoomContainer')
+    );
+    
+    console.log(`${logPrefix}: Found ${zoomContainers.length} zoom containers to clean`);
+    
+    zoomContainers.forEach((container, index) => {
+      console.log(`${logPrefix}: Animating out zoom container ${index + 1}/${zoomContainers.length}`);
+      
+      gsap.to(container, {
+        scale: 0.1,
+        alpha: 0,
+        duration: 0.3,
+        ease: 'back.in(1.6)',
+        onComplete: () => {
+          if (pixiApp && pixiApp.stage && container.parent) {
+            pixiApp.stage.removeChild(container);
+            console.log(`${logPrefix}: ✅ Zoom container ${index + 1} removed from stage`);
+          }
+        }
+      });
+    });
+    
+    // Clear active zoom reference
+    setActiveZoomContainer(null);
+    console.log(`${logPrefix}: Cleanup initiated for ${zoomContainers.length} containers`);
+  }, [pixiApp]);
 
   // Callback to get the PIXI app instance when it's created
   const onAppInit = (app: PIXI.Application) => {
@@ -45,7 +93,13 @@ export const VFX: React.FC = () => {
     pixiScreenEffects.initialize(app);
     console.log('🎆 VFX: PixiScreenEffects initialized');
     
+    // Initialize FloatingNumbers system
+    floatingNumbersSystem.initialize(app);
+    console.log('🔢 VFX: FloatingNumbersSystem initialized');
+    
     setPixiApp(app);
+    console.log('🌨 VFX: Canvas setup complete - transparent background');
+    console.log('🌨 VFX: Ready for sprite lifecycle tracking');
     console.log('🎨 VFX: Canvas setup complete - transparent background');
     console.log('🎨 VFX: Ready for sprite lifecycle tracking');
   };
@@ -82,7 +136,7 @@ export const VFX: React.FC = () => {
     
     // Clean up existing debug sprites
     const debugSprites = pixiApp.stage.children.filter(child => 
-      child.name && child.name.startsWith('debug')
+      child.label && child.label.startsWith('debug')
     );
     debugSprites.forEach(sprite => {
       pixiApp.stage.removeChild(sprite);
@@ -105,7 +159,7 @@ export const VFX: React.FC = () => {
         
         circle.x = basic.x;
         circle.y = basic.y;
-        circle.name = `debug-${basic.label}`;
+        circle.label = `debug-${basic.label}`;
         pixiApp.stage.addChild(circle);
         console.log(`🔴 VFX: Debug ${basic.label} at (${basic.x}, ${basic.y})`);
       });
@@ -307,10 +361,13 @@ export const VFX: React.FC = () => {
                   .fill(0xffffff);
                 
                 // Add card text
-                const text = new PIXI.Text(`${card.rank}${card.suit[0]}`, { 
-                  fontSize: 16, 
-                  fill: 0x000000, 
-                  fontWeight: 'bold' 
+                const text = new PIXI.Text({
+                  text: `${card.rank}${card.suit[0]}`,
+                  style: {
+                    fontSize: 16, 
+                    fill: 0x000000, 
+                    fontWeight: 'bold'
+                  }
                 });
                 text.x = 20;
                 text.y = 25;
@@ -363,6 +420,9 @@ export const VFX: React.FC = () => {
 
               let dragging = false;
               let dragData: PIXI.FederatedPointerEvent | null = null;
+              let clickCount = 0;
+              let clickTimer: number | null = null;
+              const DOUBLE_CLICK_DELAY = 300; // ms
               
               // Store original position directly on the sprite to avoid closure/state issues
               (sprite as any).originalPosition = { x: position.x, y: position.y };
@@ -523,29 +583,108 @@ export const VFX: React.FC = () => {
                 }
               });
 
-              sprite.on('pointerup', () => {
+              sprite.on('pointerup', (_e: PIXI.FederatedPointerEvent) => {
+                const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+                const logPrefix = `[${timestamp}] 🎯 VFX.pointerup`;
+                
+                // Handle double-click detection for stationary cards
+                const wasDragging = dragging;
+                const startPos = (sprite as any).originalPosition;
+                const currentPos = { x: sprite.x, y: sprite.y };
+                const dragDistance = Math.sqrt(Math.pow(currentPos.x - startPos.x, 2) + Math.pow(currentPos.y - startPos.y, 2));
+                
+                console.log(`${logPrefix}: Card ${card.id} released`, {
+                  wasDragging,
+                  dragDistance,
+                  startPos,
+                  currentPos
+                });
+                
                 dragging = false;
                 dragData = null;
                 
-                const playAreaRect = uiPositionManager.get('playArea');
-                const isInPlayArea = playAreaRect && playAreaRect.height !== undefined && sprite.y < playAreaRect.y + playAreaRect.height / 2;
+                // If card barely moved (< 20px), treat as potential click/double-click
+                if (dragDistance < 20) {
+                  clickCount++;
+                  console.log(`${logPrefix}: Click detected (count: ${clickCount})`);
+                  
+                  if (clickCount === 1) {
+                    // Start timer for double-click detection
+                    clickTimer = setTimeout(() => {
+                      console.log(`${logPrefix}: Single click confirmed after timeout`);
+                      clickCount = 0;
+                      clickTimer = null;
+                    }, DOUBLE_CLICK_DELAY);
+                  } else if (clickCount >= 2) {
+                    // Double-click detected!
+                    if (clickTimer) {
+                      clearTimeout(clickTimer);
+                      clickTimer = null;
+                    }
+                    clickCount = 0;
+                    
+                    console.log(`${logPrefix}: ✨ Double-click detected! Triggering card menu`);
+                    vfxSystem.cardClick({ 
+                      card, 
+                      position: { x: sprite.x, y: sprite.y } 
+                    });
+                    
+                    // Reset visual state for menu
+                    const baseGlow = new GlowFilter({ distance: 8, outerStrength: 0.8, innerStrength: 0.2, color: 0x4a90e2 });
+                    sprite.filters = [baseGlow];
+                    gsap.to(sprite.scale, { x: 0.8, y: 0.8, duration: 0.2, ease: 'back.out(1.2)' });
+                    
+                    return;
+                  }
+                }
                 
-                if (isInPlayArea) {
-                  // Dispatch cardClick event instead of auto-playing
-                  console.log('🎲 VFX: Card clicked for action menu');
+                // Enhanced zone detection for dragged cards
+                const playAreaRect = uiPositionManager.get('playArea');
+                let isInPlayArea = false;
+                
+                if (playAreaRect) {
+                  // More comprehensive play area detection
+                  const cardCenterX = sprite.x;
+                  const cardCenterY = sprite.y;
+                  
+                  // Define play area bounds more precisely
+                  const playAreaTop = playAreaRect.y || 100;
+                  const playAreaBottom = playAreaTop + (playAreaRect.height || 300);
+                  const playAreaLeft = playAreaRect.x || 200;
+                  const playAreaRight = playAreaLeft + (playAreaRect.width || 880);
+                  
+                  isInPlayArea = (
+                    cardCenterX >= playAreaLeft && 
+                    cardCenterX <= playAreaRight &&
+                    cardCenterY >= playAreaTop && 
+                    cardCenterY <= playAreaBottom
+                  );
+                  
+                  console.log(`${logPrefix}: Zone detection`, {
+                    cardPosition: { x: cardCenterX, y: cardCenterY },
+                    playArea: { left: playAreaLeft, right: playAreaRight, top: playAreaTop, bottom: playAreaBottom },
+                    isInPlayArea,
+                    dragDistance
+                  });
+                } else {
+                  console.warn(`${logPrefix}: No play area rect found from uiPositionManager`);
+                }
+                
+                if (isInPlayArea && dragDistance > 20) {
+                  console.log(`${logPrefix}: 🎲 Card dragged to play area - triggering action menu`);
                   vfxSystem.cardClick({ 
                     card, 
                     position: { x: sprite.x, y: sprite.y } 
                   });
                   
-                  // Return card to original position for now
+                  // Return card to original position while menu is open
                   const originalPos = (sprite as any).originalPosition;
                   gsap.to(sprite, {
                     x: originalPos.x,
                     y: originalPos.y,
                     scale: 0.8,
                     rotation: 0,
-                    duration: 0.3,
+                    duration: 0.4,
                     ease: 'back.out(1.4)'
                   });
                   
@@ -556,10 +695,10 @@ export const VFX: React.FC = () => {
                   return;
                 }
                 
-                // If not in play area, return to original position
+                // Return to original position (card not in valid zone or minimal drag)
+                console.log(`${logPrefix}: 🔄 Returning card to original position`);
                 const origPos = (sprite as any).originalPosition;
                 
-                // Return effects
                 gsap.to(sprite, {
                   x: origPos.x,
                   y: origPos.y,
@@ -569,7 +708,7 @@ export const VFX: React.FC = () => {
                 });
                 gsap.to(sprite.scale, { x: 0.8, y: 0.8, duration: 0.4, ease: 'back.out(1.2)' });
                 
-                // Brief color shift to indicate return
+                // Visual feedback for return
                 const returnGlow = new GlowFilter({ distance: 12, outerStrength: 1.2, innerStrength: 0.3, color: 0xffaa00 });
                 sprite.filters = [returnGlow];
                 
@@ -1037,11 +1176,14 @@ export const VFX: React.FC = () => {
           }
           
           // Repair amount text popup
-          const repairText = new PIXI.Text(`+${repairAmount}%`, {
-            fontSize: 24,
-            fill: 0x22c55e,
-            fontWeight: 'bold',
-            stroke: { color: 0x000000, width: 2 }
+          const repairText = new PIXI.Text({
+            text: `+${repairAmount}%`,
+            style: {
+              fontSize: 24,
+              fill: 0x22c55e,
+              fontWeight: 'bold',
+              stroke: { color: 0x000000, width: 2 }
+            }
           });
           repairText.anchor.set(0.5);
           repairText.x = position.x;
@@ -1120,11 +1262,14 @@ export const VFX: React.FC = () => {
           }
           
           // Damage amount text popup
-          const damageText = new PIXI.Text(`-${damageAmount}%`, {
-            fontSize: 24,
-            fill: 0xef4444,
-            fontWeight: 'bold',
-            stroke: { color: 0x000000, width: 2 }
+          const damageText = new PIXI.Text({
+            text: `-${damageAmount}%`,
+            style: {
+              fontSize: 24,
+              fill: 0xef4444,
+              fontWeight: 'bold',
+              stroke: { color: 0x000000, width: 2 }
+            }
           });
           damageText.anchor.set(0.5);
           damageText.x = position.x;
@@ -1138,6 +1283,107 @@ export const VFX: React.FC = () => {
           break;
         }
         
+        case 'cardClick': {
+          const clickData = event.data as { card: any; position: { x: number; y: number } };
+          const { card } = clickData;
+          console.log('🔍 VFX: Card click - creating zoom view for', card.rank, card.suit, 'with imageFile:', card.imageFile);
+          
+          // Create a container to hold the zoom elements
+          const zoomContainer = new PIXI.Container();
+          zoomContainer.x = 640;
+          zoomContainer.y = 400;
+          zoomContainer.scale.set(0.1);
+          zoomContainer.alpha = 0;
+          zoomContainer.label = 'cardZoomContainer'; // PixiJS v8 syntax
+          
+          // Create fallback background first
+          const fallbackBg = new PIXI.Graphics()
+            .rect(-150, -210, 300, 420)
+            .fill(0x2a2a3a)
+            .rect(-142, -202, 284, 404)
+            .stroke({ width: 4, color: 0x4a90e2 });
+          fallbackBg.label = 'zoomFallbackBg';
+          
+          // Create fallback text with PixiJS v8 syntax
+          const fallbackText = new PIXI.Text({
+            text: `${card.rank} of ${card.suit}`,
+            style: {
+              fontSize: 28,
+              fill: 0xffffff,
+              fontWeight: 'bold',
+              align: 'center'
+            }
+          });
+          fallbackText.anchor.set(0.5);
+          fallbackText.x = 0;
+          fallbackText.y = 0;
+          fallbackText.label = 'zoomFallbackText';
+          
+          // Add fallback elements to container
+          zoomContainer.addChild(fallbackBg);
+          zoomContainer.addChild(fallbackText);
+          
+          // Add glow effect to container
+          try {
+            zoomContainer.filters = [new GlowFilter({ distance: 20, outerStrength: 2, color: 0x4a90e2 })];
+          } catch (error) {
+            console.warn('⚠️ VFX: Zoom container GlowFilter failed:', error);
+            zoomContainer.filters = [];
+          }
+          
+          app.stage.addChild(zoomContainer);
+          console.log('🔍 VFX: Zoom container created and added to stage');
+          
+          // Try to load real card texture
+          const imagePath = `/images/decks/default/${card.imageFile}`;
+          console.log('🔍 VFX: Loading card image from:', imagePath);
+          
+          PIXI.Assets.load(imagePath)
+            .then((cardTexture) => {
+              console.log('🔍 VFX: Real texture loaded successfully for', card.rank, card.suit);
+              
+              // Only update if the container still exists
+              if (zoomContainer.parent) {
+                // Create real card sprite
+                const realCardSprite = new PIXI.Sprite(cardTexture);
+                realCardSprite.anchor.set(0.5);
+                realCardSprite.width = 300;
+                realCardSprite.height = 420;
+                realCardSprite.x = 0;
+                realCardSprite.y = 0;
+                realCardSprite.label = 'zoomRealCard';
+                
+                // Clear fallback elements and add real card
+                zoomContainer.removeChildren();
+                zoomContainer.addChild(realCardSprite);
+                
+                console.log('🔍 VFX: Real card sprite added to zoom container');
+              }
+            })
+            .catch((error) => {
+              console.warn('⚠️ VFX: Could not load real texture for', card.rank, card.suit, '- using fallback. Error:', error);
+            });
+          
+          // Animate container in
+          gsap.to(zoomContainer, {
+            scale: 1,
+            alpha: 1,
+            duration: 0.4,
+            ease: 'back.out(1.6)'
+          });
+          
+          // NO auto-hide - zoom persists until user takes action from context menu
+          // The zoom will be removed when the context menu closes
+          console.log('🔍 VFX: Zoom created, will persist until context menu action');
+          
+          // Store zoom container reference for manual cleanup
+          (zoomContainer as any).cardId = card.id;
+          setActiveZoomContainer(zoomContainer);
+          console.log('🔍 VFX: Zoom container stored for future cleanup');
+          
+          break;
+        }
+        
         default:
           console.warn('Unknown VFX event type:', event.type);
       }
@@ -1146,6 +1392,19 @@ export const VFX: React.FC = () => {
     const unsubscribe = vfxSystem.subscribe(handleVFXEvent);
     return unsubscribe;
   }, [pixiCards, pixiApp]);
+  
+  // Register zoom cleanup callback with VFXController
+  useEffect(() => {
+    if (pixiApp) {
+      console.log('🎆 VFX: Registering zoom cleanup callback with VFXController');
+      vfxController.registerZoomCleanup(cleanupActiveZoom);
+      
+      return () => {
+        console.log('🎆 VFX: Unregistering zoom cleanup callback from VFXController');
+        vfxController.unregisterZoomCleanup();
+      };
+    }
+  }, [pixiApp, cleanupActiveZoom]);
 
   if (debugMode) {
     return (
@@ -1157,7 +1416,7 @@ export const VFX: React.FC = () => {
         height: '800px',
         backgroundColor: 'rgba(0,0,0,0.1)',
         border: '3px solid red',
-        zIndex: 9999,
+        zIndex: Z_INDEX.DEBUG_TOOLS,
         pointerEvents: 'none'
       }}>
         <div style={{
@@ -1192,8 +1451,8 @@ export const VFX: React.FC = () => {
         left: 0,
         width: '1280px',
         height: '800px',
-        zIndex: 40,
-        pointerEvents: 'auto'
+        zIndex: Z_INDEX.VFX_LAYER,
+        pointerEvents: 'auto' // Necesario para interacción con cartas
       }}>
         <Application 
           width={1280} 
@@ -1211,7 +1470,7 @@ export const VFX: React.FC = () => {
         position: 'fixed',
         top: '10px',
         right: '10px',
-        zIndex: 9999,
+        zIndex: Z_INDEX.DEBUG_TOOLS,
         pointerEvents: 'auto'
       }}>
         <button

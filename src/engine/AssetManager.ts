@@ -455,8 +455,8 @@ class AssetManager {
       name: `scenario-${scenarioId}`,
       assets: {
         // Backgrounds
-        'bg-main': `/images/scenarios/${scenarioId}/backgrounds/main-bg.jpg`,
-        'bg-main-png': `/images/scenarios/${scenarioId}/backgrounds/main-bg.png`,
+        'bg-main': `/images/scenarios/${scenarioId}/backgrounds/main-bg.png`,
+        'bg-main-fallback': `/images/scenarios/${scenarioId}/backgrounds/main-bg.jpg`,
         'bg-main-svg': `/images/scenarios/${scenarioId}/backgrounds/main-bg.svg`,
         
         // Characters
@@ -526,7 +526,7 @@ class AssetManager {
   // Fallback method for individual asset loading
   private async preloadIndividualAssets(scenarioId: string): Promise<void> {
     const criticalPaths = [
-      `/images/scenarios/${scenarioId}/backgrounds/main-bg.jpg`,
+      `/images/scenarios/${scenarioId}/backgrounds/main-bg.png`,
       `/images/scenarios/${scenarioId}/characters/player-portrait.png`,
       `/images/scenarios/${scenarioId}/eco/eco-vigilante.png`,
       `/images/scenarios/${scenarioId}/cards/card-back.png`,
@@ -574,6 +574,17 @@ class AssetManager {
   // Get cached image if available
   getCachedImage(path: string): HTMLImageElement | null {
     return this.loadedImages[path] || null;
+  }
+  
+  // Get image asset path (used by NarrativeModal)
+  getImageAsset(path: string): string | null {
+    // Check if we have the image cached
+    if (this.loadedImages[path]) {
+      return path;
+    }
+    
+    // Return the path as-is (the component will handle loading)
+    return path;
   }
   
   // Get cached PIXI texture if available

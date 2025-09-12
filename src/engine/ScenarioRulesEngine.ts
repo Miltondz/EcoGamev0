@@ -157,21 +157,46 @@ class ScenarioRulesEngine {
     }
 
     /**
-     * Resuelve un valor que puede ser número o fórmula
+     * Resuelve un valor que puede ser número, fórmula o undefined
+     * Implementa logging completo para debug de fórmulas
      */
-    private resolveValue(value: number | string, card: Card): number {
+    private resolveValue(value: number | string | undefined, card: Card): number {
+        const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+        const logPrefix = `[${timestamp}] 🧮 ScenarioRulesEngine.resolveValue`;
+        
+        console.log(`${logPrefix}: Processing value`, { value, cardValue: card.value, cardId: card.id });
+        
+        // Manejar valores undefined o null
+        if (value === undefined || value === null) {
+            console.warn(`${logPrefix}: ⚠️ Value is undefined/null, defaulting to 0`);
+            return 0;
+        }
+        
+        // Valores numéricos directos
         if (typeof value === 'number') {
+            console.log(`${logPrefix}: Direct numeric value: ${value}`);
             return value;
         }
+        
+        // Validar que es string antes de usar replace
+        if (typeof value !== 'string') {
+            console.warn(`${logPrefix}: ⚠️ Value is not string or number:`, typeof value, 'defaulting to 0');
+            return 0;
+        }
 
+        console.log(`${logPrefix}: Processing formula: "${value}"`);
+        
         // Reemplazar variables en fórmulas
         let formula = value.replace(/CARD_VALUE/g, card.value.toString());
+        console.log(`${logPrefix}: Formula after variable replacement: "${formula}"`);
 
         // Evaluar fórmulas matemáticas básicas de forma más segura
         try {
-            return this.evaluateMathExpression(formula);
+            const result = this.evaluateMathExpression(formula);
+            console.log(`${logPrefix}: ✅ Formula evaluated successfully: ${result}`);
+            return result;
         } catch (error) {
-            console.warn(`⚠️ ScenarioRulesEngine: Error evaluando fórmula "${value}":`, error);
+            console.error(`${logPrefix}: ❌ Error evaluating formula "${value}":`, error);
             return 0;
         }
     }

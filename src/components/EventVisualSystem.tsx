@@ -6,6 +6,8 @@ import type { Card, DynamicEvent } from '../engine/types';
 import { pixiScreenEffects } from '../engine/PixiScreenEffects';
 import type { ScreenEffectType } from '../engine/PixiScreenEffects';
 import { colors, textStyles, panelStyles, createStoneButtonStyle, handleStoneButtonHover } from '../utils/styles';
+import { assetManager } from '../engine/AssetManager';
+import { Z_INDEX } from '../constants/zIndex';
 
 interface EventVisualSystemProps {
   isVisible: boolean;
@@ -141,7 +143,7 @@ export const EventVisualSystem: React.FC<EventVisualSystemProps> = ({
         left: 0,
         width: '100vw',
         height: '100vh',
-        zIndex: 9999,
+        zIndex: Z_INDEX.EVENT_MODAL,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
@@ -218,9 +220,95 @@ const CardPresentation: React.FC<{
   eventCard: Card;
   event: DynamicEvent;
   onClose: () => void;
-}> = ({ eventCard, event, onClose }) => (
+}> = ({ eventCard, event, onClose }) => {
+  const [cardImageSrc, setCardImageSrc] = useState<string>('');
+  
+  useEffect(() => {
+    /**
+     * Carga la imagen del evento con sistema de fallback mejorado
+     * Implementa logging completo para debug de carga de imágenes
+     */
+    const loadEventImage = async () => {
+      const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+      const logPrefix = `[${timestamp}] 🎭 EventVisualSystem.loadEventImage`;
+      
+      console.log(`${logPrefix}: Loading image for event card ${eventCard.id}`);
+      
+      try {
+        // Primero intentar imagen de evento específica
+        const eventImagePath = await assetManager.getEventImagePath(eventCard.id);
+        console.log(`${logPrefix}: Event image path resolved: ${eventImagePath}`);
+        
+        // Validar que la imagen realmente existe
+        const testImg = new Image();
+        
+        await new Promise((resolve, reject) => {
+          testImg.onload = () => {
+            console.log(`${logPrefix}: ✅ Event image successfully loaded from: ${eventImagePath}`);
+            setCardImageSrc(eventImagePath);
+            resolve(testImg);
+          };
+          
+          testImg.onerror = () => {
+            console.warn(`${logPrefix}: ⚠️ Event image failed to load: ${eventImagePath}`);
+            reject(new Error(`Failed to load event image: ${eventImagePath}`));
+          };
+          
+          testImg.src = eventImagePath;
+        });
+        
+      } catch (eventError) {
+        console.warn(`${logPrefix}: Event image failed, trying card deck image`, eventError);
+        
+        // Fallback 1: Intentar imagen de carta del deck
+        try {
+          const deckImagePath = `/images/decks/default/${eventCard.imageFile}`;
+          console.log(`${logPrefix}: Trying deck image: ${deckImagePath}`);
+          
+          const testDeckImg = new Image();
+          
+          await new Promise((resolve, reject) => {
+            testDeckImg.onload = () => {
+              console.log(`${logPrefix}: ✅ Deck image successfully loaded from: ${deckImagePath}`);
+              setCardImageSrc(deckImagePath);
+              resolve(testDeckImg);
+            };
+            
+            testDeckImg.onerror = () => {
+              console.warn(`${logPrefix}: ⚠️ Deck image failed to load: ${deckImagePath}`);
+              reject(new Error(`Failed to load deck image: ${deckImagePath}`));
+            };
+            
+            testDeckImg.src = deckImagePath;
+          });
+          
+        } catch (deckError) {
+          console.warn(`${logPrefix}: Deck image failed, trying AssetManager card path`, deckError);
+          
+          // Fallback 2: AssetManager con fallbacks propios
+          try {
+            const cardImagePath = await assetManager.getCardImagePath(eventCard.id);
+            console.log(`${logPrefix}: ✅ AssetManager provided card image: ${cardImagePath}`);
+            setCardImageSrc(cardImagePath);
+          } catch (assetError) {
+            console.error(`${logPrefix}: ❌ All image loading methods failed for ${eventCard.id}`);
+            console.error(`${logPrefix}: Event error:`, eventError);
+            console.error(`${logPrefix}: Deck error:`, deckError);
+            console.error(`${logPrefix}: Asset error:`, assetError);
+            
+            // Último recurso: imagen vacía (se mostrará fallback visual)
+            setCardImageSrc('');
+          }
+        }
+      }
+    };
+    
+    loadEventImage();
+  }, [eventCard.id, eventCard.imageFile]);
+  
+  return (
   <div style={{
-    background: 'rgba(30, 41, 59, 0.85)',
+    background: 'rgba(30, 41, 59, 0.7)', // 70% opacity standard
     backdropFilter: 'blur(12px)',
     borderRadius: '12px',
     border: `1px solid rgba(217, 119, 6, 0.3)`,
@@ -260,32 +348,50 @@ const CardPresentation: React.FC<{
       width: '160px',
       height: '224px',
       borderRadius: '8px',
-      backgroundImage: `url(/images/scenarios/default/events/${eventCard.imageFile}), url(/images/scenarios/default/events/missing-event.svg)`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
       border: `2px solid ${colors.gold}`,
       boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
       flexShrink: 0,
-      position: 'relative'
+      position: 'relative',
+      overflow: 'hidden'
     }}>
-      {/* Fallback si no carga la imagen - ahora funciona como overlay */}
-      <div
-        onError={() => console.log(`Event image not found: ${eventCard.id}.png`)}
-        style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'linear-gradient(135deg, #1e293b, #374151)',
-        borderRadius: '6px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1
-      }}>
-        <EventCardDisplay eventCard={eventCard} size="small" />
-      </div>
+      {cardImageSrc ? (
+        <img 
+          src={cardImageSrc}
+          alt={`Event ${eventCard.id}`}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block',
+            position: 'relative',
+            zIndex: 2
+          }}
+          onLoad={() => {
+            console.log(`🎨 Event image successfully loaded and displayed: ${cardImageSrc}`);
+          }}
+          onError={(_e) => {
+            console.warn(`❌ Event image failed to load: ${cardImageSrc}`);
+            setCardImageSrc(''); // Clear the src to show fallback
+          }}
+        />
+      ) : (
+        /* Fallback cuando no hay imagen disponible */
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'linear-gradient(135deg, #1e293b, #374151)',
+          borderRadius: '6px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1
+        }}>
+          <EventCardDisplay eventCard={eventCard} size="small" />
+        </div>
+      )}
     </div>
     
     {/* Contenido del evento */}
@@ -294,7 +400,8 @@ const CardPresentation: React.FC<{
       <OKButton onClose={onClose} />
     </div>
   </div>
-);
+  );
+};
 
 const ImagePresentation: React.FC<{
   eventCard: Card;
@@ -302,7 +409,7 @@ const ImagePresentation: React.FC<{
   onClose: () => void;
 }> = ({ eventCard, event, onClose }) => (
   <div style={{
-    background: 'rgba(30, 41, 59, 0.85)',
+    background: 'rgba(30, 41, 59, 0.7)', // 70% opacity standard
     backdropFilter: 'blur(12px)',
     borderRadius: '12px',
     border: `1px solid rgba(217, 119, 6, 0.3)`,
@@ -321,9 +428,6 @@ const ImagePresentation: React.FC<{
       width: '200px',
       height: '260px',
       borderRadius: '8px',
-      backgroundImage: `url(/images/scenarios/default/events/${eventCard.imageFile}), url(/images/scenarios/default/events/missing-event.svg)`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
       border: `2px solid ${colors.gold}`,
       boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
       flexShrink: 0,
@@ -331,8 +435,25 @@ const ImagePresentation: React.FC<{
       background: 'linear-gradient(135deg, #581c87 0%, #1f2937 100%)',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center'
+      justifyContent: 'center',
+      overflow: 'hidden'
     }}>
+      <img 
+        src={`/images/decks/default/${eventCard.imageFile}`}
+        alt={`Event ${eventCard.id}`}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          position: 'absolute',
+          top: 0,
+          left: 0
+        }}
+        onError={(e) => {
+          console.warn(`❌ Event image failed to load: /images/decks/default/${eventCard.imageFile}`);
+          (e.target as HTMLImageElement).style.display = 'none';
+        }}
+      />
       {/* Placeholder cuando no carga la imagen */}
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: '48px', marginBottom: '8px' }}>🎭</div>
@@ -386,9 +507,6 @@ const GifPresentation: React.FC<{
         width: '200px',
         height: '260px',
         borderRadius: '8px',
-        backgroundImage: `url(/images/scenarios/default/events/${eventCard.imageFile.replace('.png', '.gif')}), url(/images/scenarios/default/events/missing-event.svg)`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
         border: `2px solid ${colors.gold}`,
         boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
         flexShrink: 0,
@@ -397,8 +515,30 @@ const GifPresentation: React.FC<{
         alignItems: 'center',
         justifyContent: 'center',
         opacity: animating ? 1 : 0.8,
-        transition: 'opacity 0.5s ease'
+        transition: 'opacity 0.5s ease',
+        overflow: 'hidden',
+        position: 'relative'
       }}>
+        <img 
+          src={`/images/decks/default/${eventCard.imageFile.replace('.png', '.gif')}`}
+          alt={`Event GIF ${eventCard.id}`}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            position: 'absolute',
+            top: 0,
+            left: 0
+          }}
+          onError={(e) => {
+            console.warn(`❌ Event GIF failed to load, trying static image: /images/decks/default/${eventCard.imageFile}`);
+            (e.target as HTMLImageElement).src = `/images/decks/default/${eventCard.imageFile}`;
+            (e.target as HTMLImageElement).onerror = () => {
+              console.warn(`❌ Event static fallback failed`);
+              (e.target as HTMLImageElement).style.display = 'none';
+            };
+          }}
+        />
         {/* Placeholder cuando no carga el GIF */}
         <div style={{ textAlign: 'center' }}>
           <div style={{

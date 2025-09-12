@@ -2,7 +2,7 @@
 
 import { gameStateManager } from './GameStateManager';
 import { nodeSystem } from './NodeSystem';
-import { scenarioLoader } from './ScenarioLoader';
+import { ecoStateSystem } from './EcoStateSystem';
 import { deckManager } from './DeckManager';
 import { gameLogSystem } from './GameLogSystem';
 import { hallucinationSystem } from './HallucinationSystem';
@@ -186,20 +186,17 @@ export class EcoAI {
 
     private updatePhase() {
         try {
-            const ecoHpPercent = (gameStateManager.ecoHp / gameStateManager.maxEcoHp) * 100;
-            const { phases } = scenarioLoader.eco;
-            const oldPhase = this.currentPhase;
+            // const _oldPhase = this.currentPhase; // Keep for potential future use
+            const newState = ecoStateSystem.getCurrentState();
+            const config = ecoStateSystem.getCurrentConfig();
 
-            if (ecoHpPercent <= phases.devastador.threshold) {
-                this.currentPhase = 'devastador';
-            } else if (ecoHpPercent <= phases.predador.threshold) {
-                this.currentPhase = 'predador';
-            } else {
-                this.currentPhase = 'vigilante';
-            }
-
-            if (this.currentPhase !== oldPhase) {
-                gameLogSystem.addMessage(`Eco has transformed into the ${this.currentPhase}!`, 'eco', 'special');
+            if (newState && newState !== this.currentPhase) {
+                this.currentPhase = newState;
+                
+                if (config) {
+                    gameLogSystem.addMessage(`${config.flavorText}`, 'eco', 'special');
+                    console.log(`🎭 EcoAI: Phase changed to ${config.name} (${newState})`);
+                }
             }
         } catch (error) {
             console.error('Error updating Eco phase:', error);

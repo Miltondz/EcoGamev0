@@ -6,7 +6,8 @@ import { vfxSystem } from '../engine/VFXSystem';
 import type { VFXEvent } from '../engine/VFXSystem';
 import { uiPositionManager } from '../engine/UIPositionManager';
 import { turnManager } from '../engine/TurnManager';
-import { CardActionButtons } from './CardActionButtons';
+import { CardContextMenu, type CardActionType } from './CardContextMenu';
+import { vfxController } from '../engine/VFXController';
 import type { Card } from '../engine/types';
 
 interface HandProps {
@@ -99,50 +100,89 @@ export const Hand: React.FC<HandProps> = () => {
         console.log('🃏 Hand: Current hand state:', gameStateManager.hand);
     }, [gameStateManager.hand]);
 
-    // Handle card click for enlargement
+    // Handle card click for context menu
     const handleCardClick = useCallback((card: Card, position: { x: number; y: number }) => {
+        const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+        const logPrefix = `[${timestamp}] 🃷 Hand.handleCardClick`;
+        
         if (gameStateManager.phase !== GamePhase.PLAYER_ACTION) {
-            console.log('🃏 Hand: Cannot interact with cards - not player turn');
+            console.log(`${logPrefix}: Cannot interact with cards - not player turn (phase: ${gameStateManager.phase})`);
             return;
         }
 
-        console.log('🃏 Hand: Card clicked:', card.id, 'at position:', position);
-        setEnlargedCard(card);
-        // Position buttons in the center of the screen, above the enlarged card
+        console.log(`${logPrefix}: Card clicked: ${card.rank}${card.suit} (${card.id}) at position:`, position);
+        
+        // Set card and menu position for context menu (NO enlarged card display)
+        setEnlargedCard(card); // Only for menu logic, not for display
         setActionButtonsPosition({
             x: window.innerWidth / 2,
-            y: window.innerHeight * 0.25 // Above the enlarged card
+            y: window.innerHeight * 0.3 // Centered position for menu
         });
+        
+        console.log(`${logPrefix}: Context menu activated for card ${card.id}`);
     }, []);
 
-    // Handle action button clicks
-    const handleCardAction = (action: 'play' | 'sacrifice' | 'research' | 'discard' | 'cancel') => {
-        if (!enlargedCard) return;
+    /**
+     * Maneja las acciones del menú contextual de cartas
+     * Implementa logging completo para debug y seguimiento
+     */
+    const handleCardAction = (action: CardActionType) => {
+        if (!enlargedCard) {
+            console.warn('[Hand] ⚠️ handleCardAction called without enlarged card');
+            return;
+        }
 
-        console.log('🃏 Hand: Card action:', action, 'for card:', enlargedCard.id);
+        const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+        console.log(`[${timestamp}] 🃷 Hand: Card action '${action}' for card ${enlargedCard.rank}${enlargedCard.suit} (ID: ${enlargedCard.id})`);
         
         switch (action) {
             case 'play':
+                console.log(`[${timestamp}] ▶ Hand: Playing card with turnManager.playCard()`);
                 turnManager.playCard(enlargedCard);
                 break;
+                
             case 'sacrifice':
-                // Implement sacrifice logic if needed
-                console.log('🃏 Hand: Sacrifice not yet implemented');
+                console.log(`[${timestamp}] ⚔ Hand: Sacrifice logic not yet implemented`);
+                // TODO: Implement sacrifice logic when game mechanics are defined
                 break;
+                
             case 'research':
+                console.log(`[${timestamp}] 🔍 Hand: Research action with turnManager.performFocus()`);
                 turnManager.performFocus(enlargedCard);
                 break;
+                
             case 'discard':
+                console.log(`[${timestamp}] 🗑 Hand: Discard action with turnManager.performFocus()`);
                 turnManager.performFocus(enlargedCard); // Focus = discard + draw
                 break;
+                
             case 'cancel':
-                // Just close the action menu
+                console.log(`[${timestamp}] ✖ Hand: Action cancelled by user`);
+                // Just close the menu - no game action
+                break;
+                
+            default:
+                console.error(`[${timestamp}] ❌ Hand: Unknown action type: ${action}`);
                 break;
         }
         
-        // Close the enlarged card view
+        // Close the menu and clear state
         setEnlargedCard(null);
         setActionButtonsPosition(null);
+        
+        // Clean up VFX zoom when action is taken
+        console.log(`[${timestamp}] 🧽 Hand: Requesting VFX zoom cleanup`);
+        console.log(`[${timestamp}] 🧽 Hand: VFXController has active zooms: ${vfxController.hasActiveZooms()}`);
+        
+        vfxController.cleanupActiveZooms();
+        
+        console.log(`[${timestamp}] 📷 Hand: Menu closed, state cleared, and zoom cleanup requested`);
+        
+        // Adicional: Limpiar después de un pequeño delay para asegurar que se ejecute
+        setTimeout(() => {
+            console.log(`[${timestamp}] 🧽 Hand: Backup zoom cleanup after delay`);
+            vfxController.cleanupActiveZooms();
+        }, 100);
     };
 
     // Subscribe to VFX card click events
@@ -186,91 +226,18 @@ export const Hand: React.FC<HandProps> = () => {
                 {/* No direct card rendering here - handled by VFX.tsx */}
             </div>
             
-            {/* Enlarged Card Display */}
-            {enlargedCard && (
-                <>
-                    {/* Backdrop */}
-                    <div style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        width: '100vw',
-                        height: '100vh',
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                        zIndex: 8000,
-                        pointerEvents: 'auto'
-                    }} />
-                    
-                    {/* Enlarged Card */}
-                    <div style={{
-                        position: 'fixed',
-                        left: '50%',
-                        top: '40%',
-                        transform: 'translate(-50%, -50%)',
-                        width: '280px', // Increased size for better visibility
-                        height: '392px', // Maintain card aspect ratio
-                        borderRadius: '16px',
-                        backgroundColor: '#ffffff',
-                        border: '4px solid #d97706',
-                        boxShadow: '0 25px 80px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-                        zIndex: 9000,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundImage: `url(/images/scenarios/default/cards/${enlargedCard.imageFile}), url(/images/scenarios/default/cards/missing-card.png)`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        overflow: 'hidden'
-                    }}>
-                        {/* Card details when no image available */}
-                        <div style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            background: enlargedCard.suit === 'Hearts' || enlargedCard.suit === 'Diamonds' 
-                                ? 'linear-gradient(135deg, #7f1d1d, #991b1b, #dc2626)' 
-                                : 'linear-gradient(135deg, #1e293b, #374151, #475569)',
-                            borderRadius: '12px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 1,
-                            border: '2px solid rgba(255, 255, 255, 0.1)'
-                        }}>
-                            <div style={{
-                                fontSize: '48px',
-                                fontWeight: 'bold',
-                                color: enlargedCard.suit === 'Hearts' || enlargedCard.suit === 'Diamonds' ? '#dc2626' : '#1f2937',
-                                marginBottom: '8px'
-                            }}>
-                                {enlargedCard.rank}
-                            </div>
-                            <div style={{
-                                fontSize: '32px',
-                                color: enlargedCard.suit === 'Hearts' || enlargedCard.suit === 'Diamonds' ? '#dc2626' : '#1f2937'
-                            }}>
-                                {enlargedCard.suit === 'Spades' ? '♠' : 
-                                 enlargedCard.suit === 'Hearts' ? '♥' : 
-                                 enlargedCard.suit === 'Diamonds' ? '♦' : '♣'}
-                            </div>
-                        </div>
-                    </div>
-                </>
-            )}
+            {/* Enlarged Card Display - COMPLETELY DISABLED: Using VFX zoom instead */}
+            {/* No enlarged card rendering to prevent placeholder cards */}
             
-            {/* Action Buttons */}
-            {actionButtonsPosition && enlargedCard && (
-                <CardActionButtons
-                    card={enlargedCard}
-                    position={actionButtonsPosition}
-                    onAction={handleCardAction}
-                    isVisible={true}
-                />
-            )}
+            {/* Context Menu */}
+            <CardContextMenu
+                card={enlargedCard || gameStateManager.hand[0]} // Fallback para evitar undefined
+                position={actionButtonsPosition || { x: 640, y: 400 }} // Posición por defecto
+                isVisible={!!(actionButtonsPosition && enlargedCard)}
+                onAction={handleCardAction}
+                radius={140}
+                animationDuration={250}
+            />
         </div>
     );
 };

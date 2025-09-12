@@ -29,25 +29,45 @@ class TurnManager {
             await scenarioLoader.load(scenarioId);
             console.log(`✅ TurnManager: Escenario cargado exitosamente`);
             
+            // IMPORTANTE: Resetear todo el estado del juego para nueva partida
+            console.log(`🔄 TurnManager: Reseteando estado completo del juego`);
+            deckManager.reset(); // Asegurar que los mazos estén limpios
             nodeSystem.initialize();
             gameStateManager.reset();
+            
+            // Repartir cartas al ECO
             const ecoHand = deckManager.drawFromEcoDeck(5);
             ecoAI.setHand(ecoHand);
+            console.log(`🤖 TurnManager: ECO recibio ${ecoHand.length} cartas`);
             
-            console.log(`🎴 TurnManager: Robando ${gameStateManager.maxHandSize} cartas para el jugador`);
-            this.drawPlayerHand(gameStateManager.maxHandSize);
+            // NO REPARTIR CARTAS AQUÍ - se hará después de mostrar narrativa inicial
+            console.log(`🎮 TurnManager: Inicialización completa, esperando repartir cartas después de narrativa`);
             
-            console.log(`🔄 TurnManager: Avanzando a la primera fase`);
-            this.advancePhase();
         } catch (error) {
             console.error('Error starting game:', error);
             gameLogSystem.addMessage('Error al iniciar el juego. Usando configuración por defecto.', 'system', 'info');
             // Continue with game initialization even if scenario loading fails
             nodeSystem.initialize();
             gameStateManager.reset();
-            this.drawPlayerHand(gameStateManager.maxHandSize);
-            this.advancePhase();
         }
+    }
+    
+    // Nueva función para completar el inicio del juego después de la narrativa
+    completeGameStart() {
+        console.log(`🎴 TurnManager: Completando inicio del juego`);
+        console.log(`🎴 TurnManager: Jugador actual tiene ${gameStateManager.hand.length} cartas`);
+        console.log(`🎴 TurnManager: Debe tener ${gameStateManager.maxHandSize} cartas`);
+        
+        // Solo repartir cartas si el jugador no las tiene ya
+        if (gameStateManager.hand.length === 0) {
+            console.log(`🎴 TurnManager: Repartiendo ${gameStateManager.maxHandSize} cartas al jugador`);
+            this.drawPlayerHand(gameStateManager.maxHandSize);
+        } else {
+            console.log(`🎴 TurnManager: Jugador ya tiene ${gameStateManager.hand.length} cartas, no repartiendo más`);
+        }
+        
+        console.log(`🔄 TurnManager: Avanzando a la primera fase`);
+        this.advancePhase();
     }
 
     advancePhase() {
@@ -107,8 +127,19 @@ class TurnManager {
             return;
         }
 
-        const startPosition = uiPositionManager.get('playerHand') || { x: 0, y: 0 };
-        const endPosition = uiPositionManager.get('eco') || { x: 0, y: 0 };
+        // Calcular posiciones reales para efectos VFX
+        const startPosition = uiPositionManager.get('playerHand') || { 
+            x: window.innerWidth / 2, 
+            y: window.innerHeight - 120 
+        };
+        
+        // Posición del ECO (lado derecho superior)
+        const endPosition = uiPositionManager.get('eco') || { 
+            x: window.innerWidth - 200, 
+            y: 150 
+        };
+        
+        console.log(`🎯 TurnManager: Triggering VFX from`, startPosition, 'to', endPosition, 'for suit', card.suit);
         vfxSystem.triggerSuitEffect(card.suit, startPosition, endPosition);
 
         gameStateManager.hand = gameStateManager.hand.filter(c => c.id !== card.id);
@@ -196,6 +227,13 @@ class TurnManager {
 
     private executeEventPhase() {
         gameLogSystem.addMessage(`Turno ${gameStateManager.turn}: Fase de Evento`, 'system', 'info');
+        
+        // Los eventos solo se activan después del turno 3
+        if (gameStateManager.turn <= 3) {
+            console.log(`🛡️ TurnManager: Eventos desactivados - Turno ${gameStateManager.turn} (eventos activos desde turno 4)`);
+            gameLogSystem.addMessage(`Turno ${gameStateManager.turn}: Los eventos se activan a partir del turno 4.`, 'system', 'info');
+            return;
+        }
         
         // Revelar carta superior del mazo para el evento
         const eventCard = deckManager.drawCards(1)[0];
