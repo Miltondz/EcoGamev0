@@ -13,6 +13,9 @@ import {
 } from '../utils/styles';
 import '../styles/vhs-effects.css';
 import { useGameModalContext } from '../context/GameModalContext';
+import { audioManager } from '../engine/AudioManager';
+import { useLayer, GameLayer } from '../engine/LayerManager';
+import AudioControls from './AudioControls';
 
 interface MainMenuProps {
     onStartGame: () => void;
@@ -31,6 +34,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
     const [backgroundImage, setBackgroundImage] = useState<string>('');
     const [backgroundVideo, setBackgroundVideo] = useState<string>('');
     const [scenarioPreviewImages, setScenarioPreviewImages] = useState<Record<string, string>>({});
+    const [audioConfig, setAudioConfig] = useState(audioManager.currentConfig);
+    
+    // LayerManager para diferentes capas del menú
+    const backgroundLayer = useLayer(GameLayer.BACKGROUND);
+    const vfxLayer = useLayer(GameLayer.PARTICLE_EFFECTS);
+    const loadingLayer = useLayer(GameLayer.MODAL_OVERLAY);
+    const uiInfoLayer = useLayer(GameLayer.UI_BASE);
+    
+    console.log('🎮 MainMenu: Component initialized', { currentView, hasSave });
     
     // Sistema de ventanas modales
     const { showMessage, showConfirm } = useGameModalContext();
@@ -41,6 +53,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
         
         // Initialize AssetManager with default scenario
         assetManager.setScenario('default');
+        
+        // Preparar audio para reproducir después de primera interacción
+        const startAmbientAudio = () => {
+            audioManager.playEffect('event-strange', 0.4, true);
+            document.removeEventListener('click', startAmbientAudio);
+            document.removeEventListener('keydown', startAmbientAudio);
+        };
+        
+        document.addEventListener('click', startAmbientAudio, { once: true });
+        document.addEventListener('keydown', startAmbientAudio, { once: true });
         
         // Load background image and video
         const loadBackground = async () => {
@@ -115,16 +137,29 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
         
         loadScenarioPreviews();
         
-        return unsubscribe;
+        // Subscribe to audio changes for mute button
+        const unsubscribeAudio = audioManager.subscribe(() => {
+            setAudioConfig(audioManager.currentConfig);
+        });
+        
+        return () => {
+            unsubscribe();
+            unsubscribeAudio();
+        };
     }, []);
 
     const handleNewGame = () => {
         console.log('🎮 MainMenu: Iniciando nuevo juego');
+        audioManager.playEffect('menu-select', 0.7);
         setCurrentView('chapters');
     };
     
     const handleContinueGame = () => {
         console.log('🎮 MainMenu: Continuando juego guardado');
+        
+        // Parar efectos de menú en loop
+        audioManager.stopEffect('event-strange');
+        
         // Load the last played chapter if available
         if (playerProfile.currentChapter) {
             const chapter = chapterManager.availableChapters.find(c => c.id === playerProfile.currentChapter);
@@ -141,8 +176,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
         try {
             console.log(`🎮 MainMenu: Iniciando capítulo '${chapter.name}' DESDE CERO`);
             
+            // Parar efectos de menú en loop
+            audioManager.stopEffect('event-strange');
+            
             // IMPORTANTE: Para nueva partida, limpiar todo el estado previo
-            console.log(`🧽 MainMenu: Limpiando estado previo para nueva partida`);
+            console.log(`🧹 MainMenu: Limpiando estado previo para nueva partida`);
             
             // Select chapter and load assets
             const success = await chapterManager.selectChapter(chapter.id);
@@ -200,9 +238,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
     const createModalStyle = (width: string, height: string, opacity = 0.7, allowScroll = false) => ({
         textAlign: 'center' as const,
         color: colors.muted,
-        padding: '20px',
-        maxWidth: width,
-        maxHeight: height,
+        padding: '16px',
+        width: width,
+        height: height,
+        maxWidth: '1200px', // Límite específico para el juego
+        maxHeight: '680px', // Límite específico para el juego (720px - margen)
         background: `rgba(15, 23, 42, ${opacity})`,
         backdropFilter: 'blur(20px)',
         borderRadius: '12px',
@@ -210,7 +250,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
         boxShadow: '0 15px 35px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.1)',
         position: 'relative' as const,
         overflow: allowScroll ? 'auto' as const : 'hidden' as const,
-        zIndex: 15
+        zIndex: 15,
+        display: 'flex' as const,
+        flexDirection: 'column' as const
     });
     
     // Overlay de glassmorphism para todas las ventanas
@@ -241,8 +283,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
     const ModalTitle = ({ children }: { children: React.ReactNode }) => (
         <h2 style={{
             ...textStyles.sectionTitle,
-            fontSize: '22px',
-            marginBottom: '20px',
+            fontSize: '18px',
+            marginBottom: '12px',
             textShadow: '0 4px 12px rgba(0,0,0,0.8), 0 0 20px rgba(182,149,82,0.3)'
         }}>
             {children}
@@ -259,6 +301,46 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
             position: 'relative',
             zIndex: 20 // Asegurar que esté por encima del video y overlay
         }}>
+            {/* Botón de Mute/Unmute rápido */}
+            <button
+                style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    right: '8px',
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    background: 'rgba(51, 65, 85, 0.8)',
+                    border: `1px solid ${colors.stone.border}`,
+                    color: audioConfig.masterVolume > 0 ? colors.gold : colors.muted,
+                    fontSize: '10px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s ease',
+                    backdropFilter: 'blur(4px)',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(182, 149, 82, 0.2)';
+                    e.currentTarget.style.borderColor = colors.gold;
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(51, 65, 85, 0.8)';
+                    e.currentTarget.style.borderColor = colors.stone.border;
+                    e.currentTarget.style.transform = 'scale(1)';
+                }}
+                onClick={() => {
+                    const newVolume = audioConfig.masterVolume > 0 ? 0 : 0.7;
+                    audioManager.setMasterVolume(newVolume);
+                    audioManager.playEffect('menu-select', 0.5);
+                }}
+                title={audioConfig.masterVolume > 0 ? 'Silenciar audio' : 'Activar audio'}
+            >
+                {audioConfig.masterVolume > 0 ? '🔊' : '🔇'}
+            </button>
                 {/* Saga Title */}
                 <div style={{
                     fontFamily: '"Cinzel", serif',
@@ -738,87 +820,71 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
     );
     
     const renderConfigView = () => (
-        <div style={createModalStyle('750px', '450px')}>
+        <div style={createModalStyle('600px', '420px')}>
             <GlassmorphismOverlay />
             <ModalTitle>Configuración</ModalTitle>
             
             <div style={{
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '16px',
-                marginBottom: '24px'
+                gap: '10px',
+                flex: 1,
+                overflow: 'hidden'
             }}>
-                {/* Panel único compacto con todas las configuraciones */}
+                {/* Audio Controls Panel */}
                 <div style={{
                     ...panelStyles.primary,
-                    padding: '16px',
+                    padding: '10px',
                     textAlign: 'left',
-                    background: 'rgba(51, 65, 85, 0.7)' // Consistente con el estilo general
+                    background: 'rgba(51, 65, 85, 0.7)'
                 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                        {/* Columna Izquierda - Visual y Audio */}
-                        <div>
-                            <h4 style={{ ...textStyles.label, color: colors.gold, marginBottom: '8px', fontSize: '14px' }}>Visual & Audio</h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span>Efectos PixiJS:</span>
-                                    <button style={{ ...createCompactStoneButtonStyle({ width: '60px', fontSize: '11px' }) }}>ON</button>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span>Animaciones:</span>
-                                    <button style={{ ...createCompactStoneButtonStyle({ width: '60px', fontSize: '11px' }) }}>ON</button>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span>Música:</span>
-                                    <button style={{ ...createCompactStoneButtonStyle({ width: '60px', fontSize: '11px' }) }}>ON</button>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span>Volumen:</span>
-                                    <div style={{ width: '60px', height: '6px', background: colors.stone.dark, borderRadius: '3px' }}>
-                                        <div style={{ width: '70%', height: '100%', background: colors.gold, borderRadius: '3px' }} />
-                                    </div>
-                                </div>
-                            </div>
+                    <AudioControls />
+                </div>
+                
+                {/* Gameplay Settings Panel */}
+                <div style={{
+                    ...panelStyles.primary,
+                    padding: '10px',
+                    textAlign: 'left',
+                    background: 'rgba(51, 65, 85, 0.7)'
+                }}>
+                    <h4 style={{ ...textStyles.label, color: colors.gold, marginBottom: '6px', fontSize: '12px', textAlign: 'center' }}>⚙️ Gameplay</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Auto-Save:</span>
+                            <button style={{ ...createCompactStoneButtonStyle({ width: '50px', fontSize: '10px', padding: '2px 6px' }) }}>ON</button>
                         </div>
-                        
-                        {/* Columna Derecha - Gameplay */}
-                        <div>
-                            <h4 style={{ ...textStyles.label, color: colors.gold, marginBottom: '8px', fontSize: '14px' }}>Gameplay</h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span>Auto-Save:</span>
-                                    <button style={{ ...createCompactStoneButtonStyle({ width: '60px', fontSize: '11px' }) }}>ON</button>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span>Confirmaciones:</span>
-                                    <button style={{ ...createCompactStoneButtonStyle({ width: '60px', fontSize: '11px' }) }}>ON</button>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span>Velocidad:</span>
-                                    <button style={{ ...createCompactStoneButtonStyle({ width: '60px', fontSize: '11px' }) }}>1x</button>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span>Dificultad:</span>
-                                    <button style={{ ...createCompactStoneButtonStyle({ width: '60px', fontSize: '11px' }) }}>Normal</button>
-                                </div>
-                            </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Confirmaciones:</span>
+                            <button style={{ ...createCompactStoneButtonStyle({ width: '50px', fontSize: '10px', padding: '2px 6px' }) }}>ON</button>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Efectos PixiJS:</span>
+                            <button style={{ ...createCompactStoneButtonStyle({ width: '50px', fontSize: '10px', padding: '2px 6px' }) }}>ON</button>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Animaciones:</span>
+                            <button style={{ ...createCompactStoneButtonStyle({ width: '50px', fontSize: '10px', padding: '2px 6px' }) }}>ON</button>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <button 
-                style={{
-                    ...createStoneButtonStyle(),
-                    width: '280px',
-                    fontSize: '16px'
-                }}
-                onMouseEnter={(e) => handleStoneButtonHover(e, true)}
-                onMouseLeave={(e) => handleStoneButtonHover(e, false)}
-                onClick={handleBackToMain}
-            >
-                ← Volver al Menú Principal
-            </button>
+            <div style={{ marginTop: 'auto', paddingTop: '12px' }}>
+                <button 
+                    style={{
+                        ...createStoneButtonStyle(),
+                        width: '200px',
+                        fontSize: '14px',
+                        padding: '8px 16px'
+                    }}
+                    onMouseEnter={(e) => handleStoneButtonHover(e, true)}
+                    onMouseLeave={(e) => handleStoneButtonHover(e, false)}
+                    onClick={handleBackToMain}
+                >
+                    ← Volver al Menú Principal
+                </button>
+            </div>
         </div>
     );
     
@@ -877,7 +943,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                             width: '100%',
                             height: '100%',
                             objectFit: 'cover',
-                            zIndex: 1,
+                            zIndex: backgroundLayer.zIndex,
                             opacity: 0.8 // Un poco más visible
                         }}
                         alt="Animated Background"
@@ -895,7 +961,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                         width: '100%',
                         height: '100%',
                         background: 'linear-gradient(135deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.3) 100%)',
-                        zIndex: 2
+                        zIndex: backgroundLayer.zIndex + 1 // Overlay sobre fondo
                     }} />
                 </>
             )}
@@ -912,7 +978,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                         height: '100%',
                         background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.025) 2px, rgba(255,255,255,0.025) 4px)',
                         pointerEvents: 'none',
-                        zIndex: 3
+                        zIndex: vfxLayer.zIndex // Efectos VHS gestionados por LayerManager
                     }} />
                     
                     {/* Film grain con flicker sutil */}
@@ -930,7 +996,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                         backgroundSize: '4px 4px, 6px 6px, 8px 8px',
                         opacity: 0.7,
                         pointerEvents: 'none',
-                        zIndex: 4,
+                        zIndex: vfxLayer.zIndex + 1, // Film grain sobre scanlines
                         animation: 'vhsFlicker 3s infinite ease-in-out'
                     }} />
                     
@@ -943,7 +1009,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                         height: '100%',
                         background: 'repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(255,255,255,0.008) 1px, rgba(255,255,255,0.008) 2px)',
                         pointerEvents: 'none',
-                        zIndex: 5,
+                        zIndex: vfxLayer.zIndex + 2, // Estática sobre film grain
                         animation: 'vhsStatic 6s infinite ease-in-out'
                     }} />
                     
@@ -956,12 +1022,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                         height: '100%',
                         background: 'linear-gradient(90deg, rgba(255,0,100,0.015) 0%, transparent 5%, transparent 95%, rgba(0,255,255,0.015) 100%)',
                         pointerEvents: 'none',
-                        zIndex: 6,
+                        zIndex: vfxLayer.zIndex + 3, // Glitch sobre estática
                         animation: 'vhsGlitch 12s infinite ease-in-out'
                     }} />
                     
                     {/* Atmospheric noise overlay */}
-                    <div className="vhs-noise" style={{ zIndex: 7 }} />
+                    <div className="vhs-noise" style={{ zIndex: vfxLayer.zIndex + 4 }} />
                 </div>
             )}
             {loading && (
@@ -975,7 +1041,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    zIndex: 1000
+                    zIndex: loadingLayer.zIndex // Modal de carga gestionado por LayerManager
                 }}>
                     <div style={{
                         color: '#f1f5f9',
@@ -995,7 +1061,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                     left: '20px',
                     color: '#94a3b8',
                     fontSize: '0.875rem',
-                    zIndex: 10 // Asegurar que esté por encima del video
+                    zIndex: uiInfoLayer.zIndex // Info del juego gestionada por LayerManager
                 }}>
                     <div>ECO DEL VACÍO v1.0</div>
                     <div>Total Score: {playerProfile.totalScore}</div>

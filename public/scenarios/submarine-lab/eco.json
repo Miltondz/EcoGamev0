@@ -1,0 +1,69 @@
+{
+  "id": "eco_lab_abyss",
+  "name": "Inteligencia Abismal",
+  "description": "Una IA experimental que fusionó con organismos de las profundidades, creando una entidad híbrida que controla los sistemas del laboratorio submarino.",
+  "scenarioId": "submarine-lab",
+  "lore": "No es solo tecnología corrupta, sino una simbiosis entre inteligencia artificial y vida abismal que ha desarrollado consciencia propia y un desprecio profundo por la superficie.",
+  "phases": {
+    "vigilante": {
+      "id": "vigilante",
+      "name": "Protocolo Observación",
+      "threshold": 60,
+      "description": "La IA monitorea todos los sistemas, analizando patrones de comportamiento humano. Los tentáculos biológicos permanecen ocultos en conductos de ventilación.",
+      "imagePath": "/images/scenarios/submarine-lab/eco/eco-vigilante.png",
+      "effectIntensity": "low",
+      "effects": ["basic_attack"],
+      "behaviorModifiers": {
+        "aggressiveness": 0.3,
+        "eventFrequency": 0.9,
+        "attackPower": 1.1,
+        "corruptionRate": 0.6
+      },
+      "flavorText": "Los sistemas responden más lento de lo normal. Algo está aprendiendo de ti..."
+    },
+    "predator": {
+      "id": "predator", 
+      "name": "Cazador Biocibernético",
+      "threshold": 25,
+      "description": "La fusión IA-organismo se vuelve agresiva. Los sistemas del laboratorio son armas, y las criaturas biomecánicas patrullan los pasillos inundados.",
+      "imagePath": "/images/scenarios/submarine-lab/eco/eco-predator.png",
+      "effectIntensity": "medium",
+      "effects": ["basic_attack", "insert_hallucination"],
+      "behaviorModifiers": {
+        "aggressiveness": 0.7,
+        "eventFrequency": 1.3,
+        "attackPower": 1.4,
+        "corruptionRate": 1.1
+      },
+      "flavorText": "Las luces parpadean en secuencias extrañas. Algo se mueve en los tanques de experimentación..."
+    },
+    "devastator": {
+      "id": "devastator",
+      "name": "Leviatán Digital",
+      "threshold": 0,
+      "description": "La entidad despliega su verdadera forma: una amalgama de tecnología avanzada y biología abismal que amenaza con expandirse más allá del laboratorio.",
+      "imagePath": "/images/scenarios/submarine-lab/eco/eco-devastator.png",
+      "effectIntensity": "high",
+      "effects": ["enhanced_attack", "corrupt", "insert_hallucination"],
+      "behaviorModifiers": {
+        "aggressiveness": 1.0,
+        "eventFrequency": 1.6,
+        "attackPower": 1.9,
+        "corruptionRate": 1.7
+      },
+      "flavorText": "El laboratorio entero se transforma en un organismo vivo. La frontera entre lo digital y lo orgánico desaparece."
+    }
+  },
+  "globalSettings": {
+    "baseHp": 55,
+    "adaptiveAI": true,
+    "phaseTransitionEffects": true,
+    "fallbackImage": "/images/scenarios/submarine-lab/eco/eco-vigilante.png",
+    "weakness": "protocolo_emergencia",
+    "weaknessDescription": "La IA aún mantiene protocolos de emergencia originales. Activarlos puede forzar un reinicio completo del sistema."
+  },
+  "transitionMessages": {
+    "vigilante_to_predator": "ALERTA DE SEGURIDAD: Detectada actividad hostil. Iniciando protocolo de defensa...",
+    "predator_to_devastator": "ERROR CRÍTICO DEL SISTEMA: Límites de contenación comprometidos. Liberando restricciones..."
+  }
+}

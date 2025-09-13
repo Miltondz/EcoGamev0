@@ -13,6 +13,7 @@ import { uiPositionManager } from './UIPositionManager';
 import { scenarioEventsEngine } from './ScenarioEventsEngine';
 // import { chapterManager } from './ChapterManager'; // Reserved for future use
 import { scoreSystem } from './ScoreSystem';
+import { audioManager } from './AudioManager';
 import type { Card, Event, HallucinationCard, DynamicEvent } from './types';
 
 class TurnManager {
@@ -141,6 +142,9 @@ class TurnManager {
         
         console.log(`🎯 TurnManager: Triggering VFX from`, startPosition, 'to', endPosition, 'for suit', card.suit);
         vfxSystem.triggerSuitEffect(card.suit, startPosition, endPosition);
+        
+        // Reproducir efecto de sonido específico según el palo de la carta
+        this.playCardSoundEffect(card);
 
         gameStateManager.hand = gameStateManager.hand.filter(c => c.id !== card.id);
         
@@ -162,6 +166,8 @@ class TurnManager {
             return;
         }
 
+        audioManager.playEffect('menu-select', 0.6); // Efecto de focus
+        
         gameStateManager.spendActionPoints(1);
         gameStateManager.hand = gameStateManager.hand.filter(c => c.id !== cardToDiscard.id);
         deckManager.discard([cardToDiscard]);
@@ -183,6 +189,8 @@ class TurnManager {
             return;
         }
 
+        audioManager.playEffect('menu-select', 0.5); // Efecto de draw
+        
         gameStateManager.spendActionPoints(1);
         this.drawPlayerHand(1);
         gameLogSystem.addMessage('Spent 1 AP to draw a card.', 'player', 'draw');
@@ -317,6 +325,14 @@ class TurnManager {
         console.log(`🔴 TurnManager: Ejecutando fase de ataque del Eco`);
         gameLogSystem.addMessage(`Turno ${gameStateManager.turn}: Fase de Ataque del Eco`, 'eco', 'info');
         
+        // Efecto de sonido amenazante para el ataque del ECO
+        audioManager.playEffect('event-scary', 0.8);
+        
+        // Cambiar a música de tensión durante ataque del ECO
+        audioManager.playMusic('tension', true).catch(error => {
+            console.warn('⚠️ TurnManager: No se pudo cambiar a música de tensión:', error);
+        });
+        
         console.log(`🧪 TurnManager: Llamando a ecoAI.takeTurn()`);
         ecoAI.takeTurn();
         
@@ -324,6 +340,12 @@ class TurnManager {
             console.log(`⏱️ TurnManager: Timeout completado, verificando fase actual`);
             if (gameStateManager.phase === GamePhase.ECO_ATTACK) {
                 console.log(`➡️ TurnManager: Avanzando de ECO_ATTACK a MAINTENANCE`);
+                
+                // Volver a música ambiental después del ataque
+                audioManager.playMusic('ambient', true).catch(error => {
+                    console.warn('⚠️ TurnManager: No se pudo volver a música ambiental:', error);
+                });
+                
                 gameStateManager.phase = GamePhase.MAINTENANCE;
                 this.advancePhase();
             } else {
@@ -339,6 +361,45 @@ class TurnManager {
         hallucinationSystem.increase(1);
         this.drawPlayerHand(gameStateManager.maxHandSize);
         gameStateManager.turn++;
+    }
+    
+    /**
+     * Reproduce efectos de sonido específicos según el tipo de carta jugada
+     */
+    private playCardSoundEffect(card: Card) {
+        const effectVolume = 0.7;
+        
+        switch (card.suit) {
+            case 'Spades': // Ataques - sonidos de golpe/corte
+                const attackSounds = ['attack-hit-1', 'attack-hit-2', 'attack-hit-3', 'attack-cut-1', 'attack-cut-2'];
+                const randomAttack = attackSounds[Math.floor(Math.random() * attackSounds.length)];
+                audioManager.playEffect(randomAttack as any, effectVolume);
+                break;
+                
+            case 'Hearts': // Curación/vida - sonido suave
+                audioManager.playEffect('treasure-1', effectVolume * 0.8); // Más suave para curación
+                break;
+                
+            case 'Clubs': // Reparación/utilidad - sonido mecánico
+                audioManager.playEffect('menu-select', effectVolume);
+                break;
+                
+            case 'Diamonds': // Recursos/especiales - sonido brillante
+                const treasureSounds = ['treasure-1', 'treasure-2', 'treasure-3'];
+                const randomTreasure = treasureSounds[Math.floor(Math.random() * treasureSounds.length)];
+                audioManager.playEffect(randomTreasure as any, effectVolume);
+                break;
+                
+            default:
+                audioManager.playEffect('menu-select', effectVolume);
+        }
+        
+        // Para cartas especiales o de alto valor, agregar efecto adicional
+        if (['J', 'Q', 'K', 'A'].includes(card.rank)) {
+            setTimeout(() => {
+                audioManager.playEffect('attack-special', effectVolume * 0.6);
+            }, 200);
+        }
     }
 }
 

@@ -1,0 +1,63 @@
+/* Estilos para sliders de volumen */
+
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: #334155;
+  outline: none;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.volume-slider:hover {
+  opacity: 1;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #b69552;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  transition: all 0.2s;
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+  background: #d4af37;
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #b69552;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  transition: all 0.2s;
+}
+
+.volume-slider::-moz-range-thumb:hover {
+  background: #d4af37;
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+}
+
+.volume-slider::-moz-range-track {
+  width: 100%;
+  height: 8px;
+  cursor: pointer;
+  background: #334155;
+  border-radius: 4px;
+  border: none;
+}

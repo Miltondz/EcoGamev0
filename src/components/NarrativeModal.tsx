@@ -5,9 +5,12 @@
  * incluyendo texto, imágenes, GIFs y videos con controles de reproducción.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { assetManager } from '../engine/AssetManager';
 import type { NarrativeElement, ChapterNarrativeConfig } from '../engine/ChapterNarrativeSystem';
+import { GameLayer, useLayer } from '../engine/LayerManager';
+import { colors, textStyles, fonts } from '../utils/styles';
+import { StyledButton } from './StyledButton';
 
 interface NarrativeModalProps {
   element: NarrativeElement;
@@ -22,14 +25,26 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
   onComplete,
   onSkip
 }) => {
+  const narrativeModalLayer = useLayer(GameLayer.NARRATIVE_MODAL, true); // Auto-traer al frente
   const [mediaLoaded, setMediaLoaded] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [showControls, _setShowControls] = useState(true);
+  const [, setIsPlaying] = useState(false); // Solo usamos el setter
+  const [segmentIndex, setSegmentIndex] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const timeoutRef = useRef<number>(0);
 
+  // Segment text by paragraphs for pagination (no scrollbars)
+  const contentSegments = useMemo(() => {
+    if (!element?.content) return [] as string[];
+    const raw = element.content.replace(/\r\n/g, '\n');
+    // Split by double newlines or single newlines, then trim
+    const parts = raw.split(/\n\s*\n|\n{1,}/g).map(p => p.trim()).filter(Boolean);
+    return parts.length ? parts : [raw.trim()];
+  }, [element]);
+
   useEffect(() => {
+    // Reset text pagination when element changes
+    setSegmentIndex(0);
+
     // Auto-advance setup si está habilitado
     if (element.autoAdvance && element.duration) {
       timeoutRef.current = setTimeout(() => {
@@ -43,16 +58,12 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [element.autoAdvance, element.duration]);
+  }, [element, element.autoAdvance, element.duration]);
 
   useEffect(() => {
-    // Control de video
+    // Control de video simplificado: solo escuchar 'ended'
     if (element.mediaType === 'video' && videoRef.current) {
       const video = videoRef.current;
-      
-      const handleTimeUpdate = () => {
-        setCurrentTime(video.currentTime);
-      };
 
       const handleEnded = () => {
         setIsPlaying(false);
@@ -61,22 +72,10 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
         }
       };
 
-      const handleLoadedData = () => {
-        setMediaLoaded(true);
-        if (element.autoAdvance) {
-          video.play();
-          setIsPlaying(true);
-        }
-      };
-
-      video.addEventListener('timeupdate', handleTimeUpdate);
       video.addEventListener('ended', handleEnded);
-      video.addEventListener('loadeddata', handleLoadedData);
 
       return () => {
-        video.removeEventListener('timeupdate', handleTimeUpdate);
         video.removeEventListener('ended', handleEnded);
-        video.removeEventListener('loadeddata', handleLoadedData);
       };
     } else {
       // Para otros tipos de media, marcar como cargado inmediatamente
@@ -91,6 +90,14 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
     onComplete();
   };
 
+  const handleNextSegment = () => {
+    if (segmentIndex < contentSegments.length - 1) {
+      setSegmentIndex(i => i + 1);
+      return;
+    }
+    handleComplete();
+  };
+
   const handleSkip = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -101,17 +108,7 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
     onSkip?.() || handleComplete();
   };
 
-  const toggleVideo = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-        setIsPlaying(false);
-      } else {
-        videoRef.current.play();
-        setIsPlaying(true);
-      }
-    }
-  };
+  // No custom controls; video auto-plays and loops muted
 
   const getMediaSrc = (): string => {
     if (!element.mediaPath) return '';
@@ -120,11 +117,6 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
     return asset || element.mediaPath;
   };
 
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const getActLabel = (): string => {
     switch (element.act) {
@@ -147,26 +139,20 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
               src={mediaSrc}
               className="narrative-video"
               controls={false}
+              loop
+              muted
+              playsInline
+              autoPlay
               preload="auto"
               onLoadStart={() => setMediaLoaded(false)}
+              onLoadedData={() => {
+                setMediaLoaded(true);
+                try {
+                  videoRef.current?.play();
+                  setIsPlaying(true);
+                } catch {}
+              }}
             />
-            
-            {mediaLoaded && showControls && (
-              <div className="narrative-video-controls">
-                <button
-                  className="narrative-play-button"
-                  onClick={toggleVideo}
-                >
-                  {isPlaying ? '⏸️' : '▶️'}
-                </button>
-                
-                {videoRef.current && (
-                  <div className="narrative-time-info">
-                    {formatTime(currentTime)} / {formatTime(videoRef.current.duration || 0)}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         );
 
@@ -200,46 +186,75 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
   };
 
   return (
-    <div className="narrative-modal-overlay">
+    <div className="narrative-modal-overlay" style={{ zIndex: narrativeModalLayer.zIndex }}>
       <div className="narrative-modal">
         <div className="narrative-header">
           <div className="narrative-chapter-info">
-            <div className="narrative-chapter-title">{config.title}</div>
-            <div className="narrative-act-label">{getActLabel()}</div>
+            <div className="narrative-chapter-title" style={{ ...textStyles.smallTitle, color: colors.gold }}>{config.title}</div>
+            <div className="narrative-act-label" style={{ ...textStyles.label, color: colors.muted }}>{getActLabel()}</div>
           </div>
           
           {element.skipable && (
-            <button
-              className="narrative-skip-button"
-              onClick={handleSkip}
-              title="Saltar narrativa"
+            <StyledButton 
+              onClick={handleSkip} 
+              size="sm" 
+              variant="secondary"
+              style={{ width: 'auto', padding: '6px 12px' }}
             >
               ⏭️ Saltar
-            </button>
+            </StyledButton>
           )}
         </div>
 
         <div className="narrative-content">
-          <h2 className="narrative-title">{element.title}</h2>
-          
-          {element.mediaType !== 'text_only' && element.mediaPath && (
-            <div className="narrative-media">
-              {!mediaLoaded && (
-                <div className="narrative-loading">
-                  <div className="narrative-spinner"></div>
-                  Cargando contenido...
-                </div>
-              )}
-              {renderMedia()}
-            </div>
-          )}
+          {/* Left: media */}
+          <div className="narrative-left">
+            <h2 className="narrative-title" style={{ ...textStyles.sectionTitle, fontSize: '28px', textAlign: 'left', margin: '0 0 16px 0' }}>{element.title}</h2>
+            {element.mediaType !== 'text_only' && element.mediaPath && (
+              <div className="narrative-media">
+                {!mediaLoaded && (
+                  <div className="narrative-loading">
+                    <div className="narrative-spinner"></div>
+                    Cargando contenido...
+                  </div>
+                )}
+                {renderMedia()}
+              </div>
+            )}
+          </div>
 
-          <div className="narrative-text">
-            {element.content.split('\n').map((paragraph, index) => (
-              <p key={index} className="narrative-paragraph">
-                {paragraph.trim()}
-              </p>
-            ))}
+          {/* Right: text with pagination */}
+          <div className="narrative-right">
+            <div className="narrative-text">
+              {contentSegments.slice(0, segmentIndex + 1).map((paragraph, index) => (
+                <p key={index} className="narrative-paragraph">
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+
+            {/* Inline controls for text pagination */}
+            <div className="narrative-text-controls">
+              {segmentIndex > 0 && (
+                <StyledButton 
+                  onClick={() => setSegmentIndex(i => Math.max(0, i - 1))}
+                  size="sm" 
+                  variant="secondary"
+                  style={{ width: 'auto', padding: '8px 12px', marginRight: '8px' }}
+                >
+                  ◀ Regresar
+                </StyledButton>
+              )}
+              <StyledButton 
+                onClick={handleNextSegment}
+                size="sm"
+                variant="primary"
+                disabled={!mediaLoaded && element.mediaType !== 'text_only'}
+                style={{ width: 'auto', padding: '8px 12px' }}
+              >
+                {segmentIndex < contentSegments.length - 1 ? 'Siguiente ▶' : (element.act === 'end' ? 'Continuar Aventura' : 'Continuar')}
+              </StyledButton>
+            </div>
           </div>
         </div>
 
@@ -250,13 +265,7 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
             </div>
           )}
           
-          <button
-            className="narrative-continue-button"
-            onClick={handleComplete}
-            disabled={!mediaLoaded && element.mediaType !== 'text_only'}
-          >
-            {element.act === 'end' ? 'Continuar Aventura' : 'Continuar'}
-          </button>
+          <div style={{ height: '1px' }} />
         </div>
       </div>
 
@@ -267,12 +276,13 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
           left: 0;
           right: 0;
           bottom: 0;
-          background: linear-gradient(135deg, rgba(0, 20, 40, 0.95), rgba(20, 0, 40, 0.95));
+          background: rgba(0, 0, 0, 0.6);
           backdrop-filter: blur(8px);
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 10000;
+          overflow: hidden; /* no scrollbars en overlay */
+          /* z-index manejado por LayerManager via style inline */
           animation: fadeIn 0.5s ease-out;
         }
 
@@ -284,8 +294,8 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
           boxShadow: 0 8px 32px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.1);
           max-width: 90vw;
           max-height: 90vh;
-          width: 800px;
-          overflow-y: auto;
+          width: 980px;
+          overflow: hidden; /* No scrollbars */
           animation: slideIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
@@ -334,7 +344,14 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
 
         .narrative-content {
           padding: 24px;
+          display: grid;
+          grid-template-columns: 52% 48%;
+          gap: 20px;
+          align-items: start;
         }
+
+        .narrative-left { min-height: 340px; }
+        .narrative-right { display: flex; flex-direction: column; gap: 12px; }
 
         .narrative-title {
           color: #e1e9ff;
@@ -346,6 +363,7 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
           background-clip: text;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
+          font-family: ${fonts.title};
         }
 
         .narrative-media {
@@ -385,7 +403,7 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
 
         .narrative-video, .narrative-gif, .narrative-image {
           width: 100%;
-          max-height: 400px;
+          max-height: 360px;
           object-fit: contain;
           border-radius: 8px;
         }
@@ -427,8 +445,12 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
 
         .narrative-text {
           color: #c1c9d9;
-          font-size: 1.1rem;
+          font-size: 1.05rem;
           line-height: 1.7;
+          max-height: 360px; /* Limit height to avoid scrollbars */
+          overflow: hidden;
+          padding-right: 4px;
+          font-family: ${fonts.body};
         }
 
         .narrative-paragraph {
@@ -448,6 +470,30 @@ export const NarrativeModal: React.FC<NarrativeModalProps> = ({
           justify-content: space-between;
           align-items: center;
         }
+
+        .narrative-text-controls { display: flex; justify-content: flex-end; margin-top: 8px; }
+
+        .narrative-next-button {
+          background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.28));
+          border: 1px solid rgba(255,255,255,0.06);
+          color: #e1e9ff;
+          font-family: 'Roboto Condensed', sans-serif;
+          font-weight: 700;
+          padding: 10px 16px;
+          border-radius: 10px;
+          font-size: 14px;
+          cursor: pointer;
+          letter-spacing: 1.2px;
+          transition: all 0.2s ease;
+        }
+
+        .narrative-next-button:hover:not(:disabled) {
+          transform: translateY(-2px);
+          color: ${colors.gold};
+          border-color: rgba(180,140,80,0.18);
+        }
+
+        .narrative-next-button:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .narrative-duration-hint {
           color: #8bb5ff;

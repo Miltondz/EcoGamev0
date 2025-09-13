@@ -82,7 +82,6 @@ class LayerManager {
   private layerStack = new Map<GameLayer, number>();
   private subscribers = new Set<(layer: GameLayer, zIndex: number) => void>();
   private pixiLayerContainers = new Map<GameLayer, PIXI.Container>();
-  private pixiApp: PIXI.Application | null = null;
 
   constructor() {
     this.initializeLayers();
@@ -108,7 +107,6 @@ class LayerManager {
    * Inicializar sistema PixiJS
    */
   initializePixi(app: PIXI.Application): void {
-    this.pixiApp = app;
     app.stage.sortableChildren = true;
     
     // Crear contenedores para cada capa relevante de PixiJS
@@ -120,7 +118,8 @@ class LayerManager {
       GameLayer.CARDS_DRAGGING,
       GameLayer.PARTICLE_EFFECTS,
       GameLayer.SCREEN_EFFECTS,
-      GameLayer.FLOATING_UI
+      GameLayer.FLOATING_UI,
+      GameLayer.UI_INDICATORS  // Para indicadores de drag & drop
     ];
 
     pixiLayers.forEach(layer => {
@@ -171,7 +170,7 @@ class LayerManager {
   /**
    * Agregar sprite de PixiJS a una capa específica
    */
-  addToPixiLayer(layer: GameLayer, displayObject: PIXI.DisplayObject): boolean {
+  addToPixiLayer(layer: GameLayer, displayObject: PIXI.Container): boolean {
     const container = this.pixiLayerContainers.get(layer);
     if (container) {
       container.addChild(displayObject);
@@ -186,7 +185,7 @@ class LayerManager {
   /**
    * Mover objeto entre capas PixiJS
    */
-  movePixiObject(displayObject: PIXI.DisplayObject, newLayer: GameLayer): boolean {
+  movePixiObject(displayObject: PIXI.Container, newLayer: GameLayer): boolean {
     // Remover del contenedor actual
     if (displayObject.parent) {
       displayObject.parent.removeChild(displayObject);
@@ -287,10 +286,10 @@ export const layerSystem = {
   reset: (layer: GameLayer) => 
     LayerManager.getInstance().resetLayer(layer),
 
-  addToPixi: (layer: GameLayer, object: PIXI.DisplayObject) =>
+  addToPixi: (layer: GameLayer, object: PIXI.Container) =>
     LayerManager.getInstance().addToPixiLayer(layer, object),
 
-  movePixi: (object: PIXI.DisplayObject, newLayer: GameLayer) =>
+  movePixi: (object: PIXI.Container, newLayer: GameLayer) =>
     LayerManager.getInstance().movePixiObject(object, newLayer),
 
   initPixi: (app: PIXI.Application) =>

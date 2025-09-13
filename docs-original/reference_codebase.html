@@ -1,0 +1,3617 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="referrer" content="no-referrer">
+    <title>Truco Venezolano - Estilo Balatro Mejorado</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        :root {
+            --primary-bg: #2a1810;
+            --secondary-bg: #3d2817;
+            --accent-bg: #4a3220;
+            --card-bg: #f4e4c1;
+            --card-border: #8b6914;
+            --text-primary: #f4e4c1;
+            --text-secondary: #d4c4a1;
+            --text-accent: #ffd700;
+            --red-suit: #dc2626;
+            --black-suit: #1f2937;
+            --green-felt: #0f5132;
+            --blue-accent: #1e40af;
+            --purple-accent: #7c3aed;
+            --orange-accent: #ea580c;
+            --card-width: min(120px, 18vw);
+            --card-height: min(168px, 25.2vw);
+            --shadow-soft: 0 4px 8px rgba(0, 0, 0, 0.3);
+            --shadow-strong: 0 8px 16px rgba(0, 0, 0, 0.4);
+            --glow-gold: 0 0 20px rgba(255, 215, 0, 0.6);
+            --glow-blue: 0 0 20px rgba(30, 64, 175, 0.6);
+        }
+        body {
+            font-family: 'Press Start 2P', monospace;
+            background: var(--primary-bg);
+            color: var(--text-primary);
+            overflow: hidden;
+            position: relative;
+            min-height: 100vh;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(234, 88, 12, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(124, 58, 237, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(30, 64, 175, 0.05) 0%, transparent 50%),
+                linear-gradient(135deg, var(--primary-bg) 0%, var(--secondary-bg) 100%);
+            z-index: -2;
+            animation: bg-shift 20s ease-in-out infinite;
+        }
+        @keyframes bg-shift {
+            0%, 100% { filter: hue-rotate(0deg); }
+            50% { filter: hue-rotate(10deg); }
+        }
+        .texture-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(244, 228, 193, 0.02) 2px, rgba(244, 228, 193, 0.02) 4px),
+                repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(244, 228, 193, 0.02) 2px, rgba(244, 228, 193, 0.02) 4px);
+            z-index: -1;
+            animation: texture-move 30s linear infinite;
+        }
+        @keyframes texture-move {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(4px, 4px); }
+        }
+        .main-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(42, 24, 16, 0.95);
+            z-index: 1000;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 1rem;
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+        }
+        .screen.active {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+        .screen-content {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+            animation: screen-enter 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+            max-height: 95vh;
+            padding: 1rem;
+            border-radius: 12px;
+        }
+        @keyframes screen-enter {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .game-title {
+            font-size: clamp(2rem, 8vw, 4rem);
+            color: var(--text-accent);
+            margin-bottom: 2rem;
+            text-shadow: 2px 2px 0px var(--black-suit), 4px 4px 8px rgba(0, 0, 0, 0.5);
+            letter-spacing: 0.1em;
+            animation: title-glow 3s ease-in-out infinite;
+            text-align: center;
+            line-height: 1.2;
+        }
+        @keyframes title-glow {
+            0%, 100% { text-shadow: 2px 2px 0px var(--black-suit), 4px 4px 8px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.3); }
+            50% { text-shadow: 2px 2px 0px var(--black-suit), 4px 4px 8px rgba(0, 0, 0, 0.5), 0 0 30px rgba(255, 215, 0, 0.6); }
+        }
+        .game-subtitle {
+            font-size: clamp(0.8rem, 2vw, 1rem);
+            color: var(--text-secondary);
+            margin-top: -1rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .menu-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+        }
+        .menu-button, .action-button, .nav-button {
+            padding: 1rem 2rem;
+            font-size: clamp(0.7rem, 2vw, 0.9rem);
+            background: linear-gradient(145deg, var(--accent-bg), var(--secondary-bg));
+            border: 3px solid var(--card-border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-soft);
+            min-width: 140px;
+            position: relative;
+            overflow: hidden;
+        }
+        .menu-button::before, .action-button::before, .nav-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        .menu-button:hover::before, .action-button:hover::before, .nav-button:hover::before {
+            left: 100%;
+        }
+        .menu-button:hover, .action-button:hover:not(:disabled), .nav-button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-strong), var(--glow-gold);
+            border-color: var(--text-accent);
+        }
+        .menu-button:active, .action-button:active:not(:disabled), .nav-button:active {
+            transform: translateY(0);
+            box-shadow: var(--shadow-soft);
+        }
+        .action-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: var(--shadow-soft);
+        }
+        .card {
+            width: var(--card-width);
+            height: var(--card-height);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-soft);
+            flex-shrink: 0;
+            background: var(--card-bg);
+            border: 3px solid var(--card-border);
+            transform-style: preserve-3d;
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, var(--text-accent) 0%, var(--orange-accent) 25%, var(--purple-accent) 50%, var(--blue-accent) 75%, var(--text-accent) 100%);
+            border-radius: 12px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-8px) rotateX(5deg) rotateY(-5deg);
+            box-shadow: var(--shadow-strong), var(--glow-gold);
+        }
+        .card:hover::before {
+            opacity: 0.7;
+        }
+        .card.selected {
+            transform: translateY(-12px) rotateX(10deg) rotateY(-10deg) scale(1.05);
+            box-shadow: var(--shadow-strong), var(--glow-blue);
+            animation: card-selected 1s ease-in-out infinite;
+        }
+        .card.selected::before {
+            opacity: 1;
+        }
+        @keyframes card-selected {
+            0%, 100% { box-shadow: var(--shadow-strong), 0 0 20px rgba(30, 64, 175, 0.6); }
+            50% { box-shadow: var(--shadow-strong), 0 0 30px rgba(30, 64, 175, 0.8); }
+        }
+        .card-back {
+            background: linear-gradient(135deg, var(--purple-accent) 0%, var(--blue-accent) 100%);
+            border-color: var(--purple-accent);
+        }
+        .card-back::after {
+            content: ''; /* No longer needed with image */
+        }
+        .card-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 8px;
+            image-rendering: auto; /* Use auto for better image quality */
+        }
+        .player-hand .card {
+            animation: card-deal-player 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+        }
+        @keyframes card-deal-player {
+            from { transform: translateY(200px) rotate(180deg) scale(0); opacity: 0; }
+            to { transform: translateY(0) rotate(0) scale(1); opacity: 1; }
+        }
+        .computer-hand .card {
+            animation: card-deal-computer 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+        }
+        @keyframes card-deal-computer {
+            from { transform: translateY(-200px) rotate(-180deg) scale(0); opacity: 0; }
+            to { transform: translateY(0) rotate(0) scale(1); opacity: 1; }
+        }
+        .player-hand .card:nth-child(1) { animation-delay: 0.1s; }
+        .player-hand .card:nth-child(2) { animation-delay: 0.2s; }
+        .player-hand .card:nth-child(3) { animation-delay: 0.3s; }
+        .computer-hand .card:nth-child(1) { animation-delay: 0.1s; }
+        .computer-hand .card:nth-child(2) { animation-delay: 0.2s; }
+        .computer-hand .card:nth-child(3) { animation-delay: 0.3s; }
+        .game-board {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            padding: 0.5rem;
+            z-index: 100;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-image 0.5s ease-in-out;
+        }
+        .game-board.active {
+            display: block;
+        }
+        .game-layout {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 1rem;
+        }
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+            background: rgba(61, 40, 23, 0.8);
+            border-radius: 12px;
+            border: 2px solid var(--card-border);
+            backdrop-filter: blur(10px);
+        }
+        .nav-button {
+            padding: 0.5rem 1rem;
+            font-size: clamp(0.6rem, 1.5vw, 0.8rem);
+            min-width: 80px;
+        }
+        .game-status {
+            background: rgba(42, 24, 16, 0.9);
+            padding: 0.8rem 1.5rem;
+            border-radius: 12px;
+            border: 2px solid var(--blue-accent);
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+        .turn-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .status-icon {
+            font-size: 1.5rem;
+            animation: status-pulse 2s infinite;
+        }
+        @keyframes status-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .status-text {
+            font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+            color: var(--text-accent);
+        }
+        .round-info {
+            color: var(--text-secondary);
+            font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+        }
+        .active-calls {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .call-badge {
+            background: rgba(124, 58, 237, 0.3);
+            border: 1px solid var(--purple-accent);
+            border-radius: 8px;
+            padding: 0.3rem 0.8rem;
+            font-size: clamp(0.5rem, 1.5vw, 0.7rem);
+            color: var(--text-primary);
+        }
+        .scoreboard {
+            display: flex;
+            gap: 1rem;
+            background: rgba(42, 24, 16, 0.9);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 2px solid var(--text-accent);
+            box-shadow: var(--glow-gold);
+            animation: score-glow 3s ease-in-out infinite;
+            backdrop-filter: blur(10px);
+        }
+        @keyframes score-glow {
+            0%, 100% { box-shadow: var(--shadow-soft), 0 0 15px rgba(255, 215, 0, 0.3); }
+            50% { box-shadow: var(--shadow-soft), 0 0 25px rgba(255, 215, 0, 0.5); }
+        }
+        .score-item {
+            text-align: center;
+            transition: all 0.3s;
+            min-width: 80px;
+        }
+        .score-label {
+            font-size: clamp(0.5rem, 1.5vw, 0.7rem);
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        .score-value {
+            font-size: clamp(0.8rem, 2.5vw, 1.2rem);
+            color: var(--text-accent);
+            font-weight: bold;
+        }
+        .game-area {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 1rem;
+            height: 100%;
+            min-height: 0;
+        }
+        .computer-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .computer-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .avatar-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid var(--card-border);
+            box-shadow: var(--shadow-soft);
+            background-color: var(--secondary-bg);
+        }
+        .computer-hand {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .play-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            min-height: 200px;
+            background: rgba(15, 81, 50, 0.3);
+            border-radius: 20px;
+            border: 3px solid var(--green-felt);
+            padding: 1rem;
+            position: relative;
+            backdrop-filter: blur(5px);
+        }
+        .played-cards {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .played-card-slot {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: var(--card-width);
+        }
+        .card-label {
+            font-size: clamp(0.5rem, 1.5vw, 0.7rem);
+            color: var(--text-secondary);
+            text-align: center;
+        }
+        .vs-indicator {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            color: var(--text-accent);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            animation: vs-pulse 2s infinite;
+        }
+        @keyframes vs-pulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+        }
+        .player-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .player-hand {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+        .action-button {
+            padding: 0.8rem 1.5rem;
+            font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+            min-width: 100px;
+        }
+        .difficulty-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+        .difficulty-button {
+            padding: 1rem 2rem;
+            font-size: clamp(0.7rem, 2vw, 0.9rem);
+            background: linear-gradient(145deg, var(--accent-bg), var(--secondary-bg));
+            border: 3px solid var(--card-border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-soft);
+            min-width: 120px;
+            position: relative;
+            overflow: hidden;
+        }
+        .difficulty-button.selected {
+            border-color: var(--text-accent);
+            box-shadow: var(--glow-gold);
+            background: linear-gradient(145deg, var(--text-accent), var(--orange-accent));
+            color: var(--black-suit);
+        }
+        /* New Styles for Setup Screen */
+        .setup-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            width: 100%;
+            align-items: start;
+        }
+        .setup-section {
+            background: rgba(61, 40, 23, 0.8);
+            border: 2px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+        }
+        .setup-title {
+            font-size: clamp(0.8rem, 2.5vw, 1.2rem);
+            color: var(--text-accent);
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .selection-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+        }
+        .selection-item {
+            border: 3px solid var(--card-border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            overflow: hidden;
+            position: relative;
+        }
+        .selection-item:hover {
+            transform: scale(1.05);
+            box-shadow: var(--glow-gold);
+        }
+        .selection-item.selected {
+            border-color: var(--text-accent);
+            box-shadow: var(--glow-gold);
+            transform: scale(1.05);
+        }
+        .selection-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .selection-item .item-name {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.7);
+            color: var(--text-primary);
+            padding: 0.5rem;
+            font-size: 0.7rem;
+            text-align: center;
+        }
+        .avatar-preview {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            width: 100%;
+            margin-top: 1rem;
+        }
+        .stat-card {
+            background: rgba(61, 40, 23, 0.8);
+            border: 2px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        .stat-title {
+            font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+        .stat-value {
+            font-size: clamp(1.2rem, 3vw, 2rem);
+            color: var(--text-accent);
+            margin-bottom: 0.5rem;
+        }
+        .stat-description {
+            font-size: clamp(0.5rem, 1.5vw, 0.7rem);
+            color: var(--text-secondary);
+        }
+        .instructions-content {
+            max-width: 800px;
+            text-align: left;
+            line-height: 1.6;
+        }
+        .instruction-section {
+            margin-bottom: 2rem;
+            background: rgba(61, 40, 23, 0.6);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 2px solid var(--card-border);
+            backdrop-filter: blur(10px);
+        }
+        .instruction-title {
+            font-size: clamp(0.8rem, 2.5vw, 1.2rem);
+            color: var(--text-accent);
+            margin-bottom: 1rem;
+        }
+        .instruction-text {
+            font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+            color: var(--text-primary);
+            margin-bottom: 0.8rem;
+        }
+        .card-hierarchy {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+        .hierarchy-card {
+            background: var(--card-bg);
+            border: 2px solid var(--card-border);
+            border-radius: 8px;
+            padding: 0.5rem;
+            text-align: center;
+            font-size: clamp(0.5rem, 1.5vw, 0.7rem);
+            color: var(--black-suit);
+        }
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            width: 100%;
+            margin-top: 1rem;
+        }
+        .setting-card {
+            background: rgba(61, 40, 23, 0.8);
+            border: 2px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+        }
+        .setting-title {
+            font-size: clamp(0.7rem, 2vw, 0.9rem);
+            color: var(--text-accent);
+            margin-bottom: 1rem;
+        }
+        .setting-control {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .setting-label {
+            font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+            color: var(--text-primary);
+            flex: 1;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: var(--secondary-bg);
+            border-radius: 15px;
+            border: 2px solid var(--card-border);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .toggle-switch.active {
+            background: var(--text-accent);
+        }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 22px;
+            height: 22px;
+            background: var(--text-primary);
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+        .toggle-switch.active::after {
+            left: 32px;
+            background: var(--black-suit);
+        }
+        .volume-slider {
+            width: 100%;
+            height: 8px;
+            background: var(--secondary-bg);
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+        }
+        .back-button {
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
+            padding: 0.8rem 1.5rem;
+            font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+            background: linear-gradient(145deg, var(--accent-bg), var(--secondary-bg));
+            border: 3px solid var(--card-border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-soft);
+            z-index: 1001;
+        }
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-strong), var(--glow-gold);
+            border-color: var(--text-accent);
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            backdrop-filter: blur(5px);
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: var(--secondary-bg);
+            border: 3px solid var(--card-border);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: var(--shadow-strong);
+            animation: modal-enter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes modal-enter {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal-title {
+            font-size: clamp(1rem, 3vw, 1.5rem);
+            color: var(--text-accent);
+            margin-bottom: 1rem;
+        }
+        .modal-text {
+            font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+            color: var(--text-primary);
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .modal-button {
+            padding: 0.8rem 1.5rem;
+            font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+            background: linear-gradient(145deg, var(--accent-bg), var(--secondary-bg));
+            border: 3px solid var(--card-border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-soft);
+            min-width: 100px;
+        }
+        .modal-button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-strong), var(--glow-gold);
+            border-color: var(--text-accent);
+        }
+        .modal-button.primary {
+            background: linear-gradient(145deg, var(--text-accent), var(--orange-accent));
+            color: var(--black-suit);
+        }
+        .notification {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            background: var(--secondary-bg);
+            border: 2px solid var(--card-border);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            color: var(--text-primary);
+            font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+            box-shadow: var(--shadow-strong);
+            z-index: 3000;
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            max-width: 300px;
+        }
+        .notification.show {
+            transform: translateX(0);
+        }
+        .notification.success {
+            border-color: #10b981;
+            background: linear-gradient(145deg, #065f46, var(--secondary-bg));
+        }
+        .notification.error {
+            border-color: #ef4444;
+            background: linear-gradient(145deg, #7f1d1d, var(--secondary-bg));
+        }
+        .notification.info {
+            border-color: var(--blue-accent);
+            background: linear-gradient(145deg, #1e3a8a, var(--secondary-bg));
+        }
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--text-accent);
+            border-radius: 50%;
+            opacity: 0.6;
+            animation: particle-float 10s infinite linear;
+        }
+        @keyframes particle-float {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.6;
+            }
+            90% {
+                opacity: 0.6;
+            }
+            100% {
+                transform: translateY(-10vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--primary-bg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 5000;
+            transition: opacity 0.5s ease-out;
+        }
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--secondary-bg);
+            border-top: 4px solid var(--text-accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 2rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-text {
+            font-size: clamp(0.8rem, 2.5vw, 1.2rem);
+            color: var(--text-accent);
+            text-align: center;
+            animation: loading-pulse 2s ease-in-out infinite;
+        }
+        @keyframes loading-pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        .achievement {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: linear-gradient(145deg, var(--text-accent), var(--orange-accent));
+            color: var(--black-suit);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 3px solid var(--card-border);
+            box-shadow: var(--shadow-strong), var(--glow-gold);
+            z-index: 4000;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .achievement.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+        .achievement-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            animation: achievement-bounce 2s ease-in-out infinite;
+        }
+        @keyframes achievement-bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .achievement-title {
+            font-size: clamp(1rem, 3vw, 1.5rem);
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        .achievement-description {
+            font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+            opacity: 0.8;
+        }
+        .combo-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: clamp(2rem, 6vw, 4rem);
+            color: var(--text-accent);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            z-index: 3500;
+            pointer-events: none;
+            opacity: 0;
+            animation: combo-show 2s ease-out;
+        }
+        @keyframes combo-show {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            20% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+            80% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8);
+            }
+        }
+        .card-power-indicator {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: var(--red-suit);
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: bold;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .hand-strength-meter {
+            width: 100%;
+            height: 8px;
+            background: var(--secondary-bg);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+            border: 1px solid var(--card-border);
+        }
+        .hand-strength-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981);
+            transition: width 0.5s ease-out;
+            border-radius: 3px;
+        }
+        .ai-thinking {
+            background: rgba(42, 24, 16, 0.9);
+            border: 2px solid var(--blue-accent);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            color: var(--text-primary);
+            font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .ai-thinking.show {
+            opacity: 1;
+        }
+        .ai-thinking::before {
+            content: '🤔';
+            margin-right: 0.5rem;
+            animation: thinking-pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes thinking-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .round-result {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(42, 24, 16, 0.95);
+            border: 3px solid var(--card-border);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            z-index: 3000;
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.8);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+        }
+        .round-result.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        .round-result-title {
+            font-size: clamp(1.2rem, 4vw, 2rem);
+            color: var(--text-accent);
+            margin-bottom: 1rem;
+        }
+        .round-result-description {
+            font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+        }
+        .sound-toggle {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(42, 24, 16, 0.9);
+            border: 2px solid var(--card-border);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            z-index: 1500;
+            backdrop-filter: blur(10px);
+        }
+        .sound-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: var(--glow-gold);
+        }
+        .sound-toggle.muted {
+            opacity: 0.5;
+        }
+        .tutorial-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 4500;
+            display: none;
+        }
+        .tutorial-overlay.active {
+            display: block;
+        }
+        .tutorial-step {
+            position: absolute;
+            background: var(--secondary-bg);
+            border: 3px solid var(--text-accent);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 300px;
+            color: var(--text-primary);
+            box-shadow: var(--shadow-strong), var(--glow-gold);
+        }
+        .tutorial-step::before {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-style: solid;
+        }
+        .tutorial-step.bottom::before {
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-bottom: 15px solid var(--text-accent);
+        }
+        .tutorial-step.top::before {
+            bottom: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 15px solid var(--text-accent);
+        }
+        .tutorial-step.left::before {
+            right: -15px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-top: 15px solid transparent;
+            border-bottom: 15px solid transparent;
+            border-left: 15px solid var(--text-accent);
+        }
+        .tutorial-step.right::before {
+            left: -15px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-top: 15px solid transparent;
+            border-bottom: 15px solid transparent;
+            border-right: 15px solid var(--text-accent);
+        }
+        .tutorial-title {
+            font-size: clamp(0.8rem, 2.5vw, 1rem);
+            color: var(--text-accent);
+            margin-bottom: 0.5rem;
+        }
+        .tutorial-text {
+            font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+            line-height: 1.4;
+            margin-bottom: 1rem;
+        }
+        .tutorial-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+        .tutorial-button {
+            padding: 0.5rem 1rem;
+            font-size: clamp(0.5rem, 1.5vw, 0.7rem);
+            background: linear-gradient(145deg, var(--accent-bg), var(--secondary-bg));
+            border: 2px solid var(--card-border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .tutorial-button:hover {
+            border-color: var(--text-accent);
+            box-shadow: var(--glow-gold);
+        }
+        .tutorial-button.primary {
+            background: linear-gradient(145deg, var(--text-accent), var(--orange-accent));
+            color: var(--black-suit);
+        }
+        @media (max-width: 768px) {
+            .menu-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            .menu-button {
+                width: 100%;
+                max-width: 300px;
+            }
+            .game-header {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            .played-cards {
+                gap: 1rem;
+            }
+            .action-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            .action-button {
+                width: 100%;
+                max-width: 200px;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+            .setup-grid {
+                grid-template-columns: 1fr;
+            }
+            .back-button {
+                top: 1rem;
+                left: 1rem;
+                padding: 0.6rem 1rem;
+            }
+            .sound-toggle {
+                top: 0.5rem;
+                right: 0.5rem;
+                width: 40px;
+                height: 40px;
+            }
+            .notification {
+                top: 1rem;
+                right: 1rem;
+                max-width: 250px;
+            }
+            .modal-content {
+                padding: 1.5rem;
+            }
+            .tutorial-step {
+                max-width: 250px;
+                padding: 1rem;
+            }
+        }
+        @media (max-width: 480px) {
+            .screen {
+                padding: 0.5rem;
+            }
+            .screen-content {
+                padding: 0.5rem;
+                gap: 1rem;
+            }
+            .game-title {
+                font-size: clamp(1.5rem, 6vw, 2.5rem);
+                margin-bottom: 1rem;
+            }
+            .card {
+                --card-width: min(100px, 20vw);
+                --card-height: min(140px, 28vw);
+            }
+            .play-area {
+                min-height: 150px;
+                padding: 0.5rem;
+            }
+            .instruction-section {
+                padding: 1rem;
+            }
+            .setting-card {
+                padding: 1rem;
+            }
+            .modal-content {
+                padding: 1rem;
+            }
+            .achievement {
+                padding: 1.5rem;
+            }
+            .tutorial-step {
+                max-width: 200px;
+                padding: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background"></div>
+    <div class="texture-overlay"></div>
+    <div class="particles" id="particles"></div>
+    
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loading-screen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Cargando Truco Venezolano...</div>
+    </div>
+    
+    <!-- Sound Toggle -->
+    <div class="sound-toggle" id="sound-toggle">
+        <span id="sound-icon">🔊</span>
+    </div>
+    
+    <div class="main-container">
+        <!-- Pantalla Principal -->
+        <div id="main-screen" class="screen active">
+            <div class="screen-content">
+                <h1 class="game-title">TRUCO</h1>
+                <p class="game-subtitle">Venezolano </p>
+                <div class="menu-buttons">
+                    <button id="play-btn" class="menu-button">🎮 Jugar</button>
+                    <button id="tutorial-btn" class="menu-button">🎓 Tutorial</button>
+                    <button id="instructions-btn" class="menu-button">📖 Instrucciones</button>
+                    <button id="stats-btn" class="menu-button">📊 Estadísticas</button>
+                    <button id="achievements-btn" class="menu-button">🏆 Logros</button>
+                    <button id="settings-btn" class="menu-button">⚙️ Configuración</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pantalla de Selección de Partida (NUEVA) -->
+        <div id="setup-screen" class="screen">
+            <button class="back-button" onclick="showScreen('main-screen')">← Volver</button>
+            <div class="screen-content">
+                <h2 class="game-title">Preparar Partida</h2>
+                <div class="setup-grid">
+                    <div class="setup-section">
+                        <h3 class="setup-title">Elige tu Baraja</h3>
+                        <div class="selection-grid" id="deck-selection"></div>
+                    </div>
+                    <div class="setup-section">
+                        <h3 class="setup-title">Elige el Tablero</h3>
+                        <div class="selection-grid" id="board-selection"></div>
+                    </div>
+                    <div class="setup-section">
+                        <h3 class="setup-title">Tu Oponente</h3>
+                        <div class="avatar-preview">
+                            <img id="setup-avatar-preview" src="" alt="Avatar del Oponente" class="avatar-image" style="width: 120px; height: 120px;">
+                            <p class="game-subtitle">Un nuevo retador te espera...</p>
+                        </div>
+                    </div>
+                </div>
+                <button id="continue-to-difficulty-btn" class="menu-button" style="margin-top: 2rem;">Continuar →</button>
+            </div>
+        </div>
+
+        <!-- Pantalla de Selección de Dificultad -->
+        <div id="difficulty-screen" class="screen">
+            <button class="back-button" onclick="showScreen('setup-screen')">← Volver</button>
+            <div class="screen-content">
+                <h2 class="game-title">Seleccionar Dificultad</h2>
+                <div class="difficulty-buttons">
+                    <button class="difficulty-button" data-difficulty="easy">
+                        🟢 Principiante
+                        <div style="font-size: 0.6rem; margin-top: 0.5rem;">IA básica, consejos activados</div>
+                    </button>
+                    <button class="difficulty-button selected" data-difficulty="medium">
+                        🟡 Intermedio
+                        <div style="font-size: 0.6rem; margin-top: 0.5rem;">IA inteligente, algunos consejos</div>
+                    </button>
+                    <button class="difficulty-button" data-difficulty="hard">
+                        🔴 Experto
+                        <div style="font-size: 0.6rem; margin-top: 0.5rem;">IA avanzada, sin consejos</div>
+                    </button>
+                    <button class="difficulty-button" data-difficulty="master">
+                        ⚫ Maestro
+                        <div style="font-size: 0.6rem; margin-top: 0.5rem;">IA perfecta, máximo desafío</div>
+                    </button>
+                </div>
+                <button id="start-game-btn" class="menu-button" style="margin-top: 2rem;">🚀 Comenzar Juego</button>
+            </div>
+        </div>
+
+        <!-- Pantalla de Tutorial -->
+        <div id="tutorial-screen" class="screen">
+            <button class="back-button" onclick="showScreen('main-screen')">← Volver</button>
+            <div class="screen-content">
+                <h2 class="game-title">Tutorial Interactivo</h2>
+                <div class="instruction-section">
+                    <h3 class="instruction-title">🎯 Bienvenido al Tutorial</h3>
+                    <p class="instruction-text">Aprende a jugar Truco paso a paso con nuestro tutorial interactivo.</p>
+                    <button id="start-tutorial-btn" class="menu-button">▶️ Comenzar Tutorial</button>
+                </div>
+                <div class="instruction-section">
+                    <h3 class="instruction-title">📚 Lecciones Disponibles</h3>
+                    <div class="menu-buttons">
+                        <button class="menu-button" onclick="startLesson('basics')">🃏 Cartas Básicas</button>
+                        <button class="menu-button" onclick="startLesson('envido')">🎵 Envido</button>
+                        <button class="menu-button" onclick="startLesson('truco')">⚡ Truco</button>
+                        <button class="menu-button" onclick="startLesson('flor')">🌸 Flor</button>
+                        <button class="menu-button" onclick="startLesson('strategy')">🧠 Estrategia</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pantalla de Instrucciones -->
+        <div id="instructions-screen" class="screen">
+            <button class="back-button" onclick="showScreen('main-screen')">← Volver</button>
+            <div class="screen-content">
+                <h2 class="game-title">Instrucciones</h2>
+                <div class="instructions-content">
+                    <div class="instruction-section">
+                        <h3 class="instruction-title">🎯 Objetivo del Juego</h3>
+                        <p class="instruction-text">El Truco es un juego de cartas venezolano donde el objetivo es ser el primero en alcanzar 30 puntos. Se juega con una baraja española de 40 cartas.</p>
+                    </div>
+                    
+                    <div class="instruction-section">
+                        <h3 class="instruction-title">🃏 Jerarquía de Cartas</h3>
+                        <p class="instruction-text">De mayor a menor valor:</p>
+                        <div class="card-hierarchy">
+                            <div class="hierarchy-card">As de Espadas (14)</div>
+                            <div class="hierarchy-card">As de Bastos (13)</div>
+                            <div class="hierarchy-card">7 de Espadas (12)</div>
+                            <div class="hierarchy-card">7 de Oros (11)</div>
+                            <div class="hierarchy-card">3 (10)</div>
+                            <div class="hierarchy-card">2 (9)</div>
+                            <div class="hierarchy-card">As resto (8)</div>
+                            <div class="hierarchy-card">Rey (7)</div>
+                            <div class="hierarchy-card">Caballo (6)</div>
+                            <div class="hierarchy-card">Sota (5)</div>
+                            <div class="hierarchy-card">7 resto (4)</div>
+                            <div class="hierarchy-card">6 (3)</div>
+                            <div class="hierarchy-card">5 (2)</div>
+                            <div class="hierarchy-card">4 (1)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="instruction-section">
+                        <h3 class="instruction-title">🎲 Cómo Jugar</h3>
+                        <p class="instruction-text">• Cada jugador recibe 3 cartas al inicio de cada mano</p>
+                        <p class="instruction-text">• Se juegan hasta 3 rondas por mano (al mejor de 3)</p>
+                        <p class="instruction-text">• Gana la mano quien gane 2 de las 3 rondas</p>
+                        <p class="instruction-text">• El ganador de la mano suma puntos según las apuestas</p>
+                        <p class="instruction-text">• Puedes cantar "Truco" para aumentar los puntos en juego</p>
+                        <p class="instruction-text">• También puedes cantar "Envido" o "Flor" antes de jugar cartas</p>
+                    </div>
+                    
+                    <div class="instruction-section">
+                        <h3 class="instruction-title">🎵 Envido y Flor</h3>
+                        <p class="instruction-text">• <strong>Envido:</strong> Se canta cuando tienes 2 cartas del mismo palo</p>
+                        <p class="instruction-text">• <strong>Real Envido:</strong> Apuesta más alta que el Envido simple</p>
+                        <p class="instruction-text">• <strong>Falta Envido:</strong> Apuesta todos los puntos restantes para ganar</p>
+                        <p class="instruction-text">• <strong>Flor:</strong> Tres cartas del mismo palo (vale 3 puntos automáticamente)</p>
+                        <p class="instruction-text">• Para calcular puntos: suma las cartas del mismo palo (figuras valen 0)</p>
+                        <p class="instruction-text">• Si la suma es menor a 20, se le suma 20</p>
+                    </div>
+                    
+                    <div class="instruction-section">
+                        <h3 class="instruction-title">⚡ Truco</h3>
+                        <p class="instruction-text">• <strong>Truco:</strong> Aumenta la apuesta a 2 puntos</p>
+                        <p class="instruction-text">• <strong>Retruco:</strong> Respuesta que aumenta a 3 puntos</p>
+                        <p class="instruction-text">• <strong>Vale 4:</strong> Máxima apuesta de 4 puntos</p>
+                        <p class="instruction-text">• Puedes aceptar, rechazar o subir la apuesta</p>
+                        <p class="instruction-text">• Si rechazas, pierdes los puntos de la apuesta anterior</p>
+                    </div>
+                    
+                    <div class="instruction-section">
+                        <h3 class="instruction-title">🏆 Puntuación</h3>
+                        <p class="instruction-text">• <strong>Mano normal:</strong> 1 punto</p>
+                        <p class="instruction-text">• <strong>Truco aceptado:</strong> 2 puntos</p>
+                        <p class="instruction-text">• <strong>Retruco aceptado:</strong> 3 puntos</p>
+                        <p class="instruction-text">• <strong>Vale 4 aceptado:</strong> 4 puntos</p>
+                        <p class="instruction-text">• <strong>Envido:</strong> 2 puntos</p>
+                        <p class="instruction-text">• <strong>Real Envido:</strong> 3 puntos</p>
+                        <p class="instruction-text">• <strong>Falta Envido:</strong> Puntos restantes para llegar a 30</p>
+                        <p class="instruction-text">• <strong>Flor:</strong> 3 puntos automáticos</p>
+                    </div>
+                    
+                    <div class="instruction-section">
+                        <h3 class="instruction-title">🧠 Estrategias Básicas</h3>
+                        <p class="instruction-text">• Observa las cartas que juegas y las del oponente</p>
+                        <p class="instruction-text">• Canta Envido cuando tengas buenas cartas del mismo palo</p>
+                        <p class="instruction-text">• Usa el Truco para presionar cuando tengas cartas altas</p>
+                        <p class="instruction-text">• No siempre es bueno aceptar todas las apuestas</p>
+                        <p class="instruction-text">• La Flor es automática si tienes 3 cartas del mismo palo</p>
+                        <p class="instruction-text">• Guarda tus mejores cartas para las rondas decisivas</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pantalla de Estadísticas -->
+        <div id="stats-screen" class="screen">
+            <button class="back-button" onclick="showScreen('main-screen')">← Volver</button>
+            <div class="screen-content">
+                <h2 class="game-title">Estadísticas</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-title">Partidas Jugadas</div>
+                        <div class="stat-value" id="games-played">0</div>
+                        <div class="stat-description">Total de partidas completadas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Partidas Ganadas</div>
+                        <div class="stat-value" id="games-won">0</div>
+                        <div class="stat-description">Victorias conseguidas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Porcentaje de Victoria</div>
+                        <div class="stat-value" id="win-percentage">0%</div>
+                        <div class="stat-description">Ratio de éxito general</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Trucos Cantados</div>
+                        <div class="stat-value" id="trucos-called">0</div>
+                        <div class="stat-description">Veces que cantaste truco</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Trucos Ganados</div>
+                        <div class="stat-value" id="trucos-won">0</div>
+                        <div class="stat-description">Trucos exitosos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Envidos Cantados</div>
+                        <div class="stat-value" id="envidos-called">0</div>
+                        <div class="stat-description">Veces que cantaste envido</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Envidos Ganados</div>
+                        <div class="stat-value" id="envidos-won">0</div>
+                        <div class="stat-description">Envidos exitosos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Flores Conseguidas</div>
+                        <div class="stat-value" id="flores-achieved">0</div>
+                        <div class="stat-description">Flores logradas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Puntos Totales</div>
+                        <div class="stat-value" id="total-points">0</div>
+                        <div class="stat-description">Puntos acumulados</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Mejor Racha</div>
+                        <div class="stat-value" id="best-streak">0</div>
+                        <div class="stat-description">Victorias consecutivas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Tiempo Jugado</div>
+                        <div class="stat-value" id="time-played">0h</div>
+                        <div class="stat-description">Tiempo total de juego</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Nivel de Jugador</div>
+                        <div class="stat-value" id="player-level">1</div>
+                        <div class="stat-description">Basado en experiencia</div>
+                    </div>
+                </div>
+                <div class="menu-buttons" style="margin-top: 2rem;">
+                    <button class="menu-button" onclick="exportStats()">📤 Exportar</button>
+                    <button class="menu-button" onclick="resetStats()">🔄 Reiniciar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pantalla de Logros -->
+        <div id="achievements-screen" class="screen">
+            <button class="back-button" onclick="showScreen('main-screen')">← Volver</button>
+            <div class="screen-content">
+                <h2 class="game-title">Logros</h2>
+                <div class="stats-grid" id="achievements-grid">
+                    <!-- Los logros se generarán dinámicamente -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Pantalla de Configuración -->
+        <div id="settings-screen" class="screen">
+            <button class="back-button" onclick="showScreen('main-screen')">← Volver</button>
+            <div class="screen-content">
+                <h2 class="game-title">Configuración</h2>
+                <div class="settings-grid">
+                    <div class="setting-card">
+                        <div class="setting-title">🔊 Audio</div>
+                        <div class="setting-control">
+                            <span class="setting-label">Efectos de Sonido</span>
+                            <div class="toggle-switch active" id="sound-effects-toggle"></div>
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Música de Fondo</span>
+                            <div class="toggle-switch" id="background-music-toggle"></div>
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Volumen General</span>
+                            <input type="range" class="volume-slider" id="master-volume" min="0" max="100" value="70">
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Volumen Efectos</span>
+                            <input type="range" class="volume-slider" id="effects-volume" min="0" max="100" value="80">
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Volumen Música</span>
+                            <input type="range" class="volume-slider" id="music-volume" min="0" max="100" value="50">
+                        </div>
+                    </div>
+                    
+                    <div class="setting-card">
+                        <div class="setting-title">🎮 Juego</div>
+                        <div class="setting-control">
+                            <span class="setting-label">Animaciones</span>
+                            <div class="toggle-switch active" id="animations-toggle"></div>
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Confirmación de Jugadas</span>
+                            <div class="toggle-switch" id="confirm-moves-toggle"></div>
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Mostrar Consejos</span>
+                            <div class="toggle-switch active" id="show-hints-toggle"></div>
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Auto-Jugar Cartas Obvias</span>
+                            <div class="toggle-switch" id="auto-play-toggle"></div>
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Velocidad de Juego</span>
+                            <input type="range" class="volume-slider" id="game-speed" min="1" max="5" value="3">
+                        </div>
+                    </div>
+                    
+                    <div class="setting-card">
+                        <div class="setting-title">🎨 Apariencia</div>
+                        <div class="setting-control">
+                            <span class="setting-label">Modo Oscuro</span>
+                            <div class="toggle-switch active" id="dark-mode-toggle"></div>
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Efectos de Partículas</span>
+                            <div class="toggle-switch active" id="particles-toggle"></div>
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Cartas en Alta Resolución</span>
+                            <div class="toggle-switch" id="hd-cards-toggle"></div>
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Mostrar Poder de Cartas</span>
+                            <div class="toggle-switch active" id="show-card-power-toggle"></div>
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Indicador de Fuerza de Mano</span>
+                            <div class="toggle-switch active" id="hand-strength-toggle"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-card">
+                        <div class="setting-title">🤖 Inteligencia Artificial</div>
+                        <div class="setting-control">
+                            <span class="setting-label">Mostrar Pensamiento de IA</span>
+                            <div class="toggle-switch active" id="show-ai-thinking-toggle"></div>
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Tiempo de Respuesta IA</span>
+                            <input type="range" class="volume-slider" id="ai-response-time" min="1" max="10" value="5">
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Personalidad de IA</span>
+                            <select id="ai-personality" style="background: var(--secondary-bg); color: var(--text-primary); border: 2px solid var(--card-border); border-radius: 4px; padding: 0.5rem;">
+                                <option value="balanced">Equilibrada</option>
+                                <option value="aggressive">Agresiva</option>
+                                <option value="conservative">Conservadora</option>
+                                <option value="unpredictable">Impredecible</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-card">
+                        <div class="setting-title">📱 Accesibilidad</div>
+                        <div class="setting-control">
+                            <span class="setting-label">Texto Grande</span>
+                            <div class="toggle-switch" id="large-text-toggle"></div>
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Alto Contraste</span>
+                            <div class="toggle-switch" id="high-contrast-toggle"></div>
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Reducir Movimiento</span>
+                            <div class="toggle-switch" id="reduce-motion-toggle"></div>
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Narración de Voz</span>
+                            <div class="toggle-switch" id="voice-narration-toggle"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-card">
+                        <div class="setting-title">💾 Datos</div>
+                        <div class="setting-control">
+                            <span class="setting-label">Guardar Automáticamente</span>
+                            <div class="toggle-switch active" id="auto-save-toggle"></div>
+                        </div>
+                        <div class="setting-control">
+                            <span class="setting-label">Sincronizar en la Nube</span>
+                            <div class="toggle-switch" id="cloud-sync-toggle"></div>
+                        </div>
+                        <div class="menu-buttons" style="margin-top: 1rem;">
+                            <button class="menu-button" onclick="exportData()">📤 Exportar Datos</button>
+                            <button class="menu-button" onclick="importData()">📥 Importar Datos</button>
+                            <button class="menu-button" onclick="clearAllData()">🗑️ Borrar Todo</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tablero de Juego -->
+        <div id="game-board" class="game-board">
+            <div class="game-layout">
+                <div class="game-header">
+                    <button class="nav-button" onclick="pauseGame()">⏸️ Pausa</button>
+                    <div class="game-status">
+                        <div class="turn-indicator">
+                            <span class="status-icon">🎯</span>
+                            <span class="status-text" id="turn-status">Tu turno</span>
+                        </div>
+                        <div class="round-info" id="round-info">Ronda 1 de 3</div>
+                        <div class="active-calls" id="active-calls"></div>
+                    </div>
+                    <div class="scoreboard">
+                        <div class="score-item">
+                            <div class="score-label">Jugador</div>
+                            <div class="score-value" id="player-score">0</div>
+                        </div>
+                        <div class="score-item">
+                            <div class="score-label">Computadora</div>
+                            <div class="score-value" id="computer-score">0</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="game-area">
+                    <div class="computer-section">
+                        <div class="computer-info">
+                            <img id="computer-avatar" src="" alt="Avatar del Oponente" class="avatar-image">
+                            <div class="ai-thinking" id="ai-thinking">Pensando...</div>
+                        </div>
+                        <div class="computer-hand" id="computer-hand"></div>
+                        <div class="hand-strength-meter" id="computer-hand-strength" style="display: none;">
+                            <div class="hand-strength-fill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="play-area">
+                        <div class="played-cards" id="played-cards">
+                            <div class="played-card-slot">
+                                <div class="card-label">Computadora</div>
+                                <div id="computer-played-card"></div>
+                            </div>
+                            <div class="vs-indicator">VS</div>
+                            <div class="played-card-slot">
+                                <div class="card-label">Jugador</div>
+                                <div id="player-played-card"></div>
+                            </div>
+                        </div>
+                        <div class="round-result" id="round-result">
+                            <div class="round-result-title" id="round-result-title"></div>
+                            <div class="round-result-description" id="round-result-description"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="player-section">
+                        <div class="player-hand" id="player-hand"></div>
+                        <div class="hand-strength-meter" id="player-hand-strength">
+                            <div class="hand-strength-fill" style="width: 0%;"></div>
+                        </div>
+                        <div class="action-buttons" id="action-buttons">
+                            <button class="action-button" id="envido-btn">🎵 Envido</button>
+                            <button class="action-button" id="real-envido-btn">🎶 Real Envido</button>
+                            <button class="action-button" id="falta-envido-btn">🎼 Falta Envido</button>
+                            <button class="action-button" id="truco-btn">⚡ Truco</button>
+                            <button class="action-button" id="retruco-btn">⚡⚡ Retruco</button>
+                            <button class="action-button" id="vale4-btn">⚡⚡⚡ Vale 4</button>
+                            <button class="action-button" id="flor-btn">🌸 Flor</button>
+                            <button class="action-button" id="quiero-btn">✅ Quiero</button>
+                            <button class="action-button" id="no-quiero-btn">❌ No Quiero</button>
+                            <button class="action-button" id="me-voy-btn">🚪 Me Voy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pantalla de Pausa -->
+        <div id="pause-screen" class="screen">
+            <div class="screen-content">
+                <h2 class="game-title">Juego Pausado</h2>
+                <div class="menu-buttons">
+                    <button class="menu-button" onclick="resumeGame()">▶️ Continuar</button>
+                    <button class="menu-button" onclick="showScreen('settings-screen')">⚙️ Configuración</button>
+                    <button class="menu-button" onclick="showScreen('main-screen')">🏠 Menú Principal</button>
+                    <button class="menu-button" onclick="restartGame()">🔄 Reiniciar Partida</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales -->
+    <div class="modal" id="confirm-modal">
+        <div class="modal-content">
+            <div class="modal-title" id="modal-title">Confirmar Acción</div>
+            <div class="modal-text" id="modal-text">¿Estás seguro de que quieres realizar esta acción?</div>
+            <div class="modal-buttons">
+                <button class="modal-button" id="modal-cancel">Cancelar</button>
+                <button class="modal-button primary" id="modal-confirm">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificaciones -->
+    <div class="notification" id="notification">
+        <span id="notification-text">Notificación</span>
+    </div>
+
+    <!-- Logros -->
+    <div class="achievement" id="achievement">
+        <div class="achievement-icon" id="achievement-icon">🏆</div>
+        <div class="achievement-title" id="achievement-title">¡Logro Desbloqueado!</div>
+        <div class="achievement-description" id="achievement-description">Has conseguido un nuevo logro</div>
+    </div>
+
+    <!-- Indicador de Combo -->
+    <div class="combo-indicator" id="combo-indicator"></div>
+
+    <!-- Tutorial Overlay -->
+    <div class="tutorial-overlay" id="tutorial-overlay">
+        <div class="tutorial-step" id="tutorial-step">
+            <div class="tutorial-title" id="tutorial-step-title">Paso del Tutorial</div>
+            <div class="tutorial-text" id="tutorial-step-text">Descripción del paso</div>
+            <div class="tutorial-buttons">
+                <button class="tutorial-button" id="tutorial-prev">Anterior</button>
+                <button class="tutorial-button primary" id="tutorial-next">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- NUEVOS RECURSOS DEL JUEGO ---
+        const DECKS = ['default', 'europea', 'moderna', 'especial'];
+        const BOARDS = ['tablero-cama.jpg', 'tablero-mesa.jpg', 'tablero-grama.jpg', 'tablero-salon.jpg'];
+        const AVATARS = ['avatar1.jpg', 'avatar2.jpg', 'avatar3.jpg', 'avatar4.jpg', 'avatar5.jpg', 'avatar6.jpg', 'avatar7.jpg']; // Asumiendo nombres de archivo
+
+        // Variables globales del juego
+        let gameState = {
+            playerScore: 0,
+            computerScore: 0,
+            currentRound: 1,
+            maxRounds: 3,
+            playerHand: [],
+            computerHand: [],
+            playerPlayedCard: null,
+            computerPlayedCard: null,
+            isPlayerTurn: true,
+            difficulty: 'medium',
+            activeCalls: [],
+            roundsWon: { player: 0, computer: 0 },
+            gameInProgress: false,
+            handInProgress: false,
+            currentTrucoLevel: 0, // 0: normal, 1: truco, 2: retruco, 3: vale4
+            currentEnvidoLevel: 0, // 0: none, 1: envido, 2: real envido, 3: falta envido
+            playerEnvidoPoints: 0,
+            computerEnvidoPoints: 0,
+            playerHasFlor: false,
+            computerHasFlor: false,
+            waitingForResponse: false,
+            lastCall: null,
+            gameStartTime: null,
+            currentStreak: 0,
+            bestStreak: 0,
+            selectedAvatar: '' // Nuevo
+        };
+
+        // Configuración del juego
+        let gameSettings = {
+            soundEffectsEnabled: true,
+            backgroundMusicEnabled: false,
+            masterVolume: 70,
+            effectsVolume: 80,
+            musicVolume: 50,
+            animationsEnabled: true,
+            confirmMoves: false,
+            showHints: true,
+            autoPlay: false,
+            gameSpeed: 3,
+            darkMode: true,
+            particlesEnabled: true,
+            hdCards: false,
+            showCardPower: true,
+            handStrengthIndicator: true,
+            showAiThinking: true,
+            aiResponseTime: 5,
+            aiPersonality: 'balanced',
+            largeText: false,
+            highContrast: false,
+            reduceMotion: false,
+            voiceNarration: false,
+            autoSave: true,
+            cloudSync: false,
+            selectedDeck: 'default', // Nuevo
+            selectedBoard: 'tablero-cama.jpg' // Nuevo
+        };
+
+        // Estadísticas del jugador
+        let playerStats = {
+            gamesPlayed: 0,
+            gamesWon: 0,
+            trucosCalled: 0,
+            trucosWon: 0,
+            envidosCalled: 0,
+            envidosWon: 0,
+            floresAchieved: 0,
+            totalPoints: 0,
+            bestStreak: 0,
+            timePlayed: 0, // en minutos
+            playerLevel: 1,
+            experience: 0
+        };
+
+        // Sistema de logros
+        let achievements = {
+            firstWin: { unlocked: false, name: "Primera Victoria", description: "Gana tu primera partida", icon: "🏆" },
+            trucoMaster: { unlocked: false, name: "Maestro del Truco", description: "Gana 10 trucos", icon: "⚡" },
+            envidoExpert: { unlocked: false, name: "Experto en Envido", description: "Gana 10 envidos", icon: "🎵" },
+            florCollector: { unlocked: false, name: "Coleccionista de Flores", description: "Consigue 5 flores", icon: "🌸" },
+            winStreak5: { unlocked: false, name: "Racha de 5", description: "Gana 5 partidas seguidas", icon: "🔥" },
+            winStreak10: { unlocked: false, name: "Racha de 10", description: "Gana 10 partidas seguidas", icon: "🔥🔥" },
+            perfectGame: { unlocked: false, name: "Juego Perfecto", description: "Gana 30-0", icon: "💎" },
+            speedster: { unlocked: false, name: "Velocista", description: "Gana en menos de 5 minutos", icon: "⚡" },
+            veteran: { unlocked: false, name: "Veterano", description: "Juega 100 partidas", icon: "🎖️" },
+            levelUp: { unlocked: false, name: "Subida de Nivel", description: "Alcanza el nivel 10", icon: "⭐" }
+        };
+
+        // Mapeo de palos para nombres de archivo
+        const suitFileMap = {
+            espadas: 'espadas',
+            bastos: 'treboles',
+            oros: 'diamantes',
+            copas: 'corazones'
+        };
+
+        // Cartas del juego (baraja española) - MODIFICADO
+        const cards = [
+            // Espadas
+            { suit: 'espadas', value: 1, name: 'As de Espadas', power: 14, image: '🂡', envidoValue: 1, imageFile: `1-${suitFileMap.espadas}.jpg` },
+            { suit: 'espadas', value: 2, name: '2 de Espadas', power: 9, image: '🂢', envidoValue: 2, imageFile: `2-${suitFileMap.espadas}.jpg` },
+            { suit: 'espadas', value: 3, name: '3 de Espadas', power: 10, image: '🂣', envidoValue: 3, imageFile: `3-${suitFileMap.espadas}.jpg` },
+            { suit: 'espadas', value: 4, name: '4 de Espadas', power: 1, image: '🂤', envidoValue: 4, imageFile: `4-${suitFileMap.espadas}.jpg` },
+            { suit: 'espadas', value: 5, name: '5 de Espadas', power: 2, image: '🂥', envidoValue: 5, imageFile: `5-${suitFileMap.espadas}.jpg` },
+            { suit: 'espadas', value: 6, name: '6 de Espadas', power: 3, image: '🂦', envidoValue: 6, imageFile: `6-${suitFileMap.espadas}.jpg` },
+            { suit: 'espadas', value: 7, name: '7 de Espadas', power: 12, image: '🂧', envidoValue: 7, imageFile: `7-${suitFileMap.espadas}.jpg` },
+            { suit: 'espadas', value: 10, name: 'Sota de Espadas', power: 5, image: '🂫', envidoValue: 0, imageFile: `10-${suitFileMap.espadas}.jpg` },
+            { suit: 'espadas', value: 11, name: 'Caballo de Espadas', power: 6, image: '🂭', envidoValue: 0, imageFile: `11-${suitFileMap.espadas}.jpg` },
+            { suit: 'espadas', value: 12, name: 'Rey de Espadas', power: 7, image: '🂮', envidoValue: 0, imageFile: `12-${suitFileMap.espadas}.jpg` },
+            
+            // Bastos
+            { suit: 'bastos', value: 1, name: 'As de Bastos', power: 13, image: '🃑', envidoValue: 1, imageFile: `1-${suitFileMap.bastos}.jpg` },
+            { suit: 'bastos', value: 2, name: '2 de Bastos', power: 9, image: '🃒', envidoValue: 2, imageFile: `2-${suitFileMap.bastos}.jpg` },
+            { suit: 'bastos', value: 3, name: '3 de Bastos', power: 10, image: '🃓', envidoValue: 3, imageFile: `3-${suitFileMap.bastos}.jpg` },
+            { suit: 'bastos', value: 4, name: '4 de Bastos', power: 1, image: '🃔', envidoValue: 4, imageFile: `4-${suitFileMap.bastos}.jpg` },
+            { suit: 'bastos', value: 5, name: '5 de Bastos', power: 2, image: '🃕', envidoValue: 5, imageFile: `5-${suitFileMap.bastos}.jpg` },
+            { suit: 'bastos', value: 6, name: '6 de Bastos', power: 3, image: '🃖', envidoValue: 6, imageFile: `6-${suitFileMap.bastos}.jpg` },
+            { suit: 'bastos', value: 7, name: '7 de Bastos', power: 4, image: '🃗', envidoValue: 7, imageFile: `7-${suitFileMap.bastos}.jpg` },
+            { suit: 'bastos', value: 10, name: 'Sota de Bastos', power: 5, image: '🃛', envidoValue: 0, imageFile: `10-${suitFileMap.bastos}.jpg` },
+            { suit: 'bastos', value: 11, name: 'Caballo de Bastos', power: 6, image: '🃝', envidoValue: 0, imageFile: `11-${suitFileMap.bastos}.jpg` },
+            { suit: 'bastos', value: 12, name: 'Rey de Bastos', power: 7, image: '🃞', envidoValue: 0, imageFile: `12-${suitFileMap.bastos}.jpg` },
+            
+            // Oros
+            { suit: 'oros', value: 1, name: 'As de Oros', power: 8, image: '🃁', envidoValue: 1, imageFile: `1-${suitFileMap.oros}.jpg` },
+            { suit: 'oros', value: 2, name: '2 de Oros', power: 9, image: '🃂', envidoValue: 2, imageFile: `2-${suitFileMap.oros}.jpg` },
+            { suit: 'oros', value: 3, name: '3 de Oros', power: 10, image: '🃃', envidoValue: 3, imageFile: `3-${suitFileMap.oros}.jpg` },
+            { suit: 'oros', value: 4, name: '4 de Oros', power: 1, image: '🃄', envidoValue: 4, imageFile: `4-${suitFileMap.oros}.jpg` },
+            { suit: 'oros', value: 5, name: '5 de Oros', power: 2, image: '🃅', envidoValue: 5, imageFile: `5-${suitFileMap.oros}.jpg` },
+            { suit: 'oros', value: 6, name: '6 de Oros', power: 3, image: '🃆', envidoValue: 6, imageFile: `6-${suitFileMap.oros}.jpg` },
+            { suit: 'oros', value: 7, name: '7 de Oros', power: 11, image: '🃇', envidoValue: 7, imageFile: `7-${suitFileMap.oros}.jpg` },
+            { suit: 'oros', value: 10, name: 'Sota de Oros', power: 5, image: '🃋', envidoValue: 0, imageFile: `10-${suitFileMap.oros}.jpg` },
+            { suit: 'oros', value: 11, name: 'Caballo de Oros', power: 6, image: '🃍', envidoValue: 0, imageFile: `11-${suitFileMap.oros}.jpg` },
+            { suit: 'oros', value: 12, name: 'Rey de Oros', power: 7, image: '🃎', envidoValue: 0, imageFile: `12-${suitFileMap.oros}.jpg` },
+            
+            // Copas
+            { suit: 'copas', value: 1, name: 'As de Copas', power: 8, image: '🃱', envidoValue: 1, imageFile: `1-${suitFileMap.copas}.jpg` },
+            { suit: 'copas', value: 2, name: '2 de Copas', power: 9, image: '🃲', envidoValue: 2, imageFile: `2-${suitFileMap.copas}.jpg` },
+            { suit: 'copas', value: 3, name: '3 de Copas', power: 10, image: '🃳', envidoValue: 3, imageFile: `3-${suitFileMap.copas}.jpg` },
+            { suit: 'copas', value: 4, name: '4 de Copas', power: 1, image: '🃴', envidoValue: 4, imageFile: `4-${suitFileMap.copas}.jpg` },
+            { suit: 'copas', value: 5, name: '5 de Copas', power: 2, image: '🃵', envidoValue: 5, imageFile: `5-${suitFileMap.copas}.jpg` },
+            { suit: 'copas', value: 6, name: '6 de Copas', power: 3, image: '🃶', envidoValue: 6, imageFile: `6-${suitFileMap.copas}.jpg` },
+            { suit: 'copas', value: 7, name: '7 de Copas', power: 4, image: '🃷', envidoValue: 7, imageFile: `7-${suitFileMap.copas}.jpg` },
+            { suit: 'copas', value: 10, name: 'Sota de Copas', power: 5, image: '🃻', envidoValue: 0, imageFile: `10-${suitFileMap.copas}.jpg` },
+            { suit: 'copas', value: 11, name: 'Caballo de Copas', power: 6, image: '🃽', envidoValue: 0, imageFile: `11-${suitFileMap.copas}.jpg` },
+            { suit: 'copas', value: 12, name: 'Rey de Copas', power: 7, image: '🃾', envidoValue: 0, imageFile: `12-${suitFileMap.copas}.jpg` }
+        ];
+
+        // Sistema de tutorial
+        let tutorialSteps = [];
+        let currentTutorialStep = 0;
+        let tutorialActive = false;
+
+        // Sistema de sonido
+        let audioContext = null;
+        let soundEffects = {};
+
+        // Inicialización del juego
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeGame();
+        });
+
+        function initializeGame() {
+            console.log('Inicializando juego...');
+            
+            showLoadingScreen();
+            
+            setTimeout(() => {
+                hideLoadingScreen();
+                loadSettings();
+                loadStats();
+                loadAchievements();
+                setupEventListeners();
+                initializeParticles();
+                initializeAudio();
+                populateSetupScreen(); // Nuevo
+                showScreen('main-screen');
+                
+                if (playerStats.gamesPlayed === 0) {
+                    setTimeout(() => {
+                        showNotification('¡Bienvenido al Truco Venezolano! Prueba el tutorial para aprender.', 'info');
+                    }, 1000);
+                }
+            }, 2000);
+        }
+
+        function showLoadingScreen() {
+            document.getElementById('loading-screen').classList.remove('hidden');
+        }
+
+        function hideLoadingScreen() {
+            document.getElementById('loading-screen').classList.add('hidden');
+        }
+
+        function setupEventListeners() {
+            // Botones del menú principal
+            document.getElementById('play-btn').addEventListener('click', () => {
+                showScreen('setup-screen'); // Modificado
+            });
+
+            document.getElementById('tutorial-btn').addEventListener('click', () => {
+                showScreen('tutorial-screen');
+            });
+
+            document.getElementById('instructions-btn').addEventListener('click', () => {
+                showScreen('instructions-screen');
+            });
+
+            document.getElementById('stats-btn').addEventListener('click', () => {
+                showScreen('stats-screen');
+                updateStatsDisplay();
+            });
+
+            document.getElementById('achievements-btn').addEventListener('click', () => {
+                showScreen('achievements-screen');
+                updateAchievementsDisplay();
+            });
+
+            document.getElementById('settings-btn').addEventListener('click', () => {
+                showScreen('settings-screen');
+            });
+
+            // Botón de continuar a dificultad (Nuevo)
+            document.getElementById('continue-to-difficulty-btn').addEventListener('click', () => {
+                showScreen('difficulty-screen');
+            });
+
+            // Botón de comenzar juego
+            document.getElementById('start-game-btn').addEventListener('click', () => {
+                startNewGame();
+            });
+
+            // Botones de dificultad
+            document.querySelectorAll('.difficulty-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    document.querySelectorAll('.difficulty-button').forEach(b => b.classList.remove('selected'));
+                    button.classList.add('selected');
+                    gameState.difficulty = button.dataset.difficulty;
+                });
+            });
+
+            // Botones de acción del juego
+            document.getElementById('envido-btn').addEventListener('click', () => callEnvido());
+            document.getElementById('real-envido-btn').addEventListener('click', () => callRealEnvido());
+            document.getElementById('falta-envido-btn').addEventListener('click', () => callFaltaEnvido());
+            document.getElementById('truco-btn').addEventListener('click', () => callTruco());
+            document.getElementById('retruco-btn').addEventListener('click', () => callRetruco());
+            document.getElementById('vale4-btn').addEventListener('click', () => callVale4());
+            document.getElementById('flor-btn').addEventListener('click', () => callFlor());
+            document.getElementById('quiero-btn').addEventListener('click', () => acceptCall());
+            document.getElementById('no-quiero-btn').addEventListener('click', () => rejectCall());
+            document.getElementById('me-voy-btn').addEventListener('click', () => foldHand());
+
+            // Toggle de sonido
+            document.getElementById('sound-toggle').addEventListener('click', toggleSound);
+
+            // Tutorial
+            document.getElementById('start-tutorial-btn').addEventListener('click', startInteractiveTutorial);
+
+            // Configuración - toggles y sliders
+            setupSettingsListeners();
+
+            // Modal
+            document.getElementById('modal-cancel').addEventListener('click', hideModal);
+            document.getElementById('modal-confirm').addEventListener('click', confirmModalAction);
+
+            // Eventos de teclado
+            document.addEventListener('keydown', handleKeyPress);
+        }
+
+        function setupSettingsListeners() {
+            const toggles = [
+                { id: 'sound-effects-toggle', setting: 'soundEffectsEnabled' },
+                { id: 'background-music-toggle', setting: 'backgroundMusicEnabled' },
+                { id: 'animations-toggle', setting: 'animationsEnabled' },
+                { id: 'confirm-moves-toggle', setting: 'confirmMoves' },
+                { id: 'show-hints-toggle', setting: 'showHints' },
+                { id: 'auto-play-toggle', setting: 'autoPlay' },
+                { id: 'dark-mode-toggle', setting: 'darkMode' },
+                { id: 'particles-toggle', setting: 'particlesEnabled' },
+                { id: 'hd-cards-toggle', setting: 'hdCards' },
+                { id: 'show-card-power-toggle', setting: 'showCardPower' },
+                { id: 'hand-strength-toggle', setting: 'handStrengthIndicator' },
+                { id: 'show-ai-thinking-toggle', setting: 'showAiThinking' },
+                { id: 'large-text-toggle', setting: 'largeText' },
+                { id: 'high-contrast-toggle', setting: 'highContrast' },
+                { id: 'reduce-motion-toggle', setting: 'reduceMotion' },
+                { id: 'voice-narration-toggle', setting: 'voiceNarration' },
+                { id: 'auto-save-toggle', setting: 'autoSave' },
+                { id: 'cloud-sync-toggle', setting: 'cloudSync' }
+            ];
+
+            toggles.forEach(toggle => {
+                const element = document.getElementById(toggle.id);
+                if (element) {
+                    element.addEventListener('click', () => {
+                        element.classList.toggle('active');
+                        gameSettings[toggle.setting] = element.classList.contains('active');
+                        applySettings();
+                        saveSettings();
+                    });
+                }
+            });
+
+            // Sliders
+            const sliders = [
+                { id: 'master-volume', setting: 'masterVolume' },
+                { id: 'effects-volume', setting: 'effectsVolume' },
+                { id: 'music-volume', setting: 'musicVolume' },
+                { id: 'game-speed', setting: 'gameSpeed' },
+                { id: 'ai-response-time', setting: 'aiResponseTime' }
+            ];
+
+            sliders.forEach(slider => {
+                const element = document.getElementById(slider.id);
+                if (element) {
+                    element.addEventListener('input', (e) => {
+                        gameSettings[slider.setting] = parseInt(e.target.value);
+                        applySettings();
+                        saveSettings();
+                    });
+                }
+            });
+
+            // Select de personalidad de IA
+            const aiPersonality = document.getElementById('ai-personality');
+            if (aiPersonality) {
+                aiPersonality.addEventListener('change', (e) => {
+                    gameSettings.aiPersonality = e.target.value;
+                    saveSettings();
+                });
+            }
+        }
+
+        function showScreen(screenId) {
+            console.log('Mostrando pantalla:', screenId);
+            
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            
+            document.getElementById('game-board').classList.remove('active');
+            
+            if (screenId === 'game-board') {
+                document.getElementById('game-board').classList.add('active');
+            } else {
+                const targetScreen = document.getElementById(screenId);
+                if (targetScreen) {
+                    targetScreen.classList.add('active');
+                } else {
+                    console.error('Pantalla no encontrada:', screenId);
+                }
+            }
+
+            playSound('navigate');
+        }
+
+        // --- NUEVAS FUNCIONES DE PERSONALIZACIÓN ---
+        function populateSetupScreen() {
+            const deckContainer = document.getElementById('deck-selection');
+            const boardContainer = document.getElementById('board-selection');
+            deckContainer.innerHTML = '';
+            boardContainer.innerHTML = '';
+
+            // Populate Decks
+            DECKS.forEach(deckName => {
+                const item = document.createElement('div');
+                item.className = 'selection-item';
+                if (deckName === gameSettings.selectedDeck) {
+                    item.classList.add('selected');
+                }
+                item.dataset.deck = deckName;
+                item.innerHTML = `
+                    <img src="images/decks/${deckName}/deck-preview.jpg" alt="Preview ${deckName}">
+                    <div class="item-name">${deckName}</div>
+                `;
+                item.addEventListener('click', () => {
+                    gameSettings.selectedDeck = deckName;
+                    document.querySelectorAll('#deck-selection .selection-item').forEach(el => el.classList.remove('selected'));
+                    item.classList.add('selected');
+                    saveSettings();
+                });
+                deckContainer.appendChild(item);
+            });
+
+            // Populate Boards
+            BOARDS.forEach(boardFile => {
+                const item = document.createElement('div');
+                item.className = 'selection-item';
+                if (boardFile === gameSettings.selectedBoard) {
+                    item.classList.add('selected');
+                }
+                item.dataset.board = boardFile;
+                item.innerHTML = `
+                    <img src="images/backgrounds/${boardFile}" alt="Preview ${boardFile}">
+                    <div class="item-name">${boardFile.replace('tablero-', '').replace('.jpg', '')}</div>
+                `;
+                item.addEventListener('click', () => {
+                    gameSettings.selectedBoard = boardFile;
+                    document.querySelectorAll('#board-selection .selection-item').forEach(el => el.classList.remove('selected'));
+                    item.classList.add('selected');
+                    saveSettings();
+                });
+                boardContainer.appendChild(item);
+            });
+
+            // Set random avatar for preview
+            const randomAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
+            document.getElementById('setup-avatar-preview').src = `images/avatars/${randomAvatar}`;
+            gameState.selectedAvatar = randomAvatar;
+        }
+
+        function applyBoardAndAvatar() {
+            // Apply board background
+            const gameBoard = document.getElementById('game-board');
+            gameBoard.style.backgroundImage = `url('images/backgrounds/${gameSettings.selectedBoard}')`;
+
+            // Apply AI avatar
+            const computerAvatar = document.getElementById('computer-avatar');
+            computerAvatar.src = `images/avatars/${gameState.selectedAvatar}`;
+        }
+        // --- FIN DE NUEVAS FUNCIONES ---
+
+        function startNewGame() {
+            console.log('Iniciando nuevo juego...');
+            
+            gameState = {
+                ...gameState, // Mantener avatar seleccionado
+                playerScore: 0,
+                computerScore: 0,
+                currentRound: 1,
+                maxRounds: 3,
+                playerHand: [],
+                computerHand: [],
+                playerPlayedCard: null,
+                computerPlayedCard: null,
+                isPlayerTurn: true,
+                difficulty: gameState.difficulty,
+                activeCalls: [],
+                roundsWon: { player: 0, computer: 0 },
+                gameInProgress: true,
+                handInProgress: false,
+                currentTrucoLevel: 0,
+                currentEnvidoLevel: 0,
+                playerEnvidoPoints: 0,
+                computerEnvidoPoints: 0,
+                playerHasFlor: false,
+                computerHasFlor: false,
+                waitingForResponse: false,
+                lastCall: null,
+                gameStartTime: Date.now(),
+                currentStreak: playerStats.currentStreak || 0,
+                bestStreak: playerStats.bestStreak || 0
+            };
+
+            applyBoardAndAvatar(); // Nuevo
+            dealCards();
+            showScreen('game-board');
+            updateGameInterface();
+            playSound('gameStart');
+        }
+
+        function dealCards() {
+            const shuffledCards = [...cards].sort(() => Math.random() - 0.5);
+            
+            gameState.playerHand = shuffledCards.slice(0, 3);
+            gameState.computerHand = shuffledCards.slice(3, 6);
+            
+            gameState.playerEnvidoPoints = calculateEnvidoPoints(gameState.playerHand);
+            gameState.computerEnvidoPoints = calculateEnvidoPoints(gameState.computerHand);
+            
+            gameState.playerHasFlor = hasFlor(gameState.playerHand);
+            gameState.computerHasFlor = hasFlor(gameState.computerHand);
+            
+            displayPlayerHand();
+            displayComputerHand();
+            
+            updateHandStrengthIndicators();
+            playSound('dealCards');
+        }
+
+        function calculateEnvidoPoints(hand) {
+            const suits = {};
+            
+            hand.forEach(card => {
+                if (!suits[card.suit]) suits[card.suit] = [];
+                suits[card.suit].push(card.envidoValue);
+            });
+            
+            let maxPoints = 0;
+            
+            Object.keys(suits).forEach(suit => {
+                if (suits[suit].length >= 2) {
+                    const sortedCards = suits[suit].sort((a, b) => b - a);
+                    let points = sortedCards[0] + sortedCards[1];
+                    if (points < 20) points += 20;
+                    maxPoints = Math.max(maxPoints, points);
+                }
+            });
+            
+            return maxPoints;
+        }
+
+        function hasFlor(hand) {
+            const suits = {};
+            hand.forEach(card => {
+                suits[card.suit] = (suits[card.suit] || 0) + 1;
+            });
+            
+            return Object.values(suits).some(count => count === 3);
+        }
+
+        function updateHandStrengthIndicators() {
+            if (!gameSettings.handStrengthIndicator) return;
+            
+            const playerStrength = calculateHandStrength(gameState.playerHand);
+            const playerFill = document.querySelector('#player-hand-strength .hand-strength-fill');
+            if (playerFill) {
+                playerFill.style.width = `${playerStrength}%`;
+            }
+        }
+
+        function calculateHandStrength(hand) {
+            if (!hand || hand.length === 0) return 0;
+            
+            const totalPower = hand.reduce((sum, card) => sum + card.power, 0);
+            const maxPossiblePower = 14 + 13 + 12;
+            
+            return Math.min(100, (totalPower / maxPossiblePower) * 100);
+        }
+
+        function displayPlayerHand() {
+            const playerHandElement = document.getElementById('player-hand');
+            playerHandElement.innerHTML = '';
+            
+            gameState.playerHand.forEach((card, index) => {
+                const cardElement = createCardElement(card, true);
+                cardElement.addEventListener('click', () => playCard(index));
+                playerHandElement.appendChild(cardElement);
+            });
+        }
+
+        function displayComputerHand() {
+            const computerHandElement = document.getElementById('computer-hand');
+            computerHandElement.innerHTML = '';
+            
+            gameState.computerHand.forEach(() => {
+                const cardElement = createCardElement(null, false);
+                computerHandElement.appendChild(cardElement);
+            });
+        }
+
+        function createCardElement(card, faceUp = true) {
+            const cardDiv = document.createElement('div');
+            cardDiv.className = 'card';
+            
+            const cardImg = document.createElement('img');
+            cardImg.className = 'card-image';
+
+            if (faceUp && card) {
+                cardImg.src = `images/decks/${gameSettings.selectedDeck}/${card.imageFile}`;
+                cardImg.alt = card.name;
+                cardDiv.appendChild(cardImg);
+                
+                if (gameSettings.showCardPower) {
+                    const powerIndicator = document.createElement('div');
+                    powerIndicator.className = 'card-power-indicator';
+                    powerIndicator.textContent = card.power;
+                    cardDiv.appendChild(powerIndicator);
+                }
+            } else {
+                cardDiv.classList.add('card-back');
+                cardImg.src = `images/decks/${gameSettings.selectedDeck}/card-back.jpg`;
+                cardImg.alt = 'Carta boca abajo';
+                cardDiv.appendChild(cardImg);
+            }
+            
+            return cardDiv;
+        }
+
+        function playCard(cardIndex) {
+            if (!gameState.isPlayerTurn || !gameState.gameInProgress || gameState.waitingForResponse) return;
+            
+            const playedCard = gameState.playerHand[cardIndex];
+            
+            if (gameSettings.confirmMoves) {
+                showModal(
+                    'Confirmar Jugada',
+                    `¿Quieres jugar ${playedCard.name}?`,
+                    () => executePlayCard(cardIndex)
+                );
+                return;
+            }
+            
+            executePlayCard(cardIndex);
+        }
+
+        function executePlayCard(cardIndex) {
+            const playedCard = gameState.playerHand[cardIndex];
+            gameState.playerPlayedCard = playedCard;
+            gameState.playerHand.splice(cardIndex, 1);
+            
+            displayPlayedCard(playedCard, 'player');
+            displayPlayerHand();
+            updateHandStrengthIndicators();
+            playSound('playCard');
+            
+            gameState.isPlayerTurn = false;
+            updateGameInterface();
+            
+            setTimeout(() => {
+                computerPlayCard();
+            }, getAiDelay());
+        }
+
+        function getAiDelay() {
+            const baseDelay = 1000;
+            const speedMultiplier = gameSettings.gameSpeed / 3;
+            const responseTime = gameSettings.aiResponseTime * 100;
+            return Math.max(500, baseDelay + responseTime - (speedMultiplier * 300));
+        }
+
+        function computerPlayCard() {
+            if (gameState.computerHand.length === 0) return;
+            
+            if (gameSettings.showAiThinking) {
+                showAiThinking();
+            }
+            
+            setTimeout(() => {
+                hideAiThinking();
+                
+                const cardIndex = selectBestCardForAI();
+                const playedCard = gameState.computerHand[cardIndex];
+                gameState.computerPlayedCard = playedCard;
+                gameState.computerHand.splice(cardIndex, 1);
+                
+                displayPlayedCard(playedCard, 'computer');
+                displayComputerHand();
+                playSound('playCard');
+                
+                setTimeout(() => {
+                    evaluateRound();
+                }, 1500);
+            }, getAiDelay() / 2);
+        }
+
+        function selectBestCardForAI() {
+            const difficulty = gameState.difficulty;
+            const hand = gameState.computerHand;
+            
+            if (difficulty === 'easy') {
+                return Math.floor(Math.random() * hand.length);
+            } else if (difficulty === 'medium') {
+                if (gameState.playerPlayedCard) {
+                    const playerPower = gameState.playerPlayedCard.power;
+                    for (let i = 0; i < hand.length; i++) {
+                        if (hand[i].power > playerPower) {
+                            return i;
+                        }
+                    }
+                    return hand.reduce((minIndex, card, index) => 
+                        card.power < hand[minIndex].power ? index : minIndex, 0);
+                }
+                return Math.floor(Math.random() * hand.length);
+            } else if (difficulty === 'hard') {
+                return selectAdvancedAICard();
+            } else if (difficulty === 'master') {
+                return selectOptimalAICard();
+            }
+            
+            return Math.floor(Math.random() * hand.length);
+        }
+
+        function selectAdvancedAICard() {
+            const hand = gameState.computerHand;
+            const playerCard = gameState.playerPlayedCard;
+            
+            if (playerCard) {
+                const winningCards = hand.filter(card => card.power > playerCard.power);
+                
+                if (winningCards.length > 0) {
+                    const bestCard = winningCards.reduce((min, card) => 
+                        card.power < min.power ? card : min);
+                    return hand.indexOf(bestCard);
+                } else {
+                    const worstCard = hand.reduce((min, card) => 
+                        card.power < min.power ? card : min);
+                    return hand.indexOf(worstCard);
+                }
+            } else {
+                if (gameState.currentRound === 1) {
+                    const sortedHand = [...hand].sort((a, b) => a.power - b.power);
+                    const middleCard = sortedHand[Math.floor(sortedHand.length / 2)];
+                    return hand.indexOf(middleCard);
+                } else {
+                    const bestCard = hand.reduce((max, card) => 
+                        card.power > max.power ? card : max);
+                    return hand.indexOf(bestCard);
+                }
+            }
+        }
+
+        function selectOptimalAICard() {
+            const hand = gameState.computerHand;
+            const playerCard = gameState.playerPlayedCard;
+            
+            if (playerCard) {
+                const canWin = hand.some(card => card.power > playerCard.power);
+                
+                if (canWin) {
+                    const winningCards = hand.filter(card => card.power > playerCard.power);
+                    const optimalCard = winningCards.reduce((min, card) => 
+                        card.power < min.power ? card : min);
+                    return hand.indexOf(optimalCard);
+                } else {
+                    const worstCard = hand.reduce((min, card) => 
+                        card.power < min.power ? card : min);
+                    return hand.indexOf(worstCard);
+                }
+            } else {
+                return selectOptimalOpeningCard();
+            }
+        }
+
+        function selectOptimalOpeningCard() {
+            const hand = gameState.computerHand;
+            const roundsWon = gameState.roundsWon;
+            
+            if (roundsWon.computer === 0 && roundsWon.player === 0) {
+                const sortedHand = [...hand].sort((a, b) => b.power - a.power);
+                return hand.indexOf(sortedHand[1] || sortedHand[0]);
+            } else if (roundsWon.computer > roundsWon.player) {
+                const sortedHand = [...hand].sort((a, b) => a.power - b.power);
+                return hand.indexOf(sortedHand[0]);
+            } else {
+                const bestCard = hand.reduce((max, card) => 
+                    card.power > max.power ? card : max);
+                return hand.indexOf(bestCard);
+            }
+        }
+
+        function showAiThinking() {
+            const aiThinking = document.getElementById('ai-thinking');
+            if (aiThinking) {
+                aiThinking.classList.add('show');
+            }
+        }
+
+        function hideAiThinking() {
+            const aiThinking = document.getElementById('ai-thinking');
+            if (aiThinking) {
+                aiThinking.classList.remove('show');
+            }
+        }
+
+        function displayPlayedCard(card, player) {
+            const elementId = player === 'player' ? 'player-played-card' : 'computer-played-card';
+            const element = document.getElementById(elementId);
+            
+            if (element) {
+                const cardElement = createCardElement(card, true);
+                element.innerHTML = '';
+                element.appendChild(cardElement);
+            }
+        }
+
+        function evaluateRound() {
+            if (!gameState.playerPlayedCard || !gameState.computerPlayedCard) return;
+            
+            const playerPower = gameState.playerPlayedCard.power;
+            const computerPower = gameState.computerPlayedCard.power;
+            
+            let roundWinner = null;
+            let resultText = '';
+            
+            if (playerPower > computerPower) {
+                roundWinner = 'player';
+                gameState.roundsWon.player++;
+                resultText = '¡Ganaste la ronda!';
+                playSound('roundWin');
+            } else if (computerPower > playerPower) {
+                roundWinner = 'computer';
+                gameState.roundsWon.computer++;
+                resultText = 'La computadora ganó la ronda';
+                playSound('roundLose');
+            } else {
+                resultText = 'Ronda empatada';
+                playSound('roundTie');
+            }
+            
+            showRoundResult(resultText);
+            
+            setTimeout(() => {
+                hideRoundResult();
+                document.getElementById('player-played-card').innerHTML = '';
+                document.getElementById('computer-played-card').innerHTML = '';
+                gameState.playerPlayedCard = null;
+                gameState.computerPlayedCard = null;
+                
+                if (gameState.roundsWon.player >= 2) {
+                    endHand('player');
+                } else if (gameState.roundsWon.computer >= 2) {
+                    endHand('computer');
+                } else if (gameState.currentRound >= gameState.maxRounds) {
+                    if (gameState.roundsWon.player > gameState.roundsWon.computer) {
+                        endHand('player');
+                    } else if (gameState.roundsWon.computer > gameState.roundsWon.player) {
+                        endHand('computer');
+                    } else {
+                        endHand('tie');
+                    }
+                } else {
+                    gameState.currentRound++;
+                    gameState.isPlayerTurn = true;
+                    updateGameInterface();
+                }
+            }, 3000);
+        }
+
+        function showRoundResult(text) {
+            const roundResult = document.getElementById('round-result');
+            const roundResultTitle = document.getElementById('round-result-title');
+            
+            if (roundResult && roundResultTitle) {
+                roundResultTitle.textContent = text;
+                roundResult.classList.add('show');
+            }
+        }
+
+        function hideRoundResult() {
+            const roundResult = document.getElementById('round-result');
+            if (roundResult) {
+                roundResult.classList.remove('show');
+            }
+        }
+
+        function endHand(winner) {
+            let pointsToAdd = 1;
+            
+            if (gameState.currentTrucoLevel > 0) {
+                pointsToAdd = gameState.currentTrucoLevel + 1;
+            }
+            
+            if (winner === 'player') {
+                gameState.playerScore += pointsToAdd;
+                playerStats.totalPoints += pointsToAdd;
+                
+                if (gameState.currentTrucoLevel > 0) {
+                    playerStats.trucosWon++;
+                    checkAchievement('trucoMaster');
+                }
+            } else if (winner === 'computer') {
+                gameState.computerScore += pointsToAdd;
+            }
+            
+            if (gameState.playerScore >= 30) {
+                endGame('player');
+            } else if (gameState.computerScore >= 30) {
+                endGame('computer');
+            } else {
+                startNewHand();
+            }
+        }
+
+        function startNewHand() {
+            gameState.currentRound = 1;
+            gameState.roundsWon = { player: 0, computer: 0 };
+            gameState.activeCalls = [];
+            gameState.isPlayerTurn = true;
+            gameState.currentTrucoLevel = 0;
+            gameState.currentEnvidoLevel = 0;
+            gameState.waitingForResponse = false;
+            gameState.lastCall = null;
+            
+            dealCards();
+            updateGameInterface();
+            updateActionButtons();
+        }
+
+        function endGame(winner) {
+            gameState.gameInProgress = false;
+            const gameTime = Date.now() - gameState.gameStartTime;
+            const gameTimeMinutes = Math.floor(gameTime / 60000);
+            
+            playerStats.gamesPlayed++;
+            playerStats.timePlayed += gameTimeMinutes;
+            
+            if (winner === 'player') {
+                playerStats.gamesWon++;
+                gameState.currentStreak++;
+                playerStats.bestStreak = Math.max(playerStats.bestStreak, gameState.currentStreak);
+                
+                checkAchievement('firstWin');
+                if (gameState.currentStreak >= 5) checkAchievement('winStreak5');
+                if (gameState.currentStreak >= 10) checkAchievement('winStreak10');
+                if (gameState.computerScore === 0) checkAchievement('perfectGame');
+                if (gameTimeMinutes < 5) checkAchievement('speedster');
+                
+                showNotification('¡Felicidades! ¡Has ganado el juego!', 'success');
+                playSound('gameWin');
+            } else {
+                gameState.currentStreak = 0;
+                showNotification('La computadora ha ganado. ¡Mejor suerte la próxima vez!', 'error');
+                playSound('gameLose');
+            }
+            
+            if (playerStats.gamesPlayed >= 100) checkAchievement('veteran');
+            
+            updatePlayerLevel();
+            
+            saveStats();
+            setTimeout(() => {
+                populateSetupScreen(); // Refresh avatar for next game
+                showScreen('main-screen');
+            }, 3000);
+        }
+
+        function updatePlayerLevel() {
+            const oldLevel = playerStats.playerLevel;
+            playerStats.experience += playerStats.gamesWon * 10 + playerStats.totalPoints;
+            playerStats.playerLevel = Math.floor(playerStats.experience / 100) + 1;
+            
+            if (playerStats.playerLevel > oldLevel) {
+                showNotification(`¡Subiste al nivel ${playerStats.playerLevel}!`, 'success');
+                if (playerStats.playerLevel >= 10) checkAchievement('levelUp');
+            }
+        }
+
+        function updateGameInterface() {
+            document.getElementById('player-score').textContent = gameState.playerScore;
+            document.getElementById('computer-score').textContent = gameState.computerScore;
+            document.getElementById('round-info').textContent = `Ronda ${gameState.currentRound} de ${gameState.maxRounds}`;
+            
+            const turnStatus = document.getElementById('turn-status');
+            if (gameState.waitingForResponse) {
+                turnStatus.textContent = 'Esperando respuesta...';
+            } else if (gameState.isPlayerTurn) {
+                turnStatus.textContent = 'Tu turno';
+            } else {
+                turnStatus.textContent = 'Turno de la computadora';
+            }
+            
+            updateActiveCalls();
+            updateActionButtons();
+        }
+
+        function updateActiveCalls() {
+            const activeCallsElement = document.getElementById('active-calls');
+            activeCallsElement.innerHTML = '';
+            
+            gameState.activeCalls.forEach(call => {
+                const badge = document.createElement('div');
+                badge.className = 'call-badge';
+                badge.textContent = call;
+                activeCallsElement.appendChild(badge);
+            });
+        }
+
+        function updateActionButtons() {
+            const buttons = {
+                'envido-btn': gameState.currentEnvidoLevel === 0 && !gameState.waitingForResponse,
+                'real-envido-btn': gameState.currentEnvidoLevel === 1 && !gameState.waitingForResponse,
+                'falta-envido-btn': gameState.currentEnvidoLevel <= 2 && !gameState.waitingForResponse,
+                'truco-btn': gameState.currentTrucoLevel === 0 && !gameState.waitingForResponse,
+                'retruco-btn': gameState.currentTrucoLevel === 1 && !gameState.waitingForResponse,
+                'vale4-btn': gameState.currentTrucoLevel === 2 && !gameState.waitingForResponse,
+                'flor-btn': gameState.playerHasFlor && !gameState.waitingForResponse,
+                'quiero-btn': gameState.waitingForResponse,
+                'no-quiero-btn': gameState.waitingForResponse,
+                'me-voy-btn': !gameState.waitingForResponse
+            };
+            
+            Object.keys(buttons).forEach(buttonId => {
+                const button = document.getElementById(buttonId);
+                if (button) {
+                    button.disabled = !buttons[buttonId];
+                    button.style.display = buttons[buttonId] ? 'block' : 'none';
+                }
+            });
+        }
+
+        function callEnvido() {
+            if (!gameState.isPlayerTurn || gameState.waitingForResponse) return;
+            
+            gameState.activeCalls.push('Envido');
+            gameState.currentEnvidoLevel = 1;
+            gameState.lastCall = 'envido';
+            playerStats.envidosCalled++;
+            
+            setTimeout(() => {
+                const aiResponse = getAIResponse('envido');
+                if (aiResponse === 'accept') {
+                    resolveEnvido();
+                } else {
+                    gameState.playerScore += 1;
+                    showNotification('La computadora no quiere el envido', 'info');
+                }
+                gameState.waitingForResponse = false;
+                updateGameInterface();
+            }, getAiDelay());
+            
+            gameState.waitingForResponse = true;
+            updateGameInterface();
+            playSound('call');
+        }
+
+        function callRealEnvido() {
+            if (!gameState.isPlayerTurn || gameState.waitingForResponse) return;
+            
+            gameState.activeCalls.push('Real Envido');
+            gameState.currentEnvidoLevel = 2;
+            gameState.lastCall = 'real-envido';
+            
+            setTimeout(() => {
+                const aiResponse = getAIResponse('real-envido');
+                if (aiResponse === 'accept') {
+                    resolveEnvido();
+                } else {
+                    gameState.playerScore += 2;
+                    showNotification('La computadora no quiere el real envido', 'info');
+                }
+                gameState.waitingForResponse = false;
+                updateGameInterface();
+            }, getAiDelay());
+            
+            gameState.waitingForResponse = true;
+            updateGameInterface();
+            playSound('call');
+        }
+
+        function callFaltaEnvido() {
+            if (!gameState.isPlayerTurn || gameState.waitingForResponse) return;
+            
+            gameState.activeCalls.push('Falta Envido');
+            gameState.currentEnvidoLevel = 3;
+            gameState.lastCall = 'falta-envido';
+            
+            setTimeout(() => {
+                const aiResponse = getAIResponse('falta-envido');
+                if (aiResponse === 'accept') {
+                    resolveEnvido();
+                } else {
+                    gameState.playerScore += 3;
+                    showNotification('La computadora no quiere la falta envido', 'info');
+                }
+                gameState.waitingForResponse = false;
+                updateGameInterface();
+            }, getAiDelay());
+            
+            gameState.waitingForResponse = true;
+            updateGameInterface();
+            playSound('call');
+        }
+
+        function resolveEnvido() {
+            const playerPoints = gameState.playerEnvidoPoints;
+            const computerPoints = gameState.computerEnvidoPoints;
+            
+            let pointsToAdd = 2;
+            if (gameState.currentEnvidoLevel === 2) pointsToAdd = 3;
+            if (gameState.currentEnvidoLevel === 3) pointsToAdd = Math.max(1, 30 - Math.max(gameState.playerScore, gameState.computerScore));
+            
+            if (playerPoints > computerPoints) {
+                gameState.playerScore += pointsToAdd;
+                playerStats.envidosWon++;
+                showNotification(`¡Ganaste el envido! ${playerPoints} vs ${computerPoints}`, 'success');
+                playSound('envidoWin');
+                checkAchievement('envidoExpert');
+            } else if (computerPoints > playerPoints) {
+                gameState.computerScore += pointsToAdd;
+                showNotification(`Perdiste el envido. ${computerPoints} vs ${playerPoints}`, 'error');
+                playSound('envidoLose');
+            } else {
+                gameState.playerScore += pointsToAdd;
+                showNotification(`Empate en envido. Ganas por ser mano: ${playerPoints}`, 'info');
+                playSound('envidoWin');
+            }
+        }
+
+        function callTruco() {
+            if (!gameState.isPlayerTurn || gameState.waitingForResponse) return;
+            
+            gameState.activeCalls.push('Truco');
+            gameState.currentTrucoLevel = 1;
+            gameState.lastCall = 'truco';
+            playerStats.trucosCalled++;
+            
+            setTimeout(() => {
+                const aiResponse = getAIResponse('truco');
+                if (aiResponse === 'accept') {
+                    showNotification('La computadora acepta el truco', 'info');
+                } else {
+                    gameState.playerScore += 1;
+                    showNotification('La computadora no quiere el truco', 'info');
+                    endHand('player');
+                    return;
+                }
+                gameState.waitingForResponse = false;
+                updateGameInterface();
+            }, getAiDelay());
+            
+            gameState.waitingForResponse = true;
+            updateGameInterface();
+            playSound('call');
+        }
+
+        function callRetruco() {
+            if (!gameState.isPlayerTurn || gameState.waitingForResponse) return;
+            
+            gameState.activeCalls.push('Retruco');
+            gameState.currentTrucoLevel = 2;
+            gameState.lastCall = 'retruco';
+            
+            setTimeout(() => {
+                const aiResponse = getAIResponse('retruco');
+                if (aiResponse === 'accept') {
+                    showNotification('La computadora acepta el retruco', 'info');
+                } else {
+                    gameState.playerScore += 2;
+                    showNotification('La computadora no quiere el retruco', 'info');
+                    endHand('player');
+                    return;
+                }
+                gameState.waitingForResponse = false;
+                updateGameInterface();
+            }, getAiDelay());
+            
+            gameState.waitingForResponse = true;
+            updateGameInterface();
+            playSound('call');
+        }
+
+        function callVale4() {
+            if (!gameState.isPlayerTurn || gameState.waitingForResponse) return;
+            
+            gameState.activeCalls.push('Vale 4');
+            gameState.currentTrucoLevel = 3;
+            gameState.lastCall = 'vale4';
+            
+            setTimeout(() => {
+                const aiResponse = getAIResponse('vale4');
+                if (aiResponse === 'accept') {
+                    showNotification('La computadora acepta el vale 4', 'info');
+                } else {
+                    gameState.playerScore += 3;
+                    showNotification('La computadora no quiere el vale 4', 'info');
+                    endHand('player');
+                    return;
+                }
+                gameState.waitingForResponse = false;
+                updateGameInterface();
+            }, getAiDelay());
+            
+            gameState.waitingForResponse = true;
+            updateGameInterface();
+            playSound('call');
+        }
+
+        function callFlor() {
+            if (!gameState.isPlayerTurn || !gameState.playerHasFlor) return;
+            
+            gameState.activeCalls.push('Flor');
+            gameState.playerScore += 3;
+            playerStats.floresAchieved++;
+            
+            showNotification('¡Flor! Sumas 3 puntos automáticamente', 'success');
+            playSound('florWin');
+            checkAchievement('florCollector');
+            
+            updateGameInterface();
+        }
+
+        function getAIResponse(callType) {
+            const difficulty = gameState.difficulty;
+            const aiPersonality = gameSettings.aiPersonality;
+            
+            let acceptChance = 0.5;
+            
+            if (difficulty === 'easy') acceptChance = 0.7;
+            else if (difficulty === 'medium') acceptChance = 0.5;
+            else if (difficulty === 'hard') acceptChance = 0.3;
+            else if (difficulty === 'master') acceptChance = 0.2;
+            
+            if (aiPersonality === 'aggressive') acceptChance += 0.2;
+            else if (aiPersonality === 'conservative') acceptChance -= 0.2;
+            else if (aiPersonality === 'unpredictable') acceptChance = Math.random();
+            
+            if (gameState.computerScore > gameState.playerScore) acceptChance -= 0.1;
+            else if (gameState.computerScore < gameState.playerScore) acceptChance += 0.1;
+            
+            const handStrength = calculateHandStrength(gameState.computerHand);
+            acceptChance += (handStrength - 50) / 100;
+            
+            return Math.random() < acceptChance ? 'accept' : 'reject';
+        }
+
+        function acceptCall() {
+            if (!gameState.waitingForResponse) return;
+            
+            gameState.waitingForResponse = false;
+            showNotification('Aceptaste la llamada', 'info');
+            updateGameInterface();
+            playSound('accept');
+        }
+
+        function rejectCall() {
+            if (!gameState.waitingForResponse) return;
+            
+            gameState.waitingForResponse = false;
+            showNotification('Rechazaste la llamada', 'info');
+            updateGameInterface();
+            playSound('reject');
+        }
+
+        function foldHand() {
+            if (!gameState.isPlayerTurn || gameState.waitingForResponse) return;
+            
+            if (gameSettings.confirmMoves) {
+                showModal(
+                    'Confirmar Retirarse',
+                    '¿Estás seguro de que quieres retirarte de esta mano?',
+                    () => {
+                        endHand('computer');
+                        showNotification('Te retiraste de la mano', 'info');
+                        playSound('fold');
+                    }
+                );
+            } else {
+                endHand('computer');
+                showNotification('Te retiraste de la mano', 'info');
+                playSound('fold');
+            }
+        }
+
+        function pauseGame() {
+            if (gameState.gameInProgress) {
+                showScreen('pause-screen');
+                playSound('pause');
+            }
+        }
+
+        function resumeGame() {
+            if (gameState.gameInProgress) {
+                showScreen('game-board');
+                playSound('resume');
+            }
+        }
+
+        function restartGame() {
+            if (gameSettings.confirmMoves) {
+                showModal(
+                    'Reiniciar Partida',
+                    '¿Estás seguro de que quieres reiniciar la partida actual?',
+                    () => {
+                        startNewGame();
+                    }
+                );
+            } else {
+                startNewGame();
+            }
+        }
+
+        function updateStatsDisplay() {
+            document.getElementById('games-played').textContent = playerStats.gamesPlayed;
+            document.getElementById('games-won').textContent = playerStats.gamesWon;
+            
+            const winPercentage = playerStats.gamesPlayed > 0 
+                ? Math.round((playerStats.gamesWon / playerStats.gamesPlayed) * 100)
+                : 0;
+            document.getElementById('win-percentage').textContent = winPercentage + '%';
+            
+            document.getElementById('trucos-called').textContent = playerStats.trucosCalled;
+            document.getElementById('trucos-won').textContent = playerStats.trucosWon;
+            document.getElementById('envidos-called').textContent = playerStats.envidosCalled;
+            document.getElementById('envidos-won').textContent = playerStats.envidosWon;
+            document.getElementById('flores-achieved').textContent = playerStats.floresAchieved;
+            document.getElementById('total-points').textContent = playerStats.totalPoints;
+            document.getElementById('best-streak').textContent = playerStats.bestStreak;
+            document.getElementById('time-played').textContent = Math.floor(playerStats.timePlayed / 60) + 'h ' + (playerStats.timePlayed % 60) + 'm';
+            document.getElementById('player-level').textContent = playerStats.playerLevel;
+        }
+
+        function exportStats() {
+            const data = {
+                stats: playerStats,
+                achievements: achievements,
+                settings: gameSettings
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = 'truco_stats.json';
+            link.click();
+            
+            showNotification('Estadísticas exportadas', 'success');
+        }
+
+        function resetStats() {
+            showModal(
+                'Reiniciar Estadísticas',
+                '¿Estás seguro de que quieres reiniciar todas las estadísticas? Esta acción no se puede deshacer.',
+                () => {
+                    playerStats = {
+                        gamesPlayed: 0,
+                        gamesWon: 0,
+                        trucosCalled: 0,
+                        trucosWon: 0,
+                        envidosCalled: 0,
+                        envidosWon: 0,
+                        floresAchieved: 0,
+                        totalPoints: 0,
+                        bestStreak: 0,
+                        timePlayed: 0,
+                        playerLevel: 1,
+                        experience: 0
+                    };
+                    
+                    Object.keys(achievements).forEach(key => {
+                        achievements[key].unlocked = false;
+                    });
+                    
+                    saveStats();
+                    saveAchievements();
+                    updateStatsDisplay();
+                    showNotification('Estadísticas reiniciadas', 'success');
+                }
+            );
+        }
+
+        function updateAchievementsDisplay() {
+            const grid = document.getElementById('achievements-grid');
+            grid.innerHTML = '';
+            
+            Object.keys(achievements).forEach(key => {
+                const achievement = achievements[key];
+                const card = document.createElement('div');
+                card.className = `stat-card ${achievement.unlocked ? 'unlocked' : 'locked'}`;
+                card.style.opacity = achievement.unlocked ? '1' : '0.5';
+                
+                card.innerHTML = `
+                    <div class="stat-title">${achievement.icon} ${achievement.name}</div>
+                    <div class="stat-description">${achievement.description}</div>
+                    <div class="stat-value">${achievement.unlocked ? '✅ Desbloqueado' : '🔒 Bloqueado'}</div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+
+        function checkAchievement(achievementKey) {
+            if (achievements[achievementKey] && !achievements[achievementKey].unlocked) {
+                let shouldUnlock = false;
+                
+                switch (achievementKey) {
+                    case 'firstWin': shouldUnlock = playerStats.gamesWon >= 1; break;
+                    case 'trucoMaster': shouldUnlock = playerStats.trucosWon >= 10; break;
+                    case 'envidoExpert': shouldUnlock = playerStats.envidosWon >= 10; break;
+                    case 'florCollector': shouldUnlock = playerStats.floresAchieved >= 5; break;
+                    case 'winStreak5': shouldUnlock = gameState.currentStreak >= 5; break;
+                    case 'winStreak10': shouldUnlock = gameState.currentStreak >= 10; break;
+                    case 'perfectGame': shouldUnlock = true; break;
+                    case 'speedster': shouldUnlock = true; break;
+                    case 'veteran': shouldUnlock = playerStats.gamesPlayed >= 100; break;
+                    case 'levelUp': shouldUnlock = playerStats.playerLevel >= 10; break;
+                }
+                
+                if (shouldUnlock) {
+                    unlockAchievement(achievementKey);
+                }
+            }
+        }
+
+        function unlockAchievement(achievementKey) {
+            achievements[achievementKey].unlocked = true;
+            saveAchievements();
+            
+            const achievement = achievements[achievementKey];
+            showAchievement(achievement.icon, achievement.name, achievement.description);
+            playSound('achievement');
+        }
+
+        function showAchievement(icon, title, description) {
+            const achievementEl = document.getElementById('achievement');
+            const iconEl = document.getElementById('achievement-icon');
+            const titleEl = document.getElementById('achievement-title');
+            const descEl = document.getElementById('achievement-description');
+            
+            iconEl.textContent = icon;
+            titleEl.textContent = title;
+            descEl.textContent = description;
+            
+            achievementEl.classList.add('show');
+            
+            setTimeout(() => {
+                achievementEl.classList.remove('show');
+            }, 4000);
+        }
+
+        function startInteractiveTutorial() {
+            tutorialSteps = [
+                { target: '#player-hand', title: 'Tus Cartas', text: 'Estas son tus cartas. Haz clic en una para jugarla.', position: 'top' },
+                { target: '#action-buttons', title: 'Botones de Acción', text: 'Usa estos botones para cantar Envido, Truco, Flor, etc.', position: 'top' },
+                { target: '#scoreboard', title: 'Marcador', text: 'Aquí se muestra la puntuación. El primero en llegar a 30 gana.', position: 'bottom' }
+            ];
+            
+            currentTutorialStep = 0;
+            tutorialActive = true;
+            showTutorialStep();
+        }
+
+        function showTutorialStep() {
+            if (currentTutorialStep >= tutorialSteps.length) {
+                endTutorial();
+                return;
+            }
+            
+            const step = tutorialSteps[currentTutorialStep];
+            const overlay = document.getElementById('tutorial-overlay');
+            const stepEl = document.getElementById('tutorial-step');
+            const titleEl = document.getElementById('tutorial-step-title');
+            const textEl = document.getElementById('tutorial-step-text');
+            
+            titleEl.textContent = step.title;
+            textEl.textContent = step.text;
+            
+            const target = document.querySelector(step.target);
+            if (target) {
+                const rect = target.getBoundingClientRect();
+                stepEl.className = `tutorial-step ${step.position}`;
+                
+                if (step.position === 'top') {
+                    stepEl.style.top = (rect.bottom + 20) + 'px';
+                    stepEl.style.left = (rect.left + rect.width / 2 - 150) + 'px';
+                } else if (step.position === 'bottom') {
+                    stepEl.style.top = (rect.top - 200) + 'px';
+                    stepEl.style.left = (rect.left + rect.width / 2 - 150) + 'px';
+                }
+            }
+            
+            overlay.classList.add('active');
+        }
+
+        function nextTutorialStep() {
+            currentTutorialStep++;
+            showTutorialStep();
+        }
+
+        function prevTutorialStep() {
+            if (currentTutorialStep > 0) {
+                currentTutorialStep--;
+                showTutorialStep();
+            }
+        }
+
+        function endTutorial() {
+            tutorialActive = false;
+            document.getElementById('tutorial-overlay').classList.remove('active');
+            showNotification('¡Tutorial completado!', 'success');
+        }
+
+        function startLesson(lessonType) {
+            showNotification(`Iniciando lección: ${lessonType}`, 'info');
+        }
+
+        function initializeAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                soundEffects = {
+                    navigate: createTone(440, 0.1), playCard: createTone(523, 0.2), dealCards: createTone(330, 0.3),
+                    call: createTone(659, 0.2), accept: createTone(523, 0.3), reject: createTone(294, 0.3),
+                    roundWin: createTone(659, 0.5), roundLose: createTone(220, 0.5), roundTie: createTone(440, 0.3),
+                    gameWin: createTone(880, 1.0), gameLose: createTone(165, 1.0), gameStart: createTone(523, 0.4),
+                    envidoWin: createTone(698, 0.4), envidoLose: createTone(247, 0.4), florWin: createTone(784, 0.6),
+                    achievement: createTone(1047, 0.8), fold: createTone(196, 0.4), pause: createTone(370, 0.2), resume: createTone(494, 0.2)
+                };
+            } catch (e) {
+                console.warn('Audio no disponible:', e);
+            }
+        }
+
+        function createTone(frequency, duration) {
+            return () => {
+                if (!audioContext || !gameSettings.soundEffectsEnabled) return;
+                
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'sine';
+                
+                const volume = (gameSettings.masterVolume / 100) * (gameSettings.effectsVolume / 100) * 0.1;
+                gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration);
+            };
+        }
+
+        function playSound(soundName) {
+            if (soundEffects[soundName] && gameSettings.soundEffectsEnabled) {
+                soundEffects[soundName]();
+            }
+        }
+
+        function toggleSound() {
+            gameSettings.soundEffectsEnabled = !gameSettings.soundEffectsEnabled;
+            const icon = document.getElementById('sound-icon');
+            const toggle = document.getElementById('sound-toggle');
+            
+            if (gameSettings.soundEffectsEnabled) {
+                icon.textContent = '🔊';
+                toggle.classList.remove('muted');
+            } else {
+                icon.textContent = '🔇';
+                toggle.classList.add('muted');
+            }
+            
+            saveSettings();
+        }
+
+        function initializeParticles() {
+            if (!gameSettings.particlesEnabled) return;
+            
+            const particlesContainer = document.getElementById('particles');
+            
+            setInterval(() => {
+                if (gameSettings.particlesEnabled && particlesContainer) {
+                    createParticle(particlesContainer);
+                }
+            }, 2000);
+        }
+
+        function createParticle(container) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDuration = (Math.random() * 5 + 5) + 's';
+            particle.style.opacity = Math.random() * 0.5 + 0.1;
+            
+            container.appendChild(particle);
+            
+            setTimeout(() => {
+                if (particle.parentNode) {
+                    particle.parentNode.removeChild(particle);
+                }
+            }, 10000);
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            const text = document.getElementById('notification-text');
+            
+            text.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        function showModal(title, message, onConfirm) {
+            const modal = document.getElementById('confirm-modal');
+            const titleEl = document.getElementById('modal-title');
+            const textEl = document.getElementById('modal-text');
+            const confirmBtn = document.getElementById('modal-confirm');
+            
+            titleEl.textContent = title;
+            textEl.textContent = message;
+            
+            confirmBtn.onclick = () => {
+                hideModal();
+                if (onConfirm) onConfirm();
+            };
+            
+            modal.classList.add('active');
+        }
+
+        function hideModal() {
+            document.getElementById('confirm-modal').classList.remove('active');
+        }
+
+        function confirmModalAction() {}
+
+        function handleKeyPress(event) {
+            if (!gameState.gameInProgress) return;
+            
+            switch (event.key) {
+                case 'Escape': pauseGame(); break;
+                case '1': case '2': case '3':
+                    const cardIndex = parseInt(event.key) - 1;
+                    if (gameState.playerHand[cardIndex] && gameState.isPlayerTurn) {
+                        playCard(cardIndex);
+                    }
+                    break;
+                case 'e': case 'E': if (document.getElementById('envido-btn').style.display !== 'none') callEnvido(); break;
+                case 't': case 'T': if (document.getElementById('truco-btn').style.display !== 'none') callTruco(); break;
+                case 'f': case 'F': if (document.getElementById('flor-btn').style.display !== 'none') callFlor(); break;
+                case 'q': case 'Q': if (document.getElementById('quiero-btn').style.display !== 'none') acceptCall(); break;
+                case 'n': case 'N': if (document.getElementById('no-quiero-btn').style.display !== 'none') rejectCall(); break;
+            }
+        }
+
+        function applySettings() {
+            document.body.classList.toggle('dark-mode', gameSettings.darkMode);
+            document.body.classList.toggle('large-text', gameSettings.largeText);
+            document.body.classList.toggle('high-contrast', gameSettings.highContrast);
+            document.body.classList.toggle('reduce-motion', gameSettings.reduceMotion);
+            
+            const particlesContainer = document.getElementById('particles');
+            if (particlesContainer) {
+                particlesContainer.style.display = gameSettings.particlesEnabled ? 'block' : 'none';
+            }
+            
+            const handStrengthElements = document.querySelectorAll('.hand-strength-meter');
+            handStrengthElements.forEach(el => {
+                el.style.display = gameSettings.handStrengthIndicator ? 'block' : 'none';
+            });
+        }
+
+        function exportData() {
+            const data = {
+                version: '1.0', timestamp: Date.now(), stats: playerStats,
+                achievements: achievements, settings: gameSettings
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `truco_data_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            showNotification('Datos exportados exitosamente', 'success');
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            
+                            if (data.stats) playerStats = { ...playerStats, ...data.stats };
+                            if (data.achievements) achievements = { ...achievements, ...data.achievements };
+                            if (data.settings) gameSettings = { ...gameSettings, ...data.settings };
+                            
+                            saveAllData();
+                            applySettings();
+                            
+                            showNotification('Datos importados exitosamente', 'success');
+                        } catch (error) {
+                            showNotification('Error al importar datos', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            
+            input.click();
+        }
+
+        function clearAllData() {
+            showModal(
+                'Borrar Todos los Datos',
+                '¿Estás seguro de que quieres borrar todos los datos? Esta acción no se puede deshacer.',
+                () => {
+                    localStorage.clear();
+                    location.reload();
+                }
+            );
+        }
+
+        function saveAllData() {
+            if (gameSettings.autoSave) {
+                saveSettings();
+                saveStats();
+                saveAchievements();
+            }
+        }
+
+        function saveSettings() { localStorage.setItem('trucoSettings', JSON.stringify(gameSettings)); }
+        function saveStats() { localStorage.setItem('trucoStats', JSON.stringify(playerStats)); }
+        function saveAchievements() { localStorage.setItem('trucoAchievements', JSON.stringify(achievements)); }
+
+        function loadSettings() {
+            const saved = localStorage.getItem('trucoSettings');
+            if (saved) {
+                gameSettings = { ...gameSettings, ...JSON.parse(saved) };
+                applySettings();
+                
+                Object.keys(gameSettings).forEach(key => {
+                    const toggleElement = document.getElementById(key.replace(/([A-Z])/g, '-$1').toLowerCase() + '-toggle');
+                    if (toggleElement && typeof gameSettings[key] === 'boolean') {
+                        toggleElement.classList.toggle('active', gameSettings[key]);
+                    }
+                    
+                    const sliderElement = document.getElementById(key.replace(/([A-Z])/g, '-$1').toLowerCase());
+                    if (sliderElement && typeof gameSettings[key] === 'number') {
+                        sliderElement.value = gameSettings[key];
+                    }
+                });
+                
+                const aiPersonality = document.getElementById('ai-personality');
+                if (aiPersonality) aiPersonality.value = gameSettings.aiPersonality;
+                
+                const soundIcon = document.getElementById('sound-icon');
+                const soundToggle = document.getElementById('sound-toggle');
+                if (soundIcon && soundToggle) {
+                    soundIcon.textContent = gameSettings.soundEffectsEnabled ? '🔊' : '🔇';
+                    soundToggle.classList.toggle('muted', !gameSettings.soundEffectsEnabled);
+                }
+            }
+        }
+
+        function loadStats() {
+            const saved = localStorage.getItem('trucoStats');
+            if (saved) playerStats = { ...playerStats, ...JSON.parse(saved) };
+        }
+
+        function loadAchievements() {
+            const saved = localStorage.getItem('trucoAchievements');
+            if (saved) achievements = { ...achievements, ...JSON.parse(saved) };
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const tutorialNext = document.getElementById('tutorial-next');
+            const tutorialPrev = document.getElementById('tutorial-prev');
+            if (tutorialNext) tutorialNext.addEventListener('click', nextTutorialStep);
+            if (tutorialPrev) tutorialPrev.addEventListener('click', prevTutorialStep);
+        });
+
+        window.addEventListener('error', function(e) {
+            console.error('Error en el juego:', e.error);
+            showNotification('Ha ocurrido un error. El juego se reiniciará.', 'error');
+            setTimeout(() => { location.reload(); }, 3000);
+        });
+
+        document.addEventListener('touchstart', function(e) { if (e.touches.length > 1) e.preventDefault(); });
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(e) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) e.preventDefault();
+            lastTouchEnd = now;
+        }, false);
+
+        setInterval(saveAllData, 30000);
+        window.addEventListener('beforeunload', saveAllData);
+    </script>
+</body>
+</html>

@@ -62,9 +62,9 @@ export const getZIndex = (base: keyof typeof Z_INDEX, offset: number = 0): numbe
  * Validar que un z-index no exceda el máximo recomendado
  */
 export const validateZIndex = (value: number): number => {
-  if (value > Z_INDEX.ABSOLUTE_TOP) {
-    console.warn(`Z-Index ${value} excede el máximo recomendado. Usando ABSOLUTE_TOP.`);
-    return Z_INDEX.ABSOLUTE_TOP;
+  if (value > Z_INDEX.DEV_OVERLAY) {
+    console.warn(`Z-Index ${value} excede el máximo recomendado. Usando DEV_OVERLAY.`);
+    return Z_INDEX.DEV_OVERLAY;
   }
   return value;
 };

@@ -7,7 +7,7 @@ import { GameLayout } from './components/GameLayout';
 import { Hand } from './components/Hand';
 import { turnManager } from './engine/TurnManager';
 import { gameStateManager, GamePhase } from './engine/GameStateManager';
-import { nodeSystem } from './engine/NodeSystem';
+// nodeSystem import removed - not used in component
 import type { Card as CardType } from './engine/types';
 import { cardEffectEngine } from './engine/CardEffectEngine';
 import { RepairButton, FocusButton, EndTurnButton, StyledButton } from './components/StyledButton';
@@ -23,10 +23,33 @@ import { chapterManager } from './engine/ChapterManager';
 import { NarrativeModal } from './components/NarrativeModal';
 import { chapterNarrativeSystem } from './engine/ChapterNarrativeSystem';
 import type { NarrativeElement, ChapterNarrativeConfig } from './engine/ChapterNarrativeSystem';
+import { GameLayer, useLayer } from './engine/LayerManager';
+import { deckManager } from './engine/DeckManager';
+import { assetManager } from './config/assets';
+import { audioManager } from './engine/AudioManager';
+import AudioControls from './components/AudioControls';
 // import { CSSCards } from './components/CSSCards'; // Commented out - using only PixiJS VFX
+
+// Import debug tools in development
+if (import.meta.env.DEV) {
+  import('./debug/audioTest');
+}
 
 const AppContent: React.FC = () => {
     const modalContext = useGameModalContext();
+    
+    // LayerManager hooks para diferentes elementos
+    const exitButtonLayer = useLayer(GameLayer.UI_BUTTONS);
+    const hudLayer = useLayer(GameLayer.UI_BACKGROUND); // Cambiar a capa más baja
+    const ecoCardsLayer = useLayer(GameLayer.CARDS_IDLE);
+    const leftPanelLayer = useLayer(GameLayer.UI_PANELS);
+    const rightPanelLayer = useLayer(GameLayer.UI_PANELS);
+    const boardLayer = useLayer(GameLayer.GAME_BOARD);
+    const handLayer = useLayer(GameLayer.CARDS_IDLE);
+    const controlButtonsLayer = useLayer(GameLayer.INTERACTIVE_UI, true); // Traer al frente automáticamente
+    const gameLogLayer = useLayer(GameLayer.UI_BACKGROUND); // Capa baja para GameLog
+    const eventModalLayer = useLayer(GameLayer.EVENT_MODAL);
+    const turnOverlayLayer = useLayer(GameLayer.MODAL_BACKDROP);
     
     // Establecer contexto global para uso fuera de React
     useEffect(() => {
@@ -41,6 +64,8 @@ const AppContent: React.FC = () => {
     const [turnOverlay, setTurnOverlay] = useState<{ visible: boolean; text: string }>({ visible: false, text: '' });
     const [eventVisual, setEventVisual] = useState<{ visible: boolean; card: CardType | null; event: any | null }>({ visible: false, card: null, event: null });
     const [narrativeModal, setNarrativeModal] = useState<{ visible: boolean; element: NarrativeElement | null; config: ChapterNarrativeConfig | null }>({ visible: false, element: null, config: null });
+    const [showConfigModal, setShowConfigModal] = useState(false);
+    // audioConfig removed - not used in component
     const [, setTick] = useState(0); // Used to force re-renders
 
     useEffect(() => {
@@ -48,9 +73,15 @@ const AppContent: React.FC = () => {
             setTick(tick => tick + 1);
             if (gameStateManager.phase === GamePhase.EVENT && turnManager.currentEvent) {
                 setEventMessage(turnManager.currentEvent.event);
+                // Reproducir efecto de evento peligroso
+                setTimeout(() => {
+                    audioManager.playEffect('event-danger', 0.6);
+                }, 200);
             }
             // Turn overlay when phase enters PLAYER_ACTION or ECO_ATTACK
             if (gameStateManager.phase === GamePhase.PLAYER_ACTION) {
+                // Sonido suave para inicio de turno del jugador
+                audioManager.playEffect('event-morning', 0.5);
                 setTurnOverlay({ visible: true, text: `Turno ${gameStateManager.turn} - Tu turno` });
                 setTimeout(() => setTurnOverlay({ visible: false, text: '' }), 800);
             } else if (gameStateManager.phase === GamePhase.ECO_ATTACK) {
@@ -67,9 +98,53 @@ const AppContent: React.FC = () => {
             setNarrativeModal({ visible: true, element, config });
         });
         
+        // Audio manager subscription removed - not using audioConfig state
+        
         return () => {
             unsubscribe();
             unsubscribeNarrative();
+        };
+    }, []);
+    
+    // Manejar tecla espaciadora para fin de turno
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            // Solo procesar si es turno del jugador y la tecla es espaciadora
+            if (event.code === 'Space' && gameStateManager.phase === GamePhase.PLAYER_ACTION && inGame) {
+                event.preventDefault(); // Evitar scroll de página
+                
+                // Implementar confirmación si aún tiene AP
+                if (gameStateManager.pa > 0) {
+                    modalContext.showConfirm(
+                        `Aún tienes ${gameStateManager.pa} AP disponibles. ¿Estás seguro de que quieres terminar tu turno? (Espaciadora)`,
+                        () => {
+                            audioManager.playEffect('menu-select', 0.8);
+                            console.log('🎯 App: End Turn confirmed via SPACEBAR with remaining AP');
+                            turnManager.endPlayerTurn();
+                        },
+                        {
+                            title: 'Confirmar Fin de Turno',
+                            type: 'warning',
+                            confirmText: 'Sí, Terminar',
+                            cancelText: 'Continuar'
+                        }
+                    );
+                } else {
+                    audioManager.playEffect('menu-select', 0.8);
+                    console.log('🎯 App: End Turn via SPACEBAR');
+                    turnManager.endPlayerTurn();
+                }
+            }
+        };
+        
+        // Agregar listener solo cuando esté en juego
+        if (inGame) {
+            document.addEventListener('keydown', handleKeyDown);
+            console.log('⌨️ App: Spacebar listener activated for end turn');
+        }
+        
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
         };
     }, []);
 
@@ -78,6 +153,42 @@ const AppContent: React.FC = () => {
         setEventMessage(null);
         setRepairMode(false);
         setCardsForRepair([]);
+        
+        // Inicializar audio del escenario actual
+        const currentScenario = chapterManager.currentScenarioConfig;
+        if (currentScenario) {
+            console.log('🎵 App: Configurando audio para escenario:', currentScenario.id);
+            
+            try {
+                await audioManager.setScenario(currentScenario.id);
+                console.log('✅ App: Escenario de audio configurado');
+                
+                // Intentar reproducir música ambiental con reintentos
+                const tryPlayMusic = (attempt = 1) => {
+                    console.log(`🎵 App: Intento ${attempt} de reproducir música ambient`);
+                    
+                    audioManager.playMusic('ambient', true).then(() => {
+                        console.log('✅ App: Música ambient iniciada correctamente');
+                    }).catch(error => {
+                        console.error(`❌ App: Error en intento ${attempt}:`, error);
+                        
+                        if (attempt < 3) {
+                            setTimeout(() => tryPlayMusic(attempt + 1), 1000);
+                        } else {
+                            console.warn('⚠️ App: No se pudo iniciar la música después de 3 intentos');
+                        }
+                    });
+                };
+                
+                // Primer intento después de un breve delay
+                setTimeout(() => tryPlayMusic(), 300);
+                
+            } catch (error) {
+                console.error('❌ App: Error configurando escenario de audio:', error);
+            }
+        } else {
+            console.warn('⚠️ App: No hay escenario configurado para audio');
+        }
         
         // Configurar callback para eventos visuales
         turnManager.onEventShow = (eventCard, event) => {
@@ -104,18 +215,29 @@ const AppContent: React.FC = () => {
     };
 
     const handleContinue = () => {
+        audioManager.playEffect('menu-select', 0.7);
         setEventMessage(null);
         turnManager.advancePhase();
     };
 
     const handleNodeClick = (nodeId: string) => {
+        audioManager.playEffect('menu-select', 0.6); // Sonido al hacer click en nodo
+        
         if (isRepairMode && cardsForRepair.length > 0) {
             // Validate that all cards are Clubs before repairing
             const allClubs = cardsForRepair.every(card => card.suit === 'Clubs');
             if (allClubs) {
+                // Secuencia de sonidos para reparación exitosa
+                audioManager.playEffect('treasure-2', 0.8); // Sonido de reparación exitosa
+                setTimeout(() => {
+                    audioManager.playEffect('event-morning', 0.6); // Sonido de éxito/mejora
+                }, 300);
                 cardEffectEngine.repairNode(nodeId, cardsForRepair);
                 setCardsForRepair([]);
                 setRepairMode(false);
+            } else {
+                // Sonido de error si las cartas no son clubs
+                audioManager.playEffect('menu-select', 0.4);
             }
         }
     };
@@ -123,64 +245,12 @@ const AppContent: React.FC = () => {
     
 
     const toggleRepairMode = () => {
+        audioManager.playEffect('menu-select', 0.7);
         setRepairMode(!isRepairMode);
         setCardsForRepair([]);
     };
 
-    // Helper function to get node display properties
-    const getNodeDisplay = (nodeId: string) => {
-        const node = nodeSystem.getNode(nodeId);
-        if (!node) return { icon: '❓', color: '#666666', status: 'N/A' };
-        
-        const repairLevel = Math.max(0, node.maxDamage - node.damage);
-        const repairPercent = Math.round((repairLevel / node.maxDamage) * 100);
-        
-        let color, icon;
-        
-        switch (node.status) {
-            case 'stable':
-                color = repairLevel === node.maxDamage ? '#22c55e' : '#eab308'; // green if fully repaired, yellow if partially
-                break;
-            case 'unstable':
-                color = '#f97316'; // orange
-                break;
-            case 'corrupted':
-                color = '#ef4444'; // red
-                break;
-            default:
-                color = '#6b7280'; // gray
-        }
-        
-        // Get appropriate icon based on node type
-        switch (nodeId) {
-            case 'communications': 
-                icon = node.status === 'corrupted' ? '📵' : (repairLevel === node.maxDamage ? '📶' : '📳');
-                break;
-            case 'power':
-            case 'energy':
-                icon = node.status === 'corrupted' ? '🔋' : (repairLevel === node.maxDamage ? '⚡' : '🔅');
-                break;
-            case 'defense':
-            case 'shields':
-                icon = node.status === 'corrupted' ? '🛑' : (repairLevel === node.maxDamage ? '🛡️' : '⚠️');
-                break;
-            case 'supplies':
-            case 'life_support':
-                icon = node.status === 'corrupted' ? '💀' : (repairLevel === node.maxDamage ? '📦' : '📋');
-                break;
-            default:
-                icon = node.status === 'corrupted' ? '💥' : (repairLevel === node.maxDamage ? '✅' : '🔧');
-        }
-        
-        return { 
-            icon, 
-            color, 
-            status: `${repairPercent}%`,
-            repairLevel,
-            maxDamage: node.maxDamage,
-            damage: node.damage
-        };
-    };
+    // getNodeDisplay function removed - not used in component
 
     // Handlers para el modal de narrativa
     const handleNarrativeComplete = () => {
@@ -239,13 +309,49 @@ const AppContent: React.FC = () => {
                     overflow: 'hidden'
                 }}>
                     <GameLayout>
-                    {/* Botón de Salida */}
+                    {/* Botones de control superior */}
                     <div style={{
                         position: 'absolute',
                         top: '10px',
                         right: '10px',
-                        zIndex: 100
+                        zIndex: exitButtonLayer.zIndex,
+                        display: 'flex',
+                        gap: '6px',
+                        alignItems: 'center'
                     }}>
+                        {/* Botón de Configuración */}
+                        <button
+                            style={{
+                                width: '18px',
+                                height: '18px',
+                                borderRadius: '50%',
+                                background: 'rgba(51, 65, 85, 0.8)',
+                                border: `1px solid rgba(146, 64, 14, 0.5)`,
+                                color: colors.gold,
+                                fontSize: '10px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s ease',
+                                backdropFilter: 'blur(4px)',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(182, 149, 82, 0.2)';
+                                e.currentTarget.style.transform = 'scale(1.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(51, 65, 85, 0.8)';
+                                e.currentTarget.style.transform = 'scale(1)';
+                            }}
+                            onClick={() => setShowConfigModal(true)}
+                            title="Configuración de audio"
+                        >
+                            ⚙️
+                        </button>
+                        
+                        {/* Botón de Salida */}
                         <StyledButton
                             onClick={() => {
                                 modalContext.showConfirm(
@@ -275,11 +381,11 @@ const AppContent: React.FC = () => {
                     {/* HUD Superior - Stats del jugador y Eco */}
                     <div style={{ 
                            position: 'absolute',
-                           top: '20px', 
+                           top: '10px', // Subido más arriba
                            left: '40px', 
                            width: '1200px', 
                            height: '50px',
-                           zIndex: 20,
+                           zIndex: hudLayer.zIndex,
                            display: 'flex',
                            justifyContent: 'space-between',
                            alignItems: 'center'
@@ -328,165 +434,167 @@ const AppContent: React.FC = () => {
                     {/* Cartas del Eco - Zona debajo del HUD */}
                     <div style={{ 
                            position: 'absolute',
-                           top: '220px', // Movido hacia abajo para mejor alineación con panel ECO
-                           left: '150px',
-                           width: '980px', 
+                           top: '110px', // Bajado 40px desde 70px
+                           left: '0px',
+                           width: '1280px', 
                            height: '120px',
-                           zIndex: 25,
+                           zIndex: ecoCardsLayer.zIndex,
                            display: 'flex',
                            alignItems: 'center',
                            justifyContent: 'center',
-                           gap: '16px'
+                           gap: '12px'
                          }}>
-                        {Array.from({ length: 5 }, (_, i) => (
+                        {/* Mostrar máximo 5 cartas superpuestas para representar el mazo */}
+                        {Array.from({ length: Math.min(5, Math.max(1, deckManager.getEcoDeckCount())) }, (_, i) => (
                             <div
                                 key={i}
                                 style={{
-                                    width: '108px',
-                                    height: '150px',
-                                    borderRadius: '6px',
+                                    width: '120px',
+                                    height: '168px',
+                                    borderRadius: '10px',
                                     border: '2px solid rgba(185, 28, 28, 0.8)',
-                                    boxShadow: '0 6px 16px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-                                    transition: 'transform 0.2s ease',
-                                    backgroundImage: 'url("/images/scenarios/default/cards/card-back.png")',
+                                    boxShadow: '0 8px 20px rgba(0, 0, 0, 0.6)',
+                                    backgroundImage: `url("${assetManager.getCardBackPath()}")`,
                                     backgroundSize: 'cover',
                                     backgroundPosition: 'center',
                                     backgroundColor: '#1e293b',
-                                    filter: 'drop-shadow(0 3px 6px rgba(185, 28, 28, 0.4))'
+                                    display: 'flex',
+                                    alignItems: 'flex-end',
+                                    justifyContent: 'center',
+                                    transform: `translateX(${i * -4}px) translateY(${i * -2}px)`,
+                                    position: 'relative',
+                                    zIndex: 10 - i
                                 }}
-                            />
+                            >
+                                {i === 0 && (
+                                    <div style={{
+                                        textAlign: 'center',
+                                        color: '#fecaca',
+                                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                        padding: '4px 8px',
+                                        borderRadius: '6px',
+                                        margin: '8px',
+                                        backdropFilter: 'blur(4px)'
+                                    }}>
+                                        <div style={{ fontSize: '10px', marginBottom: '2px' }}>ECO</div>
+                                        <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{deckManager.getEcoDeckCount()}</div>
+                                        <div style={{ fontSize: '8px' }}>cartas</div>
+                                    </div>
+                                )}
+                            </div>
                         ))}
                     </div>
                     
-                    {/* Panel Izquierdo UNIFICADO - Jugador */}
+                    {/* Imagen del Jugador - Solo retrato sin panel */}
                     <div style={{ 
                            position: 'absolute',
-                           left: '0px', 
-                           top: '90px',
-                           width: '200px', 
-                           height: '580px',
-                           zIndex: 30,
-                           backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                           backdropFilter: 'blur(4px)',
-                           borderRadius: '8px',
-                           border: '1px solid rgba(217, 119, 6, 0.3)',
-                           padding: '16px',
-                           overflowY: 'auto'
+                           left: '55px', // Movido 35px a la derecha desde 20px
+                           top: '70px', // Alineado con las cartas del ECO
+                           width: '120px',
+                           height: '150px',
+                           zIndex: leftPanelLayer.zIndex,
+                           display: 'flex',
+                           flexDirection: 'column',
+                           alignItems: 'center',
+                           gap: '8px'
                          }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            <div style={{ textAlign: 'center' }}>
-                                <div style={{ margin: '0 auto 8px auto' }}>
-                                    <PlayerPortrait />
-                                </div>
-                                <div style={{ ...textStyles.label, color: colors.gold, fontSize: '11px' }}>SOBREVIVIENTE</div>
-                            </div>
-                            
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '100%' }}>
-                                <div>
-                                    <div style={{ ...textStyles.label, fontSize: '10px', color: colors.gold, marginBottom: '4px' }}>Estado:</div>
-                                    <div style={{ ...textStyles.bodySmall, fontSize: '9px', color: colors.muted }}>
-                                        <div style={{ marginBottom: '2px' }}>• Normal</div>
-                                        <div style={{ marginBottom: '2px' }}>• Sin efectos</div>
-                                        <div style={{ marginBottom: '2px' }}>• Cartas: {gameStateManager.hand.length}</div>
-                                    </div>
-                                </div>
-                                
-                                <div>
-                                    <div style={{ ...textStyles.label, fontSize: '10px', color: colors.gold, marginBottom: '4px' }}>Habilidades:</div>
-                                    <div style={{ ...textStyles.bodySmall, fontSize: '9px', color: colors.muted }}>
-                                        <div style={{ marginBottom: '2px' }}>• Reparación: Tréboles</div>
-                                        <div style={{ marginBottom: '2px' }}>• Ataque: Picas</div>
-                                        <div style={{ marginBottom: '2px' }}>• Búsqueda: Diamantes</div>
-                                        <div style={{ marginBottom: '2px' }}>• Enfoque: Corazones</div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <div style={{ ...textStyles.label, fontSize: '10px', color: colors.gold, marginBottom: '4px' }}>Objetivos:</div>
-                                    <div style={{ ...textStyles.bodySmall, fontSize: '9px', color: colors.muted }}>
-                                        <div style={{ marginBottom: '2px' }}>• Reactivar sistemas críticos</div>
-                                        <div style={{ marginBottom: '2px' }}>• Resistir ataques del Eco</div>
-                                        <div style={{ marginBottom: '2px' }}>• Sobrevivir hasta el amanecer</div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <div style={{ ...textStyles.label, fontSize: '10px', color: colors.gold, marginBottom: '4px' }}>Eventos Recientes:</div>
-                                    <div style={{ ...textStyles.bodySmall, fontSize: '9px', color: colors.muted }}>
-                                        <div style={{ marginBottom: '2px' }}>• Juego iniciado</div>
-                                        <div style={{ marginBottom: '2px' }}>• Cartas repartidas</div>
-                                        <div style={{ marginBottom: '2px' }}>• Esperando acción</div>
-                                    </div>
-                                </div>
-
-                                {/* Nodos grandes en parte inferior izquierda */}
-                                <div style={{ marginTop: 'auto' }}>
-                                    <div style={{ ...textStyles.label, fontSize: '10px', color: colors.gold, marginBottom: '6px' }}>NODOS</div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                                        {['communications','energy','defense','supplies'].map((id) => {
-                                            const nd = getNodeDisplay(id);
-                                            return (
-                                                <div key={id} style={{ textAlign: 'center', padding: '8px', backgroundColor: 'rgba(217, 119, 6, 0.08)', borderRadius: '4px', border: '1px solid rgba(217, 119, 6, 0.25)' }}>
-                                                    <div style={{ fontSize: '24px', marginBottom: '4px', color: nd.color }}>{nd.icon}</div>
-                                                    <div style={{ fontSize: '8px', color: nd.color }}>{nd.status}</div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <PlayerPortrait />
+                        <div style={{ 
+                            ...textStyles.label, 
+                            color: colors.gold, 
+                            fontSize: '11px',
+                            textAlign: 'center',
+                            textShadow: '0 2px 4px rgba(0,0,0,0.8)'
+                        }}>SOBREVIVIENTE</div>
+                        
+                        {/* Botón de Fin de Turno bajo el sobreviviente */}
+                        {gameStateManager.phase === GamePhase.PLAYER_ACTION && (
+                            <StyledButton 
+                                onClick={() => {
+                                    // Implementar confirmación si aún tiene AP
+                                    if (gameStateManager.pa > 0) {
+                                        modalContext.showConfirm(
+                                            `Aún tienes ${gameStateManager.pa} AP disponibles. ¿Estás seguro de que quieres terminar tu turno?`,
+                                            () => {
+                                                audioManager.playEffect('menu-select', 0.8);
+                                                console.log('🎯 App: End Turn confirmed with remaining AP');
+                                                turnManager.endPlayerTurn();
+                                            },
+                                            {
+                                                title: 'Confirmar Fin de Turno',
+                                                type: 'warning',
+                                                confirmText: 'Sí, Terminar',
+                                                cancelText: 'Continuar'
+                                            }
+                                        );
+                                    } else {
+                                        audioManager.playEffect('menu-select', 0.8);
+                                        console.log('🎯 App: End Turn button clicked');
+                                        turnManager.endPlayerTurn();
+                                    }
+                                }}
+                                size="sm"
+                                variant={gameStateManager.pa === 0 ? 'urgent' : 'danger'}
+                                style={{
+                                    marginTop: '8px',
+                                    fontSize: '10px',
+                                    padding: '6px 12px',
+                                    width: '110px'
+                                }}
+                            >
+                                {gameStateManager.pa === 0 ? 'FIN TURNO' : `FIN (${gameStateManager.pa} AP)`}
+                            </StyledButton>
+                        )}
                     </div>
                     
-                    
-                    {/* Panel Derecho UNIFICADO - Eco */}
+                    {/* Imagen del ECO - Solo retrato sin panel */}
                     <div style={{ 
                            position: 'absolute',
-                           left: '1080px', 
-                           top: '150px', // Movido hacia abajo desde 90px para mejor alineación
-                           width: '200px', 
-                           height: '520px', // Reducido proporcionalmente
-                           zIndex: 30,
-                           backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                           backdropFilter: 'blur(4px)',
-                           borderRadius: '8px',
+                           right: '20px', 
+                           top: '33px', // Subido 37px desde 70px
+                           width: '120px',
+                           height: '150px',
+                           zIndex: rightPanelLayer.zIndex,
+                           display: 'flex',
+                           flexDirection: 'column',
+                           alignItems: 'center',
+                           gap: '8px'
+                         }}>
+                        <EcoPortrait />
+                        <div style={{ 
+                            ...textStyles.label, 
+                            color: '#fecaca', 
+                            fontSize: '11px',
+                            textAlign: 'center',
+                            textShadow: '0 2px 4px rgba(0,0,0,0.8)'
+                        }}>ECO - VIGILANTE</div>
+                    </div>
+                    
+                    {/* Game Log - Alineado al borde inferior derecho */}
+                    <div style={{ 
+                           position: 'absolute',
+                           right: '0px', // Pegado al borde derecho
+                           bottom: '0px', // Alineado al borde inferior
+                           width: '300px',
+                           height: '120px', // Altura reducida
+                           zIndex: gameLogLayer.zIndex, // Usar LayerManager para z-index correcto
+                           backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                           backdropFilter: 'blur(8px)',
+                           borderRadius: '8px 0px 0px 0px', // Solo esquina superior izquierda redondeada
                            border: '1px solid rgba(220, 38, 38, 0.3)',
-                           padding: '16px',
+                           borderRight: 'none', // Sin borde derecho
+                           borderBottom: 'none', // Sin borde inferior
+                           padding: '12px',
                            overflowY: 'auto'
                          }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            <div style={{ textAlign: 'center' }}>
-                                <div style={{ margin: '0 auto 8px auto' }}>
-                                    <EcoPortrait />
-                                </div>
-                                <div style={{ ...textStyles.label, color: '#fecaca', fontSize: '11px' }}>ECO - VIGILANTE</div>
-                            </div>
-                            
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '100%' }}>
-                                <div>
-                                    <div style={{ ...textStyles.label, fontSize: '10px', color: '#fecaca', marginBottom: '4px' }}>Estado:</div>
-                                    <div style={{ ...textStyles.bodySmall, fontSize: '9px', color: '#f87171' }}>
-                                        <div style={{ marginBottom: '2px' }}>• Vigilante</div>
-                                        <div style={{ marginBottom: '2px' }}>• Cartas: 5</div>
-                                        <div style={{ marginBottom: '2px' }}>• Última acción: Esperando</div>
-                                    </div>
-                                </div>
-                                
-                                <div>
-                                    <div style={{ ...textStyles.label, fontSize: '10px', color: '#fecaca', marginBottom: '4px' }}>Amenaza:</div>
-                                    <div style={{ ...textStyles.bodySmall, fontSize: '9px', color: '#f87171' }}>
-                                        <div style={{ marginBottom: '2px' }}>• Nivel: Moderado</div>
-                                        <div style={{ marginBottom: '2px' }}>• Preparando ataque</div>
-                                    </div>
-                                </div>
-                                
-                                
-                                {/* GameLog en la parte inferior */}
-                                <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
-                                    <GameLog />
-                                </div>
-                            </div>
-                        </div>
+                        <div style={{ 
+                            ...textStyles.label, 
+                            color: '#fecaca', 
+                            fontSize: '10px',
+                            marginBottom: '8px',
+                            textAlign: 'center'
+                        }}>REGISTRO DE EVENTOS</div>
+                        <GameLog />
                     </div>
                     
                     {/* Debug indicator - APP.TSX IS RUNNING */}
@@ -499,7 +607,7 @@ const AppContent: React.FC = () => {
                     
                     {/* Turn overlay */}
                     {turnOverlay.visible && (
-                        <div style={{ position: 'absolute', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+                        <div style={{ position: 'absolute', inset: 0, zIndex: turnOverlayLayer.zIndex, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)' }}>
                             <div style={{ 
                                 ...panelStyles.hud, 
                                 padding: '20px 40px', 
@@ -525,11 +633,11 @@ const AppContent: React.FC = () => {
                     {/* Central game area content - Board principal */}
                     <div style={{ 
                            position: 'absolute',
-                           left: '200px', 
-                           top: '120px', 
-                           width: '880px', 
+                           left: '40px', // Expandido desde la izquierda
+                           top: '100px', 
+                           width: '1200px', // Expandido para usar todo el ancho disponible
                            height: '350px',
-                           zIndex: 20
+                           zIndex: boardLayer.zIndex
                          }}>
                         <Board 
                             onNodeClick={handleNodeClick} 
@@ -540,11 +648,11 @@ const AppContent: React.FC = () => {
                     {/* Hand area */}
                     <div style={{ 
                            position: 'absolute',
-                           left: '200px', 
-                           top: '500px',
-                           width: '880px', 
+                           left: '140px', // Centrado mejor
+                           top: '520px', // Más abajo para dar espacio
+                           width: '1000px', // Centrado
                            height: '120px',
-                           zIndex: 25
+                           zIndex: handLayer.zIndex
                          }}>
                         <Hand />
                     </div>
@@ -554,18 +662,18 @@ const AppContent: React.FC = () => {
                     {/* Styled Control Buttons */}
                     <div style={{ 
                            position: 'absolute',
-                           left: '440px', 
-                           top: '670px',
-                           width: '400px', 
-                           height: '50px',
-                           zIndex: 50,
+                           left: '440px', // Centrado en el nuevo layout
+                           top: '650px', // Subido un poco
+                           width: '350px', // Reducido
+                           height: '40px', // Reducido
+                           zIndex: controlButtonsLayer.zIndex, // CRÍTICO: Debe estar encima de todo
                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
                            backdropFilter: 'blur(4px)',
-                           borderRadius: '12px',
+                           borderRadius: '8px', // Reducido
                            border: '1px solid rgba(146, 64, 14, 0.3)',
-                           padding: '12px 24px',
-                           gap: '16px',
-                           display: 'flex',
+                           padding: '8px 16px', // Reducido
+                           gap: '12px', // Reducido
+                           display: 'none', // OCULTAR COMPLETAMENTE
                            justifyContent: 'center',
                            alignItems: 'center'
                          }}>
@@ -578,7 +686,10 @@ const AppContent: React.FC = () => {
                         </RepairButton>
                         
                         <FocusButton
-                            onClick={() => console.log('Focus action')}
+                            onClick={() => {
+                                audioManager.playEffect('menu-select', 0.7);
+                                console.log('Focus action');
+                            }}
                             icon={<FaEye />}
                             size="md"
                         >
@@ -586,7 +697,10 @@ const AppContent: React.FC = () => {
                         </FocusButton>
                         
                         <RepairButton 
-                            onClick={() => setCardPlayMode(cardPlayMode === 'attack' ? 'search' : 'attack')}
+                            onClick={() => {
+                                audioManager.playEffect('menu-select', 0.7);
+                                setCardPlayMode(cardPlayMode === 'attack' ? 'search' : 'attack');
+                            }}
                             icon={cardPlayMode === 'attack' ? <FaCrosshairs /> : <FaSearch />}
                             size="md"
                         >
@@ -596,6 +710,7 @@ const AppContent: React.FC = () => {
                         {gameStateManager.phase === GamePhase.PLAYER_ACTION && (
                             <StyledButton 
                                 onClick={() => {
+                                    audioManager.playEffect('menu-select', 0.8); // Sonido más fuerte para acción importante
                                     console.log('🎯 App: End Turn button clicked');
                                     turnManager.endPlayerTurn();
                                 }}
@@ -628,7 +743,7 @@ const AppContent: React.FC = () => {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            zIndex: 1000,
+                            zIndex: eventModalLayer.zIndex,
                             animation: 'fadeIn 0.2s ease-out'
                         }}>
                             <div style={{
@@ -756,6 +871,63 @@ const AppContent: React.FC = () => {
                             onComplete={handleNarrativeComplete}
                             onSkip={handleNarrativeSkip}
                         />
+                    )}
+                    
+                    {/* Modal de Configuración de Audio */}
+                    {showConfigModal && (
+                        <div style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            background: 'rgba(0, 0, 0, 0.7)',
+                            backdropFilter: 'blur(8px)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 9999
+                        }}>
+                            <div style={{
+                                width: '500px',
+                                height: '250px',
+                                background: 'rgba(15, 23, 42, 0.95)',
+                                backdropFilter: 'blur(20px)',
+                                borderRadius: '12px',
+                                border: `1px solid ${colors.stone.border}`,
+                                boxShadow: '0 15px 35px rgba(0,0,0,0.8)',
+                                padding: '16px',
+                                display: 'flex',
+                                flexDirection: 'column'
+                            }}>
+                                <h3 style={{
+                                    ...textStyles.sectionTitle,
+                                    fontSize: '16px',
+                                    marginBottom: '12px',
+                                    textAlign: 'center',
+                                    color: colors.gold
+                                }}>
+                                    Configuración de Audio
+                                </h3>
+                                
+                                <div style={{ flex: 1 }}>
+                                    <AudioControls />
+                                </div>
+                                
+                                <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                                    <StyledButton
+                                        onClick={() => setShowConfigModal(false)}
+                                        size="sm"
+                                        style={{
+                                            padding: '8px 24px',
+                                            fontSize: '12px'
+                                        }}
+                                    >
+                                        Cerrar
+                                    </StyledButton>
+                                </div>
+                            </div>
+                        </div>
                     )}
                     </GameLayout>
                 </div>

@@ -1,0 +1,310 @@
+// This is for referene of the distribution and overall design, even as a fallback if the assets are not loaded but it lack the real implementation
+
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Mock data para demostración
+const mockGameState = {
+  player: { pv: 15, sanity: 12, pa: 2, maxPV: 20, maxSanity: 20 },
+  eco: { hp: 35, maxHp: 50, phase: 'Predator', isExposed: false },
+  turn: 3,
+  phase: 'Player Action',
+  nodes: [
+    { id: 'reactor', name: 'Reactor', damage: 1, maxDamage: 3, isCollapsed: false },
+    { id: 'comms', name: 'Comms', damage: 0, maxDamage: 3, isCollapsed: false },
+    { id: 'lifesupport', name: 'Life Support', damage: 2, maxDamage: 3, isCollapsed: false },
+    { id: 'propulsion', name: 'Propulsion', damage: 3, maxDamage: 3, isCollapsed: true }
+  ],
+  playerHand: [
+    { id: '1', suit: 'Spades', rank: 'K', value: 13 },
+    { id: '2', suit: 'Hearts', rank: '7', value: 7 },
+    { id: '3', suit: 'Clubs', rank: 'A', value: 14 },
+    { id: '4', suit: 'Diamonds', rank: '9', value: 9 },
+    { id: '5', suit: 'Hearts', rank: 'Q', value: 12 }
+  ]
+};
+
+const StatBar = ({ current, max, label, color = 'blue', icon }) => {
+  const percentage = Math.max(0, (current / max) * 100);
+  const isLow = percentage < 30;
+  const isCritical = percentage < 15;
+  
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <div className="text-lg flex-shrink-0">{icon}</div>
+      <div className="flex flex-col gap-1 min-w-0">
+        <div className="text-xs text-gray-300 truncate">{label}</div>
+        <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden border border-gray-600 flex-shrink-0">
+          <motion.div
+            className={`h-full rounded-full transition-colors duration-300 ${
+              isCritical ? 'bg-red-500' : isLow ? 'bg-yellow-500' : `bg-${color}-500`
+            }`}
+            style={{ width: `${percentage}%` }}
+            animate={{
+              boxShadow: isCritical ? '0 0 8px rgba(239, 68, 68, 0.6)' : 'none'
+            }}
+          />
+        </div>
+        <div className="text-xs text-center text-gray-300">{current}/{max}</div>
+      </div>
+    </div>
+  );
+};
+
+const Card = ({ card, onClick, isPlayable = true, className = "" }) => {
+  const suitColors = {
+    Spades: 'text-black',
+    Hearts: 'text-red-500',
+    Clubs: 'text-black',
+    Diamonds: 'text-red-500'
+  };
+  
+  const suitSymbols = {
+    Spades: '♠',
+    Hearts: '♥',
+    Clubs: '♣',
+    Diamonds: '♦'
+  };
+
+  return (
+    <motion.div
+      whileHover={{ scale: 1.05, y: -4 }}
+      whileTap={{ scale: 0.98 }}
+      className={`relative w-16 h-22 bg-white rounded-lg shadow-lg cursor-pointer border-2 transition-all duration-200 flex flex-col justify-between p-2 ${
+        isPlayable ? 'border-gray-300 hover:border-yellow-400 hover:shadow-yellow-400/30' : 'border-gray-500 opacity-60'
+      } ${className}`}
+      onClick={() => isPlayable && onClick && onClick(card)}
+    >
+      {/* Esquina superior izquierda */}
+      <div className={`text-sm font-bold ${suitColors[card.suit]} flex flex-col items-center`}>
+        <div>{card.rank}</div>
+        <div className="text-lg leading-none">{suitSymbols[card.suit]}</div>
+      </div>
+      
+      {/* Centro */}
+      <div className={`text-3xl ${suitColors[card.suit]} self-center`}>
+        {suitSymbols[card.suit]}
+      </div>
+      
+      {/* Valor de poder */}
+      <div className="absolute bottom-1 right-1 bg-gray-800 text-yellow-400 text-xs px-1 rounded">
+        {card.value}
+      </div>
+    </motion.div>
+  );
+};
+
+const NodeComponent = ({ node, onClick, isRepairMode = false }) => {
+  const damagePercentage = (node.damage / node.maxDamage) * 100;
+  const isDestroyed = node.isCollapsed;
+  const isDamaged = node.damage > 0;
+  
+  return (
+    <motion.div
+      whileHover={isRepairMode && isDamaged ? { scale: 1.05 } : {}}
+      className={`p-3 rounded-lg border-2 text-center transition-all cursor-pointer min-w-20 ${
+        isDestroyed 
+          ? 'border-red-500 bg-red-900/50 text-red-300' 
+          : isDamaged 
+            ? 'border-orange-500 bg-orange-900/30 text-orange-300' 
+            : 'border-green-500 bg-green-900/30 text-green-300'
+      } ${
+        isRepairMode && isDamaged ? 'hover:border-yellow-400 hover:bg-yellow-900/20' : ''
+      }`}
+      onClick={() => onClick && onClick(node.id)}
+    >
+      <div className="text-xs font-bold mb-1 truncate">{node.name}</div>
+      <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden mb-1">
+        <div 
+          className={`h-full transition-all ${
+            isDestroyed ? 'bg-red-500' : isDamaged ? 'bg-orange-500' : 'bg-green-500'
+          }`}
+          style={{ width: `${100 - damagePercentage}%` }}
+        />
+      </div>
+      <div className="text-xs">{node.maxDamage - node.damage}/{node.maxDamage}</div>
+      {isDestroyed && <div className="text-xs text-red-400 font-bold mt-1">COLLAPSED</div>}
+    </motion.div>
+  );
+};
+
+export default function EcoDelVacioGame() {
+  const [gameState, setGameState] = useState(mockGameState);
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [isRepairMode, setIsRepairMode] = useState(false);
+
+  const handleCardClick = (card) => {
+    setSelectedCard(selectedCard?.id === card.id ? null : card);
+  };
+
+  const handleNodeClick = (nodeId) => {
+    if (isRepairMode) {
+      console.log(`Repairing node: ${nodeId}`);
+    }
+  };
+
+  const handlePlayCard = () => {
+    if (selectedCard) {
+      console.log(`Playing card: ${selectedCard.rank} of ${selectedCard.suit}`);
+      setSelectedCard(null);
+    }
+  };
+
+  return (
+    <div className="w-full h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white overflow-hidden flex flex-col">
+      {/* HUD Superior */}
+      <div className="w-full p-4 bg-black/50 backdrop-blur-sm border-b border-gray-700 flex-shrink-0">
+        <div className="flex justify-between items-center max-w-7xl mx-auto">
+          {/* Stats del Jugador */}
+          <div className="flex gap-6">
+            <StatBar 
+              current={gameState.player.pv} 
+              max={gameState.player.maxPV} 
+              label="Vida" 
+              color="green" 
+              icon="❤️" 
+            />
+            <StatBar 
+              current={gameState.player.sanity} 
+              max={gameState.player.maxSanity} 
+              label="Cordura" 
+              color="blue" 
+              icon="🧠" 
+            />
+            <div className="flex items-center gap-2">
+              <div className="text-lg">⚡</div>
+              <div className="flex flex-col">
+                <div className="text-xs text-gray-300">PA</div>
+                <div className="text-xl font-bold text-yellow-400">{gameState.player.pa}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Info Central */}
+          <div className="text-center">
+            <div className="text-sm text-gray-300">Turno {gameState.turn}</div>
+            <div className="text-lg font-bold text-yellow-400">{gameState.phase}</div>
+          </div>
+
+          {/* Stats del Eco */}
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <div className="text-sm text-gray-300">ECO</div>
+              <div className={`text-lg font-bold ${gameState.eco.isExposed ? 'text-yellow-400' : 'text-red-400'}`}>
+                {gameState.eco.phase}
+              </div>
+              {gameState.eco.isExposed && (
+                <div className="text-xs text-yellow-400 animate-pulse">EXPUESTO</div>
+              )}
+            </div>
+            <StatBar 
+              current={gameState.eco.hp} 
+              max={gameState.eco.maxHp} 
+              label="HP" 
+              color="red" 
+              icon="👹" 
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Área de Juego Principal */}
+      <div className="flex-1 flex flex-col p-4 max-w-7xl mx-auto w-full min-h-0">
+        {/* Área del ECO */}
+        <div className="flex-1 flex flex-col items-center justify-center min-h-0">
+          <div className="mb-4">
+            <div className={`p-6 rounded-xl border-2 text-center ${
+              gameState.eco.isExposed 
+                ? 'border-yellow-400 bg-yellow-900/20 shadow-lg shadow-yellow-400/20' 
+                : 'border-red-500 bg-red-900/20'
+            }`}>
+              <h2 className="text-2xl font-bold text-red-400 mb-2">E C O</h2>
+              <div className="text-lg">HP: {gameState.eco.hp}/{gameState.eco.maxHp}</div>
+              {gameState.eco.isExposed && (
+                <div className="text-yellow-400 animate-pulse mt-2">VULNERABLE</div>
+              )}
+            </div>
+          </div>
+
+          {/* Zona de Juego Central */}
+          <div className="flex items-center gap-8 my-8">
+            {/* Mazo */}
+            <div className="w-16 h-22 bg-blue-900 border-2 border-blue-600 rounded-lg flex items-center justify-center cursor-pointer hover:bg-blue-800 transition-colors">
+              <div className="text-2xl">🂠</div>
+            </div>
+
+            {/* Área de Drop */}
+            <motion.div
+              className={`w-32 h-22 border-2 border-dashed rounded-lg flex items-center justify-center transition-all ${
+                selectedCard 
+                  ? 'border-yellow-400 bg-yellow-900/20' 
+                  : 'border-gray-500 bg-gray-800/50'
+              }`}
+              onClick={handlePlayCard}
+              whileHover={{ scale: selectedCard ? 1.02 : 1 }}
+            >
+              <div className="text-center text-sm text-gray-400">
+                {selectedCard ? 'Jugar Carta' : 'Selecciona una carta'}
+              </div>
+            </motion.div>
+
+            {/* Descarte */}
+            <div className="w-16 h-22 bg-gray-700 border-2 border-gray-600 rounded-lg flex items-center justify-center">
+              <div className="text-2xl opacity-50">🂠</div>
+            </div>
+          </div>
+
+          {/* Nodos */}
+          <div className="flex gap-4 justify-center flex-wrap">
+            {gameState.nodes.map(node => (
+              <NodeComponent
+                key={node.id}
+                node={node}
+                onClick={handleNodeClick}
+                isRepairMode={isRepairMode}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Mano del Jugador */}
+        <div className="mt-4 flex-shrink-0">
+          <div className="bg-black/30 p-4 rounded-lg border border-gray-700">
+            <div className="flex justify-center gap-2 flex-wrap">
+              {gameState.playerHand.map((card, index) => (
+                <Card
+                  key={card.id}
+                  card={card}
+                  onClick={handleCardClick}
+                  isPlayable={gameState.player.pa > 0}
+                  className={selectedCard?.id === card.id ? 'ring-2 ring-yellow-400' : ''}
+                />
+              ))}
+            </div>
+            
+            {/* Controles */}
+            <div className="flex justify-center gap-4 mt-4">
+              <button 
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded transition-colors text-sm"
+                onClick={() => setIsRepairMode(!isRepairMode)}
+              >
+                {isRepairMode ? 'Cancelar Reparación' : 'Modo Reparación'}
+              </button>
+              <button 
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded transition-colors text-sm"
+                disabled={gameState.player.pa === 0}
+              >
+                Enfocar (1 PA)
+              </button>
+              <button 
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded transition-colors text-sm"
+              >
+                Finalizar Turno
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

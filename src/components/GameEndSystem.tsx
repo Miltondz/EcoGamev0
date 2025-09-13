@@ -15,7 +15,9 @@ import { chapterManager } from '../engine/ChapterManager';
 import { scoreSystem } from '../engine/ScoreSystem';
 import { ecoStateSystem } from '../engine/EcoStateSystem';
 import { heroStateSystem } from '../engine/HeroStateSystem';
+import { audioManager } from '../engine/AudioManager';
 import { colors, textStyles, panelStyles, createStoneButtonStyle, handleStoneButtonHover } from '../utils/styles';
+import { useLayer, GameLayer } from '../engine/LayerManager';
 
 interface GameEndSystemProps {
   isVisible: boolean;
@@ -50,9 +52,15 @@ export const GameEndSystem: React.FC<GameEndSystemProps> = ({
   const [showDetails, setShowDetails] = useState(false);
   const [isProcessingEnd, setIsProcessingEnd] = useState(false);
   const [narrativeShown, setNarrativeShown] = useState(false);
+  
+  // LayerManager para modal overlay crítico de fin de juego
+  const gameEndModalLayer = useLayer(GameLayer.CRITICAL_ALERTS);
+  
+  console.log('🏁 GameEndSystem: Component initialized', { isVisible, hasResult: !!gameResult });
 
   useEffect(() => {
     if (isVisible && gameStateManager.isGameOver) {
+      console.log('🎮 GameEndSystem: Game over detected, processing end state');
       processGameEnd();
     }
   }, [isVisible, gameStateManager.isGameOver]);
@@ -73,10 +81,19 @@ export const GameEndSystem: React.FC<GameEndSystemProps> = ({
   }, [gameResult, onTriggerEndNarrative, narrativeShown, isVisible]);
 
   const processGameEnd = async () => {
-    if (isProcessingEnd) return;
+    if (isProcessingEnd) {
+      console.warn('⚠️ GameEndSystem: Already processing game end, skipping duplicate call');
+      return;
+    }
     
     setIsProcessingEnd(true);
-    console.log('🏁 GameEndSystem: Processing game end...');
+    console.log('🏁 GameEndSystem: Processing game end...', {
+      victory: gameStateManager.victory,
+      pv: gameStateManager.pv,
+      sanity: gameStateManager.sanity,
+      ecoHp: gameStateManager.ecoHp,
+      turn: gameStateManager.turn
+    });
 
     try {
       // Determinar causa del final
@@ -114,6 +131,26 @@ export const GameEndSystem: React.FC<GameEndSystemProps> = ({
         );
       }
 
+      // Reproducir efecto de sonido según el resultado
+      if (result.victory) {
+        // Música de victoria
+        setTimeout(() => {
+          audioManager.playMusic('victory', true).catch(error => {
+            console.warn('⚠️ GameEndSystem: No se pudo reproducir música de victoria:', error);
+          });
+        }, 500);
+        
+        // Efecto de sonido de victoria
+        setTimeout(() => {
+          audioManager.playEffect('treasure-3', 0.9);
+        }, 800);
+      } else {
+        // Efecto de sonido de derrota
+        setTimeout(() => {
+          audioManager.playEffect('game-over', 0.8);
+        }, 500);
+      }
+      
       setGameResult(result);
       console.log('🏁 GameEndSystem: Game result processed:', result);
       
@@ -159,12 +196,43 @@ export const GameEndSystem: React.FC<GameEndSystemProps> = ({
     return { rank: 'NOVATO', color: '#6b7280', description: 'Hay margen de mejora' };
   };
 
+  /**
+   * Calcula las dimensiones dinámicas del modal basándose en el contenido
+   * @returns Objeto con dimensiones calculadas y validadas
+   */
+  const calculateModalDimensions = () => {
+    const HEADER_HEIGHT = 140; // Icono (48px) + título (48px) + descripción + márgenes
+    const STATS_GRID_HEIGHT = 100; // Altura de las tarjetas de estadísticas
+    const BUTTONS_HEIGHT = 80; // Altura de los botones + márgenes
+    const PADDING_VERTICAL = 40 * 2; // padding superior e inferior
+    const GAPS = 64; // márgenes entre secciones
+    
+    // Calcular altura total necesaria
+    const totalHeight = HEADER_HEIGHT + STATS_GRID_HEIGHT + BUTTONS_HEIGHT + PADDING_VERTICAL + GAPS;
+    
+    // Calcular ancho basado en contenido de estadísticas (3 columnas + gaps)
+    const STAT_COLUMN_WIDTH = 180;
+    const GRID_GAPS = 20 * 2;
+    const contentWidth = STAT_COLUMN_WIDTH * 3 + GRID_GAPS;
+    const totalWidth = Math.max(600, contentWidth + 80); // 80px padding lateral
+    
+    console.log('📏 GameEndSystem: Modal dimensions calculated', { 
+      totalWidth, 
+      totalHeight, 
+      contentWidth,
+      hasNextChapter 
+    });
+    
+    return { width: totalWidth, height: totalHeight };
+  };
+
   if (!isVisible || !gameResult) {
     return null;
   }
 
   const scoreRank = getScoreRank(gameResult.finalScore);
   const hasNextChapter = chapterManager.hasNextChapter();
+  const modalDimensions = calculateModalDimensions();
 
   return (
     <div style={{
@@ -178,14 +246,14 @@ export const GameEndSystem: React.FC<GameEndSystemProps> = ({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 9999,
+      zIndex: gameEndModalLayer.zIndex, // LayerManager z-index crítico para modal de fin de juego
       animation: 'fadeIn 0.5s ease-out'
     }}>
       <div style={{
         ...panelStyles.primary,
         padding: '40px',
-        minWidth: '600px',
-        maxWidth: '800px',
+        width: `${modalDimensions.width}px`,
+        minHeight: `${modalDimensions.height}px`, // Altura mínima calculada dinámicamente
         background: gameResult.victory 
           ? 'rgba(5, 46, 22, 0.95)' // Verde oscuro para victoria
           : 'rgba(69, 10, 10, 0.95)', // Rojo oscuro para derrota

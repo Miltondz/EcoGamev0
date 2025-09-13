@@ -412,9 +412,9 @@ export class PixiScreenEffects {
       });
 
       // Efecto de ondas de corrupción
-      gsap.to(layer, {
-        scaleX: 1.05,
-        scaleY: 1.05,
+      gsap.to(layer.scale, {
+        x: 1.05,
+        y: 1.05,
         duration: 2,
         yoyo: true,
         repeat: -1,

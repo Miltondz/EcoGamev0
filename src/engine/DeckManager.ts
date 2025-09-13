@@ -128,6 +128,10 @@ class DeckManager {
         return this.deck.length;
     }
 
+    getEcoDeckCount(): number {
+        return this.ecoDeck.length;
+    }
+
     getDiscardPile(): Card[] {
         return this.discardPile;
     }

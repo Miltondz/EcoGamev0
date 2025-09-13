@@ -33,9 +33,8 @@ export const Board: React.FC<BoardProps> = (_props: BoardProps) => {
                 height: '100%',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                backgroundImage: 'radial-gradient(circle at center, rgba(217, 119, 6, 0.1) 0%, rgba(0, 0, 0, 0.3) 70%)',
-                borderRadius: '8px'
+                justifyContent: 'center'
+                // Eliminado: backgroundImage y borderRadius para que sea invisible
             }}
         >
             {/* Área de juego central - limpia y funcional */}

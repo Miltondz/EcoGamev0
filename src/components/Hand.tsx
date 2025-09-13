@@ -40,10 +40,10 @@ export const Hand: React.FC<HandProps> = () => {
             return;
         }
 
-        // Use fixed layout positioning for cards (1280x800 layout)
+        // Use fixed layout positioning for cards (1280x720 layout)
         const LAYOUT_WIDTH = 1280;
         const LAYOUT_HEIGHT = 720;
-        const HAND_AREA = { x: 200, y: 560, width: 880, height: 100 };
+        const HAND_AREA = { x: 140, y: 580, width: 1000, height: 100 }; // Centrado y con más espacio
         
         // Position cards in the fixed hand area
         const handCenterX = HAND_AREA.x + HAND_AREA.width / 2; // 640px from left
@@ -114,9 +114,11 @@ export const Hand: React.FC<HandProps> = () => {
         
         // Set card and menu position for context menu (NO enlarged card display)
         setEnlargedCard(card); // Only for menu logic, not for display
+        
+        // Use the ACTUAL card position from VFX, not hardcoded center
         setActionButtonsPosition({
-            x: window.innerWidth / 2,
-            y: window.innerHeight * 0.3 // Centered position for menu
+            x: position.x,
+            y: position.y - 50 // Slightly above the card to avoid overlap
         });
         
         console.log(`${logPrefix}: Context menu activated for card ${card.id}`);
@@ -196,6 +198,37 @@ export const Hand: React.FC<HandProps> = () => {
 
         return unsubscribe;
     }, [handleCardClick]);
+    
+    // Handle direct drag-to-play events from VFX
+    useEffect(() => {
+        const handleDirectPlay = (event: CustomEvent) => {
+            const { cardId, action } = event.detail;
+            const card = gameStateManager.hand.find(c => c.id === cardId);
+            
+            if (card && action === 'play') {
+                const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+                console.log(`[${timestamp}] 🎯 Hand: Direct drag-to-play for card ${card.rank}${card.suit} (${cardId})`);
+                
+                // Execute play action directly
+                turnManager.playCard(card);
+                
+                console.log(`[${timestamp}] 🎯 Hand: Direct play completed`);
+            }
+        };
+        
+        // Add event listener to hand element
+        const handElement = handRef.current;
+        if (handElement) {
+            handElement.addEventListener('direct-play-card', handleDirectPlay as EventListener);
+            
+            // Also add data attribute for VFX to find
+            handElement.setAttribute('data-component', 'hand');
+            
+            return () => {
+                handElement.removeEventListener('direct-play-card', handleDirectPlay as EventListener);
+            };
+        }
+    }, []);
 
     // Close enlarged card when clicking outside
     useEffect(() => {
@@ -219,7 +252,8 @@ export const Hand: React.FC<HandProps> = () => {
                 height: '100px',
                 position: 'absolute',
                 left: 0,
-                top: 0
+                top: 0,
+                pointerEvents: 'none' // CRÍTICO: Permitir que los clicks pasen a PixiJS
             }}
         >
             <div className="flex justify-center items-center h-full w-full relative">
@@ -230,14 +264,16 @@ export const Hand: React.FC<HandProps> = () => {
             {/* No enlarged card rendering to prevent placeholder cards */}
             
             {/* Context Menu */}
-            <CardContextMenu
-                card={enlargedCard || gameStateManager.hand[0]} // Fallback para evitar undefined
-                position={actionButtonsPosition || { x: 640, y: 400 }} // Posición por defecto
-                isVisible={!!(actionButtonsPosition && enlargedCard)}
-                onAction={handleCardAction}
-                radius={140}
-                animationDuration={250}
-            />
+            {actionButtonsPosition && (enlargedCard || gameStateManager.hand.length > 0) && (
+                <CardContextMenu
+                    card={enlargedCard || (gameStateManager.hand.length > 0 ? gameStateManager.hand[0] : null)}
+                    position={actionButtonsPosition}
+                    isVisible={!!(actionButtonsPosition && enlargedCard)}
+                    onAction={handleCardAction}
+                    radius={140}
+                    animationDuration={250}
+                />
+            )}
         </div>
     );
 };

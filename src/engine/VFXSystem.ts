@@ -16,6 +16,7 @@ export type VFXEventType =
   | 'updateHand' // New event type
   | 'repositionHand' // Reposition existing cards
   | 'ecoPlayCard' // ECO plays a card with full animation
+  | 'ecoDiscardCard' // ECO discards card with fire effect
   | 'dealEcoCard' // Deal card to ECO hand
   | 'nodeRepaired' // Node gets repaired
   | 'nodeDamaged' // Node gets damaged
@@ -83,6 +84,10 @@ export interface VFXEventData {
     startPosition: { x: number; y: number };
     centerPosition: { x: number; y: number };
   };
+  ecoDiscardCard: { // ECO discards card with fire effect
+    card: Card;
+    position: { x: number; y: number };
+  };
   dealEcoCard: { // Deal a card to ECO's hand
     card: Card;
     startPosition: { x: number; y: number };
@@ -140,6 +145,7 @@ class VFXSystem {
   updateHand = (data: VFXEventData['updateHand']) => this.dispatch('updateHand', data); // New helper method
   repositionHand = (data: VFXEventData['updateHand']) => this.dispatch('repositionHand', data); // Reposition existing cards
   ecoPlayCard = (data: VFXEventData['ecoPlayCard']) => this.dispatch('ecoPlayCard', data); // ECO card play animation
+  ecoDiscardCard = (data: VFXEventData['ecoDiscardCard']) => this.dispatch('ecoDiscardCard', data); // ECO discard with fire
   dealEcoCard = (data: VFXEventData['dealEcoCard']) => this.dispatch('dealEcoCard', data); // Deal to ECO
   cardClick = (data: VFXEventData['cardClick']) => this.dispatch('cardClick', data); // Card clicked for actions
   

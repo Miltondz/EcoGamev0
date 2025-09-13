@@ -12,6 +12,7 @@ export const colors = {
   gold: '#b69552',
   muted: '#cfc6b9',
   mutedAlpha: 'rgba(207,198,179,0.9)',
+  text: '#cfc6b9', // Same as muted for default text
   background: 'rgba(255,255,255,0.06)',
   stone: {
     light: 'rgba(255,255,255,0.02)',

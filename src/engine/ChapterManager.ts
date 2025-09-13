@@ -32,6 +32,8 @@ export interface ScenarioConfig {
   audio: {
     ambientSound?: string;
     music?: string;
+    tension?: string;
+    victory?: string;
   };
   assetsPath: string; // Base path for scenario assets
 }
@@ -194,10 +196,41 @@ class ChapterManager {
         hudTheme: 'coastal'
       },
       audio: {
-        ambientSound: '/audio/scenarios/default/ocean_wind.ogg',
-        music: '/audio/scenarios/default/melancholy_shore.ogg'
+        ambientSound: '/audio/scenarios/default/ambient.mp3',
+        tension: '/audio/scenarios/default/tension.mp3',
+        victory: '/audio/scenarios/default/victory.mp3'
       },
       assetsPath: '/images/scenarios/default'
+    };
+    
+    // Submarine Laboratory scenario configuration
+    this.scenarios['submarine-lab'] = {
+      id: 'submarine-lab',
+      name: 'Laboratorio Submarino',
+      description: 'Un laboratorio de investigación en aguas profundas donde los experimentos con IA y vida abismal han salido terriblemente mal.',
+      initialPlayerStats: {
+        PV: 18, // Menos vida (ambiente hostil)
+        COR: 15, // Menos cordura (terror psicológico)
+        PA: 2,
+        handSize: 5
+      },
+      initialEcoHP: 55, // Ligeramente más fuerte
+      difficultySettings: {
+        normal: { ecoHP: 55 },
+        hard: { ecoHP: 75 },
+        nightmare: { ecoHP: 110 }
+      },
+      art: {
+        background: '/images/scenarios/submarine-lab/backgrounds/main-bg.png',
+        cardBack: '/images/scenarios/default/cards/card-back.png', // Reutiliza cartas
+        hudTheme: 'cybernetic'
+      },
+      audio: {
+        ambientSound: '/audio/scenarios/submarine-lab/ambient.mp3',
+        tension: '/audio/scenarios/submarine-lab/tension.mp3',
+        victory: '/audio/scenarios/default/victory.mp3' // Reutiliza victoria
+      },
+      assetsPath: '/images/scenarios/submarine-lab'
     };
 
     // Future scenarios can be added here
@@ -614,8 +647,8 @@ class ChapterManager {
       // Preload scenario assets using PIXI.Assets
       await assetManager.preloadScenarioAssets(scenario.id);
       
-      // Load chapter narrative
-      await chapterNarrativeSystem.loadNarrativeForChapter(chapterId);
+      // Load chapter narrative from scenario files when available
+      await chapterNarrativeSystem.loadNarrativeForChapter(chapterId, scenario.id);
       
       this.currentChapter = chapter;
       this.currentScenario = scenario;
@@ -854,7 +887,8 @@ class ChapterManager {
   get availableScenarios(): ScenarioConfig[] {
     return Object.values(this.scenarios).filter(scenario =>
       this.playerProfile.unlockedContent.includes(scenario.id) ||
-      scenario.id === 'default' // Default always available
+      scenario.id === 'default' || // Default always available
+      scenario.id === 'submarine-lab' // Submarine lab always available for testing
     );
   }
 

@@ -456,7 +456,6 @@ class AssetManager {
       assets: {
         // Backgrounds
         'bg-main': `/images/scenarios/${scenarioId}/backgrounds/main-bg.png`,
-        'bg-main-fallback': `/images/scenarios/${scenarioId}/backgrounds/main-bg.jpg`,
         'bg-main-svg': `/images/scenarios/${scenarioId}/backgrounds/main-bg.svg`,
         
         // Characters

@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { assetManager } from '../engine/AssetManager';
-import { Z_INDEX } from '../constants/zIndex';
+import { GameLayer, useLayer } from '../engine/LayerManager';
+// import { Z_INDEX } from '../constants/zIndex'; // Reemplazado por LayerManager
 
 interface GameLayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,7 @@ interface GameLayoutProps {
 export const GameLayout: React.FC<GameLayoutProps> = ({ 
   children
 }) => {
+  const frameBorderLayer = useLayer(GameLayer.LAYOUT_FRAME);
   const [backgroundImage, setBackgroundImage] = useState<string>('');
   const [frameBorderImage, setFrameBorderImage] = useState<string>('');
   
@@ -128,7 +130,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
             pointerEvents: 'none', // Permitir interacción con elementos debajo
-            zIndex: Z_INDEX.FRAME_BORDER // Frame border debe estar en su capa apropiada
+            zIndex: frameBorderLayer.zIndex // Frame border gestionado por LayerManager
           }}
         />
       )}

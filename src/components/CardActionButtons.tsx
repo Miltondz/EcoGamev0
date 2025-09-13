@@ -3,6 +3,7 @@
 import React from 'react';
 import { assetManager } from '../engine/AssetManager';
 import type { Card } from '../engine/types';
+import { GameLayer, useLayer } from '../engine/LayerManager';
 
 interface CardActionButtonsProps {
   card: Card;
@@ -16,6 +17,7 @@ export const CardActionButtons: React.FC<CardActionButtonsProps> = ({
   onAction,
   isVisible
 }) => {
+  const actionButtonsLayer = useLayer(GameLayer.CONTEXT_MENU, true); // Auto-traer al frente
   const [buttonImages, setButtonImages] = React.useState<Record<string, string>>({});
 
   React.useEffect(() => {
@@ -61,7 +63,7 @@ export const CardActionButtons: React.FC<CardActionButtonsProps> = ({
       position: 'fixed',
       left: position.x,
       top: position.y,
-      zIndex: 10000,
+      zIndex: actionButtonsLayer.zIndex, // Usar LayerManager
       pointerEvents: 'none'
     }}>
       {buttons.map((button) => {
@@ -123,7 +125,7 @@ export const CardActionButtons: React.FC<CardActionButtonsProps> = ({
             {/* Button content */}
             <div style={{
               position: 'relative',
-              zIndex: 1,
+              zIndex: 1, // Local z-index relativo al botón, no cambiar
               width: '100%',
               height: '100%',
               display: 'flex',

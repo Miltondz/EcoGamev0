@@ -142,4 +142,42 @@ GameStateManager (Observable)
 - Efectos de partículas avanzados
 
 ---
-*Documento actualizado: Enero 2025*
+
+## 🏗️ **Nuevas Directrices de Desarrollo (Septiembre 2025)**
+
+### **LayerManager - Sistema Obligatorio**
+- ✅ **Todos los z-index** ahora usan `useLayer(GameLayer.*)`
+- ✅ **15 capas organizadas** (0-10100) para máxima compatibilidad
+- ✅ **Integración React + PixiJS** unificada
+- ✅ **Resolución automática** de conflictos de capas
+
+### **Consistencia Visual Obligatoria**
+- ✅ **panelStyles.* unificados** en todos los modales
+- ✅ **textStyles.* consistentes** en toda la aplicación
+- ✅ **createStoneButtonStyle()** para todos los botones
+- ❌ **Prohibido**: alert(), confirm(), prompt() del sistema
+
+### **Cálculo Dinámico de Dimensiones**
+- ✅ **Dimensiones calculadas** basándose en contenido real
+- ✅ **Validación de min/max** para prevenir cortes
+- ✅ **Comentarios explicativos** en todos los cálculos
+
+### **Logging Comprehensivo**
+- ✅ **Logs informativos** en inicialización de componentes
+- ✅ **Tracking de cambios** de estado importantes
+- ✅ **Manejo de errores** con contexto detallado
+- ✅ **Prefijos consistentes** (🎮, ⚠️, ❌, 🔍)
+
+### **Documentación de Código Obligatoria**
+- ✅ **JSDoc comments** para todas las funciones nuevas
+- ✅ **Comentarios inline** explicando decisiones arquitectónicas
+- ✅ **Ejemplos de uso** en funciones complejas
+
+### **Automatización de Mantenimiento**
+- 🔄 **Actualización automática** de documentación post-cambios
+- 🔄 **Commit y push automático** a GitHub
+- 🔄 **Merge automático** cuando sea necesario
+- 🔄 **Verificación post-push** de estabilidad
+
+---
+*Documento actualizado: Septiembre 2025*

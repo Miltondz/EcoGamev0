@@ -1,0 +1,47 @@
+<svg width="400" height="240" viewBox="0 0 400 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo oceánico profundo -->
+  <defs>
+    <radialGradient id="oceanGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#0a192f;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#020617;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  
+  <rect width="400" height="240" fill="url(#oceanGradient)"/>
+  
+  <!-- Estructura del laboratorio -->
+  <rect x="50" y="120" width="300" height="80" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+  <rect x="70" y="140" width="260" height="40" fill="#0f172a"/>
+  
+  <!-- Ventanas del laboratorio con luz interior -->
+  <rect x="80" y="150" width="30" height="20" fill="#06b6d4" opacity="0.8"/>
+  <rect x="130" y="150" width="30" height="20" fill="#06b6d4" opacity="0.6"/>
+  <rect x="180" y="150" width="30" height="20" fill="#ef4444" opacity="0.8"/>
+  <rect x="230" y="150" width="30" height="20" fill="#06b6d4" opacity="0.4"/>
+  <rect x="280" y="150" width="30" height="20" fill="#f59e0b" opacity="0.7"/>
+  
+  <!-- Tentáculos biomecánicos -->
+  <path d="M100 200 Q150 180 180 220 T250 200" stroke="#10b981" stroke-width="4" fill="none" opacity="0.6"/>
+  <path d="M320 200 Q280 170 260 210 T200 190" stroke="#10b981" stroke-width="3" fill="none" opacity="0.4"/>
+  
+  <!-- Burbujas subiendo -->
+  <circle cx="120" cy="100" r="3" fill="#38bdf8" opacity="0.5"/>
+  <circle cx="200" cy="80" r="5" fill="#38bdf8" opacity="0.3"/>
+  <circle cx="280" cy="90" r="2" fill="#38bdf8" opacity="0.7"/>
+  <circle cx="160" cy="60" r="4" fill="#38bdf8" opacity="0.4"/>
+  
+  <!-- Core IA central -->
+  <circle cx="200" cy="160" r="15" fill="#ef4444" opacity="0.8"/>
+  <circle cx="200" cy="160" r="10" fill="#fca5a5" opacity="0.6"/>
+  <circle cx="200" cy="160" r="5" fill="#fef2f2"/>
+  
+  <!-- Texto del título -->
+  <text x="200" y="220" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#e2e8f0" text-anchor="middle">
+    Laboratorio Submarino
+  </text>
+  
+  <!-- Subtítulo -->
+  <text x="200" y="235" font-family="Arial, sans-serif" font-size="12" fill="#64748b" text-anchor="middle">
+    Inteligencia Abismal
+  </text>
+</svg>

@@ -156,15 +156,36 @@ Ahora queda solo una pregunta: ¿viniste aquí a destruirlo, o él te trajo aqu�
 class ChapterNarrativeSystem {
   private currentNarrative: ChapterNarrativeConfig | null = null;
   private listeners: ((element: NarrativeElement, config: ChapterNarrativeConfig) => void)[] = [];
+  private activeScenarioId: string | null = null;
 
   /**
    * Carga la narrativa para un capítulo específico
    */
-  async loadNarrativeForChapter(chapterId: string): Promise<ChapterNarrativeConfig | null> {
-    const config = NARRATIVE_CONFIGS[chapterId];
+  async loadNarrativeForChapter(chapterId: string, scenarioId?: string): Promise<ChapterNarrativeConfig | null> {
+    this.activeScenarioId = scenarioId || this.activeScenarioId;
+
+    let config: ChapterNarrativeConfig | undefined = undefined;
+
+    // 1) Try to load from scenario files if scenarioId provided
+    if (this.activeScenarioId) {
+      try {
+        const narrativeMap = (await import(`../scenarios/${this.activeScenarioId}/narrative.json`)).default as Record<string, ChapterNarrativeConfig>;
+        config = narrativeMap?.[chapterId];
+        if (config) {
+          console.log(`📖 ChapterNarrativeSystem: Loaded narrative from scenario files for chapter: ${chapterId}`);
+        }
+      } catch (e) {
+        console.warn(`⚠️ ChapterNarrativeSystem: No scenario narrative found for ${this.activeScenarioId}, falling back to defaults.`);
+      }
+    }
+
+    // 2) Fallback to built-in configs
     if (!config) {
-      console.warn(`📖 ChapterNarrativeSystem: No narrative config found for chapter: ${chapterId}`);
-      return null;
+      config = NARRATIVE_CONFIGS[chapterId];
+      if (!config) {
+        console.warn(`📖 ChapterNarrativeSystem: No narrative config found for chapter: ${chapterId}`);
+        return null;
+      }
     }
 
     console.log(`📖 ChapterNarrativeSystem: Loading narrative for chapter: ${chapterId}`);
@@ -183,7 +204,7 @@ class ChapterNarrativeSystem {
     const elements = [config.acts.beginning, config.acts.middle, config.acts.end].filter(Boolean) as NarrativeElement[];
     
     const loadPromises = elements.map(async (element) => {
-      if (element.mediaPath && element.mediaType !== 'text_only') {
+      if (element.mediaPath && (element.mediaType === 'image' || element.mediaType === 'gif')) {
         try {
           const fallbackPath = this.getFallbackPath(element.mediaPath, element.mediaType);
           await assetManager.loadImage(element.mediaPath, fallbackPath);
@@ -191,6 +212,8 @@ class ChapterNarrativeSystem {
         } catch (error) {
           console.warn(`⚠️ ChapterNarrativeSystem: Failed to preload ${element.id}:`, error);
         }
+      } else {
+        // Skip video preloading via image loader; rely on native video streaming
       }
     });
 

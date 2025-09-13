@@ -10,6 +10,7 @@ import { scenarioRulesEngine } from './ScenarioRulesEngine';
 import { vfxSystem } from './VFXSystem';
 import { chapterManager } from './ChapterManager';
 import { scoreSystem } from './ScoreSystem';
+import { audioManager } from './AudioManager';
 import type { Card } from './types';
 
 export class EcoAI {
@@ -56,10 +57,24 @@ export class EcoAI {
         setTimeout(() => {
             console.log(`⚔️ EcoAI: Ejecutando ataque con carta revelada`);
             this.executeAttack(card);
+            
+            // Discard the used card to ECO discard pile
+            deckManager.discardToEcoPile([card]);
+            
+            // Trigger fire discard effect after attack
+            setTimeout(() => {
+                console.log(`🔥 EcoAI: Triggering fire discard effect for used card`);
+                vfxSystem.ecoDiscardCard({
+                    card,
+                    position: centerPos
+                });
+            }, 500);
 
             // Phase-specific special actions with difficulty scaling
             const doubleAttackChance = this.getPhaseSpecialChance('predador', 0.2);
             if (this.currentPhase === 'predador' && Math.random() < doubleAttackChance) {
+                // Sonido especial para doble ataque
+                audioManager.playEffect('attack-special', 0.9);
                 gameLogSystem.addMessage("Eco performs a frenzied double attack!", 'eco', 'special');
                 this.performDoubleAttack();
             } else {
@@ -89,6 +104,16 @@ export class EcoAI {
             gameStateManager.ecoRevealedCard = secondCard;
             setTimeout(() => {
                 this.executeAttack(secondCard);
+                
+                // Discard second card and trigger fire effect
+                deckManager.discardToEcoPile([secondCard]);
+                setTimeout(() => {
+                    vfxSystem.ecoDiscardCard({
+                        card: secondCard,
+                        position: { x: 640, y: 300 }
+                    });
+                }, 500);
+                
                 // Clear revealed card after the second attack
                 gameStateManager.ecoRevealedCard = null;
             }, 1500);
@@ -120,6 +145,9 @@ export class EcoAI {
     // }
 
     private performDevastatorActions() {
+        // Sonido devastador para daño a nodos
+        audioManager.playEffect('event-danger', 0.9);
+        
         const allNodes = nodeSystem.allNodes.filter(n => n.damage < n.maxDamage);
         if (allNodes.length > 0) {
             const randomNode = allNodes[Math.floor(Math.random() * allNodes.length)];
@@ -173,9 +201,13 @@ export class EcoAI {
         }
 
         if (damageType === 'PV') {
+            // Efecto de sonido para daño físico - sonidos de ataque pesado
+            audioManager.playEffect('attack-shot', 0.8);
             gameStateManager.dealDamageToPlayer(damage);
             gameLogSystem.addMessage(`Eco attacks with ${card.rank} of ${card.suit}, dealing ${damage} PV.`, 'eco', 'attack');
         } else {
+            // Efecto de sonido para daño psicológico - sonido extraño/perturbador
+            audioManager.playEffect('event-strange', 0.7);
             gameStateManager.dealSanityDamage(damage);
             gameLogSystem.addMessage(`Eco attacks with ${card.rank} of ${card.suit}, dealing ${damage} COR.`, 'eco', 'damage');
         }

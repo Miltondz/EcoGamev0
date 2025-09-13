@@ -7,7 +7,8 @@ import { pixiScreenEffects } from '../engine/PixiScreenEffects';
 import type { ScreenEffectType } from '../engine/PixiScreenEffects';
 import { colors, textStyles, panelStyles, createStoneButtonStyle, handleStoneButtonHover } from '../utils/styles';
 import { assetManager } from '../engine/AssetManager';
-import { Z_INDEX } from '../constants/zIndex';
+import { GameLayer, useLayer } from '../engine/LayerManager';
+// import { Z_INDEX } from '../constants/zIndex'; // Reemplazado por LayerManager
 
 interface EventVisualSystemProps {
   isVisible: boolean;
@@ -90,6 +91,7 @@ export const EventVisualSystem: React.FC<EventVisualSystemProps> = ({
   event,
   onClose
 }) => {
+  const eventModalLayer = useLayer(GameLayer.EVENT_MODAL); // No auto-traer al frente en render
   const [showContent, setShowContent] = useState(false);
   const [, setCurrentEffect] = useState<string>('none');
 
@@ -97,6 +99,9 @@ export const EventVisualSystem: React.FC<EventVisualSystemProps> = ({
 
   useEffect(() => {
     if (isVisible && eventCard && event && config) {
+      // Traer modal al frente cuando se muestre
+      eventModalLayer.bringToFront();
+      
       // Iniciar efectos de pantalla
       setCurrentEffect(config.screenEffect);
       
@@ -143,7 +148,7 @@ export const EventVisualSystem: React.FC<EventVisualSystemProps> = ({
         left: 0,
         width: '100vw',
         height: '100vh',
-        zIndex: Z_INDEX.EVENT_MODAL,
+        zIndex: eventModalLayer.zIndex, // Gestionado por LayerManager
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
@@ -318,7 +323,7 @@ const CardPresentation: React.FC<{
     height: '300px',
     margin: '0 auto',
     padding: '20px 32px',
-    zIndex: 10000,
+    // z-index removido - hereda del modal padre
     display: 'flex',
     alignItems: 'center',
     gap: '24px'
@@ -419,7 +424,7 @@ const ImagePresentation: React.FC<{
     height: '300px',
     margin: '0 auto',
     overflow: 'hidden',
-    zIndex: 10000,
+    // z-index removido - hereda del modal padre
     display: 'flex',
     alignItems: 'center'
   }}>
@@ -498,7 +503,7 @@ const GifPresentation: React.FC<{
       height: '300px',
       margin: '0 auto',
       overflow: 'hidden',
-      zIndex: 10000,
+      // z-index removido - hereda del modal padre
       display: 'flex',
       alignItems: 'center'
     }}>
@@ -589,7 +594,7 @@ const VideoPresentation: React.FC<{
       height: '300px',
       margin: '0 auto',
       overflow: 'hidden',
-      zIndex: 10000,
+      // z-index removido - hereda del modal padre
       display: 'flex',
       alignItems: 'center'
     }}>

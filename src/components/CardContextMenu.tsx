@@ -3,6 +3,11 @@
 /**
  * Sistema de menú contextual de cartas con opciones de texto
  * 
+ * PROBLEMAS RESUELTOS EN v1.2.0:
+ * - Menú no clickeable (z-index bajo) → LayerManager integrado
+ * - Conflictos con otros elementos UI → Sistema de capas centralizado
+ * - Animaciones interfiriendo → Auto-gestión de prioridad visual
+ * 
  * Características:
  * - Menú circular con opciones de texto legibles
  * - Efectos hover suaves y responsivos
@@ -11,12 +16,14 @@
  * - Tema visual coherente con el juego
  * - Soporte para animaciones de entrada/salida
  * - Sistema de callbacks para diferentes acciones
+ * - LayerManager: Garantiza visibilidad por encima de otros elementos
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Card } from '../engine/types';
 import { colors, createCompactStoneButtonStyle } from '../utils/styles';
-import { Z_INDEX } from '../constants/zIndex';
+import { useLayer, GameLayer, layerSystem } from '../engine/LayerManager';
+// import { Z_INDEX } from '../constants/zIndex'; // Reemplazado por LayerManager
 
 // Tipos de acciones disponibles en el menú
 export type CardActionType = 
@@ -100,6 +107,18 @@ const DEFAULT_OPTIONS: Record<CardActionType, Omit<MenuOption, 'enabled'>> = {
 
 /**
  * Componente principal del menú contextual
+ * 
+ * INTEGRACIÓN LayerManager v1.2.0:
+ * - useLayer(GameLayer.CONTEXT_MENU): Hook que garantiza z-index correcto
+ * - bringToFront(): Se activa automáticamente cuando el menú se vuelve visible
+ * - layerSystem.resolve(): Resuelve conflictos con otros elementos UI
+ * 
+ * @param card - Carta asociada al menú (null si no hay carta seleccionada)
+ * @param position - Coordenadas {x, y} donde mostrar el menú
+ * @param isVisible - Estado de visibilidad del menú
+ * @param onAction - Callback que maneja las acciones seleccionadas
+ * @param radius - Radio del círculo de opciones (default: 120px)
+ * @param animationDuration - Duración de animaciones en ms (default: 300ms)
  */
 export const CardContextMenu: React.FC<CardContextMenuProps> = ({
   card,
@@ -109,6 +128,9 @@ export const CardContextMenu: React.FC<CardContextMenuProps> = ({
   radius = 120,
   animationDuration = 300
 }) => {
+  // LayerManager Integration - Garantiza z-index correcto
+  const { zIndex, bringToFront } = useLayer(GameLayer.CONTEXT_MENU, false);
+  
   // Estados locales
   const [hoveredAction, setHoveredAction] = useState<CardActionType | null>(null);
   const [isAnimatingIn, setIsAnimatingIn] = useState(false);
@@ -211,11 +233,19 @@ export const CardContextMenu: React.FC<CardContextMenuProps> = ({
   // Efectos de ciclo de vida
 
   /**
+   * LayerManager Integration: Trae menú al frente cuando se vuelve visible
    * Configura listeners de teclado cuando el menú es visible
    */
   useEffect(() => {
     if (isVisible) {
-      log('info', 'Menu became visible, setting up keyboard listeners');
+      log('info', 'Menu became visible, bringing to front and setting up keyboard listeners');
+      
+      // CRÍTICO: Traer menú al frente usando LayerManager
+      bringToFront();
+      
+      // Resolver conflictos automáticamente
+      layerSystem.resolve('context_menu');
+      
       setIsAnimatingIn(true);
       
       // Desactivar animación de entrada después del delay
@@ -230,12 +260,13 @@ export const CardContextMenu: React.FC<CardContextMenuProps> = ({
         log('info', 'Menu hidden, cleaned up keyboard listeners');
       };
     }
-  }, [isVisible, animationDuration, handleKeyPress, log]);
+  }, [isVisible, animationDuration, handleKeyPress, log, bringToFront]);
 
   /**
    * Log cuando cambia la carta asociada
    */
   useEffect(() => {
+    if (!isVisible) return; // Evitar logs cuando el menú no está visible
     if (!card) {
       log('warn', 'Menu card changed to undefined/null');
       return;
@@ -245,7 +276,7 @@ export const CardContextMenu: React.FC<CardContextMenuProps> = ({
       newCard: `${card.rank}${card.suit}`, 
       cardId: card.id 
     });
-  }, [card, log]);
+  }, [card, log, isVisible]);
 
   // Renderizado condicional
   if (!isVisible || !card) {
@@ -269,7 +300,7 @@ export const CardContextMenu: React.FC<CardContextMenuProps> = ({
           height: '100vh',
           backgroundColor: 'rgba(0, 0, 0, 0.4)',
           backdropFilter: 'blur(4px)',
-          zIndex: Z_INDEX.CONTEXT_MENU,
+          zIndex: zIndex - 1, // LayerManager: Un nivel por debajo del menú principal
           opacity: isAnimatingIn ? 0 : 1,
           transition: `opacity ${animationDuration}ms ease-out`
         }}
@@ -282,7 +313,7 @@ export const CardContextMenu: React.FC<CardContextMenuProps> = ({
           position: 'fixed',
           left: position.x,
           top: position.y,
-          zIndex: Z_INDEX.CONTEXT_MENU + 1, // Un nivel por encima del backdrop
+          zIndex: zIndex, // LayerManager: Z-index gestionado centralizadamente
           pointerEvents: 'auto', // Allow all pointer events on container
           transform: `scale(${isAnimatingIn ? 0.5 : isAnimatingOut ? 0.8 : 1})`,
           opacity: isAnimatingIn ? 0 : isAnimatingOut ? 0.5 : 1,

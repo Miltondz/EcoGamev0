@@ -13,7 +13,8 @@ import { uiPositionManager } from '../engine/UIPositionManager';
 import { pixiScreenEffects } from '../engine/PixiScreenEffects';
 import { floatingNumbersSystem } from '../engine/FloatingNumbersSystem';
 import { vfxController } from '../engine/VFXController';
-import { Z_INDEX } from '../constants/zIndex';
+import { GameLayer, useLayer, layerSystem } from '../engine/LayerManager';
+// import { Z_INDEX } from '../constants/zIndex'; // Reemplazado por LayerManager
 
 interface PixiCard {
   sprite: PIXI.Sprite;
@@ -23,6 +24,9 @@ interface PixiCard {
 
 
 export const VFX: React.FC = () => {
+  const vfxLayer = useLayer(GameLayer.PIXI_STAGE);
+  const debugToolsLayer = useLayer(GameLayer.DEBUG_OVERLAY);
+  
   const [pixiCards, setPixiCards] = useState<Record<string, PixiCard>>({});
   const [pixiApp, setPixiApp] = useState<PIXI.Application | null>(null);
   const [debugMode, setDebugMode] = useState(false);
@@ -67,14 +71,38 @@ export const VFX: React.FC = () => {
       });
     });
     
+    // CRITICAL: Also cleanup any lingering play zone indicators
+    const playZoneIndicators = pixiApp.stage.children.filter(child => 
+      child.label && child.label === 'playZoneIndicator'
+    );
+    
+    console.log(`${logPrefix}: Found ${playZoneIndicators.length} play zone indicators to clean`);
+    
+    playZoneIndicators.forEach((indicator, index) => {
+      console.log(`${logPrefix}: Removing play zone indicator ${index + 1}/${playZoneIndicators.length}`);
+      
+      // Kill any ongoing animations
+      gsap.killTweensOf(indicator.scale);
+      gsap.killTweensOf(indicator);
+      
+      if (indicator.parent) {
+        indicator.parent.removeChild(indicator);
+        console.log(`${logPrefix}: ✅ Play zone indicator ${index + 1} removed from stage`);
+      }
+    });
+    
     // Clear active zoom reference
     setActiveZoomContainer(null);
-    console.log(`${logPrefix}: Cleanup initiated for ${zoomContainers.length} containers`);
+    console.log(`${logPrefix}: Cleanup initiated for ${zoomContainers.length} containers and ${playZoneIndicators.length} indicators`);
   }, [pixiApp]);
 
   // Callback to get the PIXI app instance when it's created
   const onAppInit = (app: PIXI.Application) => {
     console.log('🎨 VFX: PIXI App initialized', app);
+    
+    // CRITICAL: Enable z-index sorting for proper layering
+    app.stage.sortableChildren = true;
+    console.log('🎯 VFX: sortableChildren enabled for z-index support');
     
     // CRITICAL: Make canvas completely transparent
     app.renderer.background.alpha = 0;
@@ -97,7 +125,16 @@ export const VFX: React.FC = () => {
     floatingNumbersSystem.initialize(app);
     console.log('🔢 VFX: FloatingNumbersSystem initialized');
     
+    // CRITICAL: Initialize LayerManager with PixiJS
+    layerSystem.initPixi(app);
+    console.log('🎯 VFX: LayerManager initialized with PixiJS layers');
+    
     setPixiApp(app);
+    
+    // Register cleanup callback with VFXController
+    vfxController.registerZoomCleanup(cleanupActiveZoom);
+    console.log('🎮 VFX: Zoom cleanup callback registered with VFXController');
+    
     console.log('🌨 VFX: Canvas setup complete - transparent background');
     console.log('🌨 VFX: Ready for sprite lifecycle tracking');
     console.log('🎨 VFX: Canvas setup complete - transparent background');
@@ -167,6 +204,66 @@ export const VFX: React.FC = () => {
       console.log('🔴 VFX: DEBUG MODE OFF - Debug sprites removed');
     }
   }, [debugMode, pixiApp]);
+
+  // Cleanup VFXController callback on unmount
+  useEffect(() => {
+    return () => {
+      vfxController.unregisterZoomCleanup();
+      console.log('🎮 VFX: Zoom cleanup callback unregistered on unmount');
+    };
+  }, []);
+  
+  // Global cleanup function for orphaned visual effects
+  const globalCleanup = useCallback(() => {
+    if (!pixiApp || !pixiApp.stage) return;
+    
+    const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+    const logPrefix = `[${timestamp}] 🧽 VFX.globalCleanup`;
+    
+    console.log(`${logPrefix}: Starting global cleanup of orphaned visual effects`);
+    
+    // Clean up play zone indicators
+    const playZoneIndicators = pixiApp.stage.children.filter(child => 
+      child.label && child.label === 'playZoneIndicator'
+    );
+    
+    playZoneIndicators.forEach((indicator) => {
+      console.log(`${logPrefix}: Removing orphaned play zone indicator`);
+      gsap.killTweensOf(indicator.scale);
+      gsap.killTweensOf(indicator);
+      if (indicator.parent) {
+        indicator.parent.removeChild(indicator);
+      }
+    });
+    
+    // Clean up any orphaned particles or trails
+    const orphanedEffects = pixiApp.stage.children.filter(child => 
+      child.label && (
+        child.label.includes('trail') || 
+        child.label.includes('particle') ||
+        child.label.includes('indicator')
+      )
+    );
+    
+    orphanedEffects.forEach((effect) => {
+      console.log(`${logPrefix}: Removing orphaned effect: ${effect.label}`);
+      gsap.killTweensOf(effect);
+      if (effect.parent) {
+        effect.parent.removeChild(effect);
+      }
+    });
+    
+    console.log(`${logPrefix}: Cleaned ${playZoneIndicators.length} indicators and ${orphanedEffects.length} orphaned effects`);
+  }, [pixiApp]);
+  
+  // Run global cleanup when game phase changes
+  useEffect(() => {
+    const cleanup = setTimeout(() => {
+      globalCleanup();
+    }, 500); // Small delay to let animations finish
+    
+    return () => clearTimeout(cleanup);
+  }, [gameStateManager.phase, globalCleanup]);
 
   // No longer need window resize handling - using fixed dimensions
   useEffect(() => {
@@ -360,7 +457,11 @@ export const VFX: React.FC = () => {
                   .rect(15, 20, 90, 20)
                   .fill(0xffffff);
                 
-                // Add card text
+                // Create a container to combine base and text to avoid Sprite.addChild deprecation
+                const container = new PIXI.Container();
+                const baseSprite = new PIXI.Sprite(app.renderer.generateTexture(graphics));
+                container.addChild(baseSprite);
+                
                 const text = new PIXI.Text({
                   text: `${card.rank}${card.suit[0]}`,
                   style: {
@@ -369,11 +470,11 @@ export const VFX: React.FC = () => {
                     fontWeight: 'bold'
                   }
                 });
-                text.x = 20;
-                text.y = 25;
-                graphics.addChild(text);
+                text.x = -40;
+                text.y = -60;
+                container.addChild(text);
                 
-                return app.renderer.generateTexture(graphics);
+                return app.renderer.generateTexture(container);
               };
               
               // Start with fallback texture
@@ -400,7 +501,12 @@ export const VFX: React.FC = () => {
               
               sprite.rotation = rotation;
               sprite.scale.set(0.8);
+              // Enable pointer events in PixiJS v8
+              sprite.eventMode = 'static';
+              // Keep interactive for backward compatibility
+              // @ts-ignore
               sprite.interactive = true;
+              sprite.cursor = 'pointer'; // Make it clear cards are clickable
               
               // Add default border effect to all cards
               try {
@@ -452,7 +558,13 @@ export const VFX: React.FC = () => {
                     particle.x = sprite.x + (Math.random() - 0.5) * 40;
                     particle.y = sprite.y + (Math.random() - 0.5) * 40;
                     particle.alpha = 0.8;
-                    app.stage.addChild(particle);
+                    particle.label = `hover-particle-${i}`;
+                    
+                    // Usar LayerManager para partículas de hover
+                    const addedToParticleLayer = layerSystem.addToPixi(GameLayer.PARTICLE_EFFECTS, particle);
+                    if (!addedToParticleLayer) {
+                      app.stage.addChild(particle); // Fallback
+                    }
                     
                     gsap.to(particle, {
                       x: particle.x + (Math.random() - 0.5) * 60,
@@ -460,7 +572,11 @@ export const VFX: React.FC = () => {
                       alpha: 0,
                       duration: 0.8,
                       ease: 'power2.out',
-                      onComplete: () => { app.stage.removeChild(particle); }
+                      onComplete: () => { 
+                        if (particle.parent) {
+                          particle.parent.removeChild(particle); 
+                        }
+                      }
                     });
                   }
                 }
@@ -525,28 +641,30 @@ export const VFX: React.FC = () => {
               });
 
               sprite.on('pointerdown', (e: PIXI.FederatedPointerEvent) => {
-                // Check if player has AP before allowing drag
+                // Allow pointer interaction always, but show visual feedback for no AP
                 if (gameStateManager.pa <= 0) {
-                  console.log('🚫 VFX: Cannot drag card - no AP remaining');
+                  console.log('⚠️ VFX: Low AP warning - allowing interaction but showing visual feedback');
                   
-                  // Visual feedback for no AP - red pulse
+                  // Visual feedback for no AP - red pulse (but don't block interaction)
                   const noAPGlow = new GlowFilter({ distance: 15, outerStrength: 2, color: 0xff4444 });
                   sprite.filters = [noAPGlow];
                   
-                  gsap.to(sprite.scale, { x: 0.9, y: 0.9, duration: 0.1, yoyo: true, repeat: 3, ease: 'power2.inOut' });
+                  gsap.to(sprite.scale, { x: 0.9, y: 0.9, duration: 0.1, yoyo: true, repeat: 1, ease: 'power2.inOut' });
                   
                   setTimeout(() => {
                     const baseOutline = new GlowFilter({ distance: 8, outerStrength: 0.8, innerStrength: 0.2, color: 0x4a90e2 });
                     sprite.filters = [baseOutline];
-                  }, 600);
+                  }, 300);
                   
-                  return;
+                  // Continue with interaction instead of returning
                 }
                 
                 dragData = e.data;
                 dragging = true;
                 
-                // Update original position when drag starts
+                // Store INITIAL click position for accurate drag detection
+                (sprite as any).clickStartPosition = { x: sprite.x, y: sprite.y };
+                // Keep original position separate (for return animations)
                 (sprite as any).originalPosition = { x: sprite.x, y: sprite.y };
                 
                 // Enhanced drag start animation
@@ -569,7 +687,13 @@ export const VFX: React.FC = () => {
                   particle.x = sprite.x + (Math.random() - 0.5) * 60;
                   particle.y = sprite.y + (Math.random() - 0.5) * 60;
                   particle.alpha = 0.9;
-                  app.stage.addChild(particle);
+                  particle.label = `drag-start-particle-${i}`;
+                  
+                  // Usar LayerManager para partículas de inicio de drag
+                  const addedToParticleLayer = layerSystem.addToPixi(GameLayer.PARTICLE_EFFECTS, particle);
+                  if (!addedToParticleLayer) {
+                    app.stage.addChild(particle); // Fallback
+                  }
                   
                   gsap.to(particle, {
                     x: particle.x + (Math.random() - 0.5) * 100,
@@ -578,7 +702,11 @@ export const VFX: React.FC = () => {
                     scale: 0,
                     duration: 1.2,
                     ease: 'power2.out',
-                    onComplete: () => { app.stage.removeChild(particle); }
+                    onComplete: () => { 
+                      if (particle.parent) {
+                        particle.parent.removeChild(particle); 
+                      }
+                    }
                   });
                 }
               });
@@ -587,24 +715,27 @@ export const VFX: React.FC = () => {
                 const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
                 const logPrefix = `[${timestamp}] 🎯 VFX.pointerup`;
                 
-                // Handle double-click detection for stationary cards
+                // Handle double-click detection using INITIAL click position
                 const wasDragging = dragging;
-                const startPos = (sprite as any).originalPosition;
+                const clickStartPos = (sprite as any).clickStartPosition || (sprite as any).originalPosition;
                 const currentPos = { x: sprite.x, y: sprite.y };
-                const dragDistance = Math.sqrt(Math.pow(currentPos.x - startPos.x, 2) + Math.pow(currentPos.y - startPos.y, 2));
+                const dragDistance = Math.sqrt(Math.pow(currentPos.x - clickStartPos.x, 2) + Math.pow(currentPos.y - clickStartPos.y, 2));
                 
                 console.log(`${logPrefix}: Card ${card.id} released`, {
                   wasDragging,
                   dragDistance,
-                  startPos,
+                  clickStartPos,
                   currentPos
                 });
+                
+                // CRITICAL: Always cleanup play zone indicator on pointer up
+                cleanupPlayZoneIndicator();
                 
                 dragging = false;
                 dragData = null;
                 
-                // If card barely moved (< 20px), treat as potential click/double-click
-                if (dragDistance < 20) {
+                // More generous threshold for click detection (accounts for hover movement)
+                if (dragDistance < 50) {
                   clickCount++;
                   console.log(`${logPrefix}: Click detected (count: ${clickCount})`);
                   
@@ -638,38 +769,85 @@ export const VFX: React.FC = () => {
                   }
                 }
                 
-                // Enhanced zone detection for dragged cards
-                const playAreaRect = uiPositionManager.get('playArea');
-                let isInPlayArea = false;
+                // Enhanced zone detection for drag-to-play
+                const cardCenterX = sprite.x;
+                const cardCenterY = sprite.y;
                 
-                if (playAreaRect) {
-                  // More comprehensive play area detection
-                  const cardCenterX = sprite.x;
-                  const cardCenterY = sprite.y;
+                // Fixed canvas coordinates for 1280x800 layout
+                // Play area is the central region above the hand
+                const PLAY_AREA = {
+                  left: 200,    // Left boundary
+                  right: 1080,  // Right boundary  
+                  top: 100,     // Top boundary
+                  bottom: 500   // Bottom boundary (above hand area)
+                };
+                
+                const isInPlayArea = (
+                  cardCenterX >= PLAY_AREA.left && 
+                  cardCenterX <= PLAY_AREA.right &&
+                  cardCenterY >= PLAY_AREA.top && 
+                  cardCenterY <= PLAY_AREA.bottom
+                );
+                
+                // Special center zone for direct play (no menu)
+                const CENTER_PLAY_ZONE = {
+                  left: 540,   // Center - 100px
+                  right: 740,  // Center + 100px
+                  top: 200,    // 
+                  bottom: 400  // 
+                };
+                
+                const isInCenterPlayZone = (
+                  cardCenterX >= CENTER_PLAY_ZONE.left && 
+                  cardCenterX <= CENTER_PLAY_ZONE.right &&
+                  cardCenterY >= CENTER_PLAY_ZONE.top && 
+                  cardCenterY <= CENTER_PLAY_ZONE.bottom
+                );
+                
+                console.log(`${logPrefix}: Zone detection`, {
+                  cardPosition: { x: cardCenterX, y: cardCenterY },
+                  playArea: PLAY_AREA,
+                  centerZone: CENTER_PLAY_ZONE,
+                  isInPlayArea,
+                  isInCenterPlayZone,
+                  dragDistance
+                });
+                
+                // Priority 1: Check if card is dropped in CENTER ZONE for direct play
+                if (isInCenterPlayZone && dragDistance > 20) {
+                  console.log(`${logPrefix}: 🎯 Card dropped in CENTER ZONE - Playing directly!`);
                   
-                  // Define play area bounds more precisely
-                  const playAreaTop = playAreaRect.y || 100;
-                  const playAreaBottom = playAreaTop + (playAreaRect.height || 300);
-                  const playAreaLeft = playAreaRect.x || 200;
-                  const playAreaRight = playAreaLeft + (playAreaRect.width || 880);
+                  // Animate card to exact center and play
+                  const centerX = 640;
+                  const centerY = 300;
                   
-                  isInPlayArea = (
-                    cardCenterX >= playAreaLeft && 
-                    cardCenterX <= playAreaRight &&
-                    cardCenterY >= playAreaTop && 
-                    cardCenterY <= playAreaBottom
-                  );
-                  
-                  console.log(`${logPrefix}: Zone detection`, {
-                    cardPosition: { x: cardCenterX, y: cardCenterY },
-                    playArea: { left: playAreaLeft, right: playAreaRight, top: playAreaTop, bottom: playAreaBottom },
-                    isInPlayArea,
-                    dragDistance
+                  gsap.to(sprite, {
+                    x: centerX,
+                    y: centerY,
+                    scale: 1.2,
+                    rotation: 0,
+                    duration: 0.5,
+                    ease: 'back.out(1.4)',
+                    onComplete: () => {
+                      // Execute card directly via Hand component
+                      const handComponent = document.querySelector('[data-component="hand"]');
+                      if (handComponent) {
+                        const playEvent = new CustomEvent('direct-play-card', {
+                          detail: { cardId: card.id, action: 'play' }
+                        });
+                        handComponent.dispatchEvent(playEvent);
+                      }
+                    }
                   });
-                } else {
-                  console.warn(`${logPrefix}: No play area rect found from uiPositionManager`);
+                  
+                  // Epic glow effect for center drop
+                  const centerGlow = new GlowFilter({ distance: 25, outerStrength: 3, innerStrength: 1, color: 0x00ff88 });
+                  sprite.filters = [centerGlow];
+                  
+                  return;
                 }
                 
+                // Priority 2: Check if card is in general play area (show menu)
                 if (isInPlayArea && dragDistance > 20) {
                   console.log(`${logPrefix}: 🎲 Card dragged to play area - triggering action menu`);
                   vfxSystem.cardClick({ 
@@ -720,12 +898,99 @@ export const VFX: React.FC = () => {
 
               let trailTimer: number | null = null;
               
+              let playZoneIndicator: PIXI.Graphics | null = null;
+              
+              // Function to safely clean up play zone indicator
+              const cleanupPlayZoneIndicator = () => {
+                if (playZoneIndicator) {
+                  console.log('🦽 VFX: Cleaning up play zone indicator');
+                  
+                  // Cancelar todas las animaciones GSAP
+                  gsap.killTweensOf(playZoneIndicator.scale);
+                  gsap.killTweensOf(playZoneIndicator);
+                  
+                  // Remover del contenedor padre (ya sea LayerManager o stage)
+                  if (playZoneIndicator.parent) {
+                    playZoneIndicator.parent.removeChild(playZoneIndicator);
+                    console.log('✅ VFX: Play zone indicator removed from parent container');
+                  }
+                  
+                  playZoneIndicator = null;
+                }
+              };
+              
               sprite.on('pointermove', () => {
                 if (dragging && dragData) {
                   const parent = sprite.parent || app.stage;
                   const newPosition = dragData.getLocalPosition(parent);
                   sprite.x = newPosition.x;
                   sprite.y = newPosition.y;
+                  
+                  // Check if card is in center play zone and show indicator
+                  const CENTER_ZONE = { left: 540, right: 740, top: 200, bottom: 400 };
+                  const isInCenterZone = (
+                    sprite.x >= CENTER_ZONE.left && sprite.x <= CENTER_ZONE.right &&
+                    sprite.y >= CENTER_ZONE.top && sprite.y <= CENTER_ZONE.bottom
+                  );
+                  
+                  // Show/hide play zone indicator
+                  if (isInCenterZone && !playZoneIndicator) {
+                    // Create center play zone indicator with enhanced visibility
+                    playZoneIndicator = new PIXI.Graphics()
+                      // Outer ring - más brillante
+                      .circle(640, 300, 100)
+                      .stroke({ width: 6, color: 0x00ff88, alpha: 1.0 })
+                      // Middle ring
+                      .circle(640, 300, 80)
+                      .stroke({ width: 4, color: 0x00ff88, alpha: 0.8 })
+                      // Inner ring
+                      .circle(640, 300, 60)
+                      .stroke({ width: 2, color: 0x00ff88, alpha: 0.6 })
+                      // Center fill - más visible
+                      .circle(640, 300, 50)
+                      .fill({ color: 0x00ff88, alpha: 0.2 })
+                      // Punto central
+                      .circle(640, 300, 8)
+                      .fill({ color: 0x00ff88, alpha: 0.9 });
+                    
+                    // Usar LayerManager para z-index correcto
+                    const indicatorZIndex = layerSystem.get(GameLayer.UI_INDICATORS, true); // Traer al frente
+                    playZoneIndicator.zIndex = indicatorZIndex;
+                    playZoneIndicator.label = 'playZoneIndicator';
+                    playZoneIndicator.eventMode = 'none'; // No interceptar eventos
+                    
+                    // Agregar a la capa correcta usando LayerManager
+                    const addedToLayer = layerSystem.addToPixi(GameLayer.UI_INDICATORS, playZoneIndicator);
+                    if (!addedToLayer) {
+                      // Fallback: agregar directamente al stage
+                      app.stage.addChild(playZoneIndicator);
+                      console.log('⚠️ VFX: Indicador agregado directamente al stage como fallback');
+                    }
+                    
+                    // Pulsing animation con más visibilidad
+                    gsap.to(playZoneIndicator.scale, {
+                      x: 1.3, y: 1.3, duration: 0.5, yoyo: true, repeat: -1, ease: 'sine.inOut'
+                    });
+                    
+                    // Animación de rotación sutil para más visibilidad
+                    gsap.to(playZoneIndicator, {
+                      rotation: Math.PI * 2, duration: 2, repeat: -1, ease: 'linear'
+                    });
+                    
+                    console.log('✨ VFX: Play zone indicator created with LayerManager');
+                    console.log('🔍 VFX: Indicator details:', {
+                      zIndex: indicatorZIndex,
+                      layer: 'UI_INDICATORS',
+                      position: { x: 640, y: 300 },
+                      visible: playZoneIndicator.visible,
+                      alpha: playZoneIndicator.alpha,
+                      parent: playZoneIndicator.parent?.label || 'stage'
+                    });
+                    
+                  } else if (!isInCenterZone && playZoneIndicator) {
+                    // Remove indicator when card leaves zone
+                    cleanupPlayZoneIndicator();
+                  }
                   
                   // Trigger automatic rearrangement of other cards
                   triggerCardRearrangement(card.id, newPosition);
@@ -738,7 +1003,14 @@ export const VFX: React.FC = () => {
                       trail.x = sprite.x + (Math.random() - 0.5) * 20;
                       trail.y = sprite.y + (Math.random() - 0.5) * 20;
                       trail.alpha = 0.6;
-                      app.stage.addChild(trail);
+                      trail.label = `trail-particle-${i}`;
+                      
+                      // Usar LayerManager para partículas
+                      const addedToParticleLayer = layerSystem.addToPixi(GameLayer.PARTICLE_EFFECTS, trail);
+                      if (!addedToParticleLayer) {
+                        // Fallback: agregar directamente al stage
+                        app.stage.addChild(trail);
+                      }
                       
                       gsap.to(trail, {
                         alpha: 0,
@@ -746,11 +1018,17 @@ export const VFX: React.FC = () => {
                         y: trail.y + 20,
                         duration: 0.4,
                         ease: 'power2.out',
-                        onComplete: () => { app.stage.removeChild(trail); }
+                        onComplete: () => { 
+                          if (trail.parent) {
+                            trail.parent.removeChild(trail); 
+                          }
+                        }
                       });
                     }
                     trailTimer = null;
                   }, 50);
+                  
+                  // This cleanup is now handled by the cleanupPlayZoneIndicator function
                 }
               });
 
@@ -764,10 +1042,17 @@ export const VFX: React.FC = () => {
               sprite.alpha = 1;
               sprite.scale.set(0.6); // Start smaller
               
-              const childrenBefore = app.stage.children.length;
-              app.stage.addChild(sprite);
-              const childrenAfter = app.stage.children.length;
-              console.log(`🌨 VFX: ✅ Sprite added! Stage children: ${childrenBefore} -> ${childrenAfter}`);
+              // Usar LayerManager para las cartas
+              const addedToCardLayer = layerSystem.addToPixi(GameLayer.CARDS_IDLE, sprite);
+              if (!addedToCardLayer) {
+                // Fallback: agregar directamente al stage
+                const childrenBefore = app.stage.children.length;
+                app.stage.addChild(sprite);
+                const childrenAfter = app.stage.children.length;
+                console.log(`⚠️ VFX: Card sprite added directly to stage (fallback) - Stage children: ${childrenBefore} -> ${childrenAfter}`);
+              } else {
+                console.log(`✅ VFX: Card sprite added to CARDS_IDLE layer via LayerManager`);
+              }
               
               // Add to our synchronous state immediately
               newPixiCards[card.id] = { sprite, card, originalPosition: { x: position.x, y: position.y } };
@@ -924,9 +1209,13 @@ export const VFX: React.FC = () => {
             wave.y = defendPosition.y;
             app.stage.addChild(wave);
 
+            gsap.to(wave.scale, {
+                x: 10,
+                y: 10,
+                duration: 1,
+                ease: 'power2.out'
+            });
             gsap.to(wave, {
-                scaleX: 10,
-                scaleY: 10,
                 alpha: 0,
                 duration: 1,
                 ease: 'power2.out',
@@ -986,6 +1275,7 @@ export const VFX: React.FC = () => {
             ecoSprite.x = startPosition.x;
             ecoSprite.y = startPosition.y;
             ecoSprite.scale.set(0.6);
+            ecoSprite.zIndex = 9000; // Z-index alto para aparecer encima de cartas ECO
             ecoSprite.filters = [new GlowFilter({ distance: 12, outerStrength: 1.2, color: 0xff4444 })];
             app.stage.addChild(ecoSprite);
 
@@ -1013,7 +1303,8 @@ export const VFX: React.FC = () => {
               wave.x = centerPosition.x;
               wave.y = centerPosition.y;
               app.stage.addChild(wave);
-              gsap.to(wave, { scaleX: 8, scaleY: 8, alpha: 0, duration: 0.6, ease: 'power2.out', onComplete: () => { app.stage.removeChild(wave); } });
+              gsap.to(wave.scale, { x: 8, y: 8, duration: 0.6, ease: 'power2.out' });
+              gsap.to(wave, { alpha: 0, duration: 0.6, ease: 'power2.out', onComplete: () => { app.stage.removeChild(wave); } });
             }, 520);
 
             // Hold big for a moment
@@ -1132,6 +1423,123 @@ export const VFX: React.FC = () => {
           break;
         }
         
+        case 'ecoDiscardCard': {
+          const discardData = event.data as VFXEventData['ecoDiscardCard'];
+          const { card, position } = discardData;
+          console.log('🔥 VFX: ECO discard card with fire effect for', card.rank, card.suit);
+          
+          // Create a temporary sprite to represent the card being discarded
+          const discardTexture = new PIXI.Graphics()
+            .rect(0, 0, 108, 150)
+            .fill(0x1f2937)
+            .rect(4, 4, 100, 142)
+            .stroke({ width: 2, color: 0xb91c1c });
+          const texture = app.renderer.generateTexture(discardTexture);
+          const discardSprite = new PIXI.Sprite(texture);
+          
+          discardSprite.anchor.set(0.5);
+          discardSprite.x = position.x;
+          discardSprite.y = position.y;
+          discardSprite.scale.set(1);
+          discardSprite.zIndex = 15000; // MUY ALTO para estar encima de TODO
+          
+          app.stage.addChild(discardSprite);
+          
+          // Crear partículas de fuego
+          const fireParticles: PIXI.Graphics[] = [];
+          for (let i = 0; i < 25; i++) {
+            const fireParticle = new PIXI.Graphics();
+            const size = 3 + Math.random() * 4;
+            const color = Math.random() > 0.5 ? 0xff4444 : (Math.random() > 0.5 ? 0xff8800 : 0xffaa00);
+            
+            fireParticle.circle(0, 0, size).fill(color);
+            fireParticle.x = position.x + (Math.random() - 0.5) * 80;
+            fireParticle.y = position.y + (Math.random() - 0.5) * 100;
+            fireParticle.alpha = 0.8 + Math.random() * 0.2;
+            fireParticle.zIndex = 15100; // Alto para estar encima
+            
+            app.stage.addChild(fireParticle);
+            fireParticles.push(fireParticle);
+          }
+          
+          // Animación de la carta - shake y fade
+          gsap.to(discardSprite, {
+            alpha: 0,
+            duration: 1.2,
+            ease: 'power2.out'
+          });
+          
+          // Shake effect en la carta
+          gsap.to(discardSprite, {
+            rotation: 0.1,
+            duration: 0.1,
+            yoyo: true,
+            repeat: 8,
+            ease: 'power2.inOut'
+          });
+          
+          // Animación de partículas de fuego
+          fireParticles.forEach((particle) => {
+            const delay = Math.random() * 0.3;
+            const duration = 0.8 + Math.random() * 0.6;
+            
+            // Movimiento hacia arriba con dispersión
+            gsap.to(particle, {
+              y: particle.y - Math.random() * 80 - 40,
+              x: particle.x + (Math.random() - 0.5) * 60,
+              alpha: 0,
+              scale: 0.2,
+              duration: duration,
+              delay: delay,
+              ease: 'power2.out',
+              onComplete: () => { 
+                app.stage.removeChild(particle);
+              }
+            });
+            
+            // Pulsación de fuego
+            gsap.to(particle.scale, {
+              x: 1.3,
+              y: 1.3,
+              duration: 0.2,
+              delay: delay,
+              yoyo: true,
+              repeat: 2,
+              ease: 'sine.inOut'
+            });
+          });
+          
+          // Efecto de calor - ondas de distorsión
+          const heatWave = new PIXI.Graphics()
+            .circle(0, 0, 60)
+            .stroke({ width: 3, color: 0xff6600, alpha: 0.6 });
+          heatWave.x = position.x;
+          heatWave.y = position.y;
+          heatWave.zIndex = 15050; // Alto para estar encima
+          app.stage.addChild(heatWave);
+          
+          gsap.to(heatWave.scale, {
+            x: 2,
+            y: 2,
+            duration: 1,
+            ease: 'power2.out'
+          });
+          gsap.to(heatWave, {
+            alpha: 0,
+            duration: 1,
+            ease: 'power2.out',
+            onComplete: () => {
+              app.stage.removeChild(heatWave);
+              app.stage.removeChild(discardSprite);
+            }
+          });
+          
+          // Sonido de fuego (opcional - se puede agregar después)
+          console.log('🔥 VFX: Fire effect completed for ECO discard');
+          
+          break;
+        }
+        
         case 'nodeRepaired': {
           const nodeData = event.data as VFXEventData['nodeRepaired'];
           const { nodeId, repairAmount, position } = nodeData;
@@ -1143,16 +1551,30 @@ export const VFX: React.FC = () => {
             .stroke({ width: 4, color: 0x22c55e, alpha: 0.8 });
           repairRing.x = position.x;
           repairRing.y = position.y;
-          app.stage.addChild(repairRing);
+          repairRing.label = 'repair-ring';
+          
+          // Usar LayerManager para efectos de reparación
+          const addedToEffectsLayer = layerSystem.addToPixi(GameLayer.SCREEN_EFFECTS, repairRing);
+          if (!addedToEffectsLayer) {
+            app.stage.addChild(repairRing); // Fallback
+          }
           
           // Expanding ring animation
+          gsap.to(repairRing.scale, {
+            x: 3,
+            y: 3,
+            duration: 0.8,
+            ease: 'power2.out'
+          });
           gsap.to(repairRing, {
-            scaleX: 3,
-            scaleY: 3,
             alpha: 0,
             duration: 0.8,
             ease: 'power2.out',
-            onComplete: () => { app.stage.removeChild(repairRing); }
+            onComplete: () => { 
+              if (repairRing.parent) {
+                repairRing.parent.removeChild(repairRing);
+              }
+            }
           });
           
           // Repair particles rising upward
@@ -1161,7 +1583,13 @@ export const VFX: React.FC = () => {
             particle.x = position.x + (Math.random() - 0.5) * 40;
             particle.y = position.y + (Math.random() - 0.5) * 40;
             particle.alpha = 0.9;
-            app.stage.addChild(particle);
+            particle.label = `repair-particle-${i}`;
+            
+            // Usar LayerManager para partículas de reparación
+            const addedToParticleLayer = layerSystem.addToPixi(GameLayer.PARTICLE_EFFECTS, particle);
+            if (!addedToParticleLayer) {
+              app.stage.addChild(particle); // Fallback
+            }
             
             gsap.to(particle, {
               x: particle.x + (Math.random() - 0.5) * 20,
@@ -1171,7 +1599,11 @@ export const VFX: React.FC = () => {
               duration: 1.2,
               delay: Math.random() * 0.3,
               ease: 'power2.out',
-              onComplete: () => { app.stage.removeChild(particle); }
+              onComplete: () => { 
+                if (particle.parent) {
+                  particle.parent.removeChild(particle);
+                }
+              }
             });
           }
           
@@ -1189,10 +1621,25 @@ export const VFX: React.FC = () => {
           repairText.x = position.x;
           repairText.y = position.y - 20;
           repairText.alpha = 0;
-          app.stage.addChild(repairText);
+          repairText.label = 'repair-text';
+          
+          // Usar LayerManager para floating text de reparación
+          const addedToFloatingLayer2 = layerSystem.addToPixi(GameLayer.FLOATING_UI, repairText);
+          if (!addedToFloatingLayer2) {
+            app.stage.addChild(repairText); // Fallback
+          }
           
           gsap.to(repairText, { alpha: 1, y: position.y - 50, duration: 0.5, ease: 'back.out(1.6)' });
-          gsap.to(repairText, { alpha: 0, duration: 0.4, delay: 1, onComplete: () => { app.stage.removeChild(repairText); } });
+          gsap.to(repairText, { 
+            alpha: 0, 
+            duration: 0.4, 
+            delay: 1, 
+            onComplete: () => { 
+              if (repairText.parent) {
+                repairText.parent.removeChild(repairText);
+              }
+            }
+          });
           
           break;
         }
@@ -1208,16 +1655,30 @@ export const VFX: React.FC = () => {
             .fill({ color: 0xef4444, alpha: 0.8 });
           damageBlast.x = position.x;
           damageBlast.y = position.y;
-          app.stage.addChild(damageBlast);
+          damageBlast.label = 'damage-blast';
+          
+          // Usar LayerManager para efectos de explosión
+          const addedToScreenEffectsLayer = layerSystem.addToPixi(GameLayer.SCREEN_EFFECTS, damageBlast);
+          if (!addedToScreenEffectsLayer) {
+            app.stage.addChild(damageBlast); // Fallback
+          }
           
           // Expanding blast animation
+          gsap.to(damageBlast.scale, {
+            x: 4,
+            y: 4,
+            duration: 0.6,
+            ease: 'power2.out'
+          });
           gsap.to(damageBlast, {
-            scaleX: 4,
-            scaleY: 4,
             alpha: 0,
             duration: 0.6,
             ease: 'power2.out',
-            onComplete: () => { app.stage.removeChild(damageBlast); }
+            onComplete: () => { 
+              if (damageBlast.parent) {
+                damageBlast.parent.removeChild(damageBlast);
+              }
+            }
           });
           
           // Screen shake effect (shake the entire stage briefly)
@@ -1242,7 +1703,13 @@ export const VFX: React.FC = () => {
             debris.x = position.x;
             debris.y = position.y;
             debris.alpha = 0.9;
-            app.stage.addChild(debris);
+            debris.label = `damage-debris-${i}`;
+            
+            // Usar LayerManager para partículas de escombros
+            const addedToParticleLayer = layerSystem.addToPixi(GameLayer.PARTICLE_EFFECTS, debris);
+            if (!addedToParticleLayer) {
+              app.stage.addChild(debris); // Fallback
+            }
             
             const angle = (i / 15) * Math.PI * 2;
             const distance = 60 + Math.random() * 40;
@@ -1257,7 +1724,11 @@ export const VFX: React.FC = () => {
               scale: 0.1,
               duration: 0.8 + Math.random() * 0.4,
               ease: 'power2.out',
-              onComplete: () => { app.stage.removeChild(debris); }
+              onComplete: () => { 
+                if (debris.parent) {
+                  debris.parent.removeChild(debris);
+                }
+              }
             });
           }
           
@@ -1275,10 +1746,25 @@ export const VFX: React.FC = () => {
           damageText.x = position.x;
           damageText.y = position.y - 20;
           damageText.alpha = 0;
-          app.stage.addChild(damageText);
+          damageText.label = 'damage-text';
+          
+          // Usar LayerManager para floating text
+          const addedToFloatingLayer = layerSystem.addToPixi(GameLayer.FLOATING_UI, damageText);
+          if (!addedToFloatingLayer) {
+            app.stage.addChild(damageText); // Fallback
+          }
           
           gsap.to(damageText, { alpha: 1, y: position.y - 50, duration: 0.5, ease: 'back.out(1.6)' });
-          gsap.to(damageText, { alpha: 0, duration: 0.4, delay: 1, onComplete: () => { app.stage.removeChild(damageText); } });
+          gsap.to(damageText, { 
+            alpha: 0, 
+            duration: 0.4, 
+            delay: 1, 
+            onComplete: () => { 
+              if (damageText.parent) {
+                damageText.parent.removeChild(damageText); 
+              }
+            } 
+          });
           
           break;
         }
@@ -1331,8 +1817,15 @@ export const VFX: React.FC = () => {
             zoomContainer.filters = [];
           }
           
-          app.stage.addChild(zoomContainer);
-          console.log('🔍 VFX: Zoom container created and added to stage');
+          // Usar LayerManager para zoom containers
+          const addedToZoomLayer = layerSystem.addToPixi(GameLayer.CARDS_SELECTED, zoomContainer);
+          if (!addedToZoomLayer) {
+            // Fallback: agregar directamente al stage
+            app.stage.addChild(zoomContainer);
+            console.log('⚠️ VFX: Zoom container added directly to stage (fallback)');
+          } else {
+            console.log('✅ VFX: Zoom container added to CARDS_SELECTED layer via LayerManager');
+          }
           
           // Try to load real card texture
           const imagePath = `/images/decks/default/${card.imageFile}`;
@@ -1416,7 +1909,7 @@ export const VFX: React.FC = () => {
         height: '800px',
         backgroundColor: 'rgba(0,0,0,0.1)',
         border: '3px solid red',
-        zIndex: Z_INDEX.DEBUG_TOOLS,
+        zIndex: debugToolsLayer.zIndex, // Gestionado por LayerManager
         pointerEvents: 'none'
       }}>
         <div style={{
@@ -1451,7 +1944,7 @@ export const VFX: React.FC = () => {
         left: 0,
         width: '1280px',
         height: '800px',
-        zIndex: Z_INDEX.VFX_LAYER,
+        zIndex: vfxLayer.zIndex, // Gestionado por LayerManager
         pointerEvents: 'auto' // Necesario para interacción con cartas
       }}>
         <Application 
@@ -1470,7 +1963,7 @@ export const VFX: React.FC = () => {
         position: 'fixed',
         top: '10px',
         right: '10px',
-        zIndex: Z_INDEX.DEBUG_TOOLS,
+        zIndex: debugToolsLayer.zIndex, // Gestionado por LayerManager
         pointerEvents: 'auto'
       }}>
         <button

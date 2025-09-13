@@ -13,6 +13,7 @@
 
 import * as PIXI from 'pixi.js';
 import { gsap } from 'gsap';
+import { layerSystem, GameLayer } from './LayerManager';
 
 // Tipos de efectos de números flotantes
 export type FloatingNumberType = 
@@ -267,8 +268,15 @@ class FloatingNumbersSystem {
     floatingText.scale.set(0.1);
     floatingText.label = `floatingNumber_${Date.now()}`;
 
-    // Agregar al stage
-    this.pixiApp.stage.addChild(floatingText);
+    // Agregar usando LayerManager para floating numbers
+    const addedToFloatingLayer = layerSystem.addToPixi(GameLayer.FLOATING_UI, floatingText);
+    if (!addedToFloatingLayer) {
+      // Fallback: agregar directamente al stage
+      this.pixiApp.stage.addChild(floatingText);
+      console.log('⚠️ FloatingNumbersSystem: Added to stage directly (LayerManager fallback)');
+    } else {
+      console.log('✅ FloatingNumbersSystem: Added to FLOATING_UI layer via LayerManager');
+    }
 
     // Crear timeline de animación
     const timeline = gsap.timeline();
@@ -315,7 +323,8 @@ class FloatingNumbersSystem {
     // 6. Limpieza al final
     timeline.call(() => {
       if (this.pixiApp && floatingText.parent) {
-        this.pixiApp.stage.removeChild(floatingText);
+        // Usar parent.removeChild en lugar de stage.removeChild para compatibilidad con LayerManager
+        floatingText.parent.removeChild(floatingText);
         console.log('🔢 FloatingNumbersSystem: Cleaned up floating number');
       }
     });
