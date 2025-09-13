@@ -23,6 +23,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { Card } from '../engine/types';
 import { colors, createCompactStoneButtonStyle } from '../utils/styles';
 import { useLayer, GameLayer, layerSystem } from '../engine/LayerManager';
+import { vfxController } from '../engine/VFXController';
 // import { Z_INDEX } from '../constants/zIndex'; // Reemplazado por LayerManager
 
 // Tipos de acciones disponibles en el menú
@@ -204,12 +205,20 @@ export const CardContextMenu: React.FC<CardContextMenuProps> = ({
     
     log('info', `Action selected: ${action}`, { cardId: card.id, position });
     
+    // Limpiar zoom de VFX cuando se selecciona cualquier acción (incluyendo cancelar)
+    log('info', 'Cleaning up VFX zoom containers before action');
+    vfxController.cleanupActiveZooms();
+    
     setIsAnimatingOut(true);
     
     // Pequeño delay para la animación de salida
     setTimeout(() => {
       onAction(action);
       setIsAnimatingOut(false);
+      
+      // Segunda limpieza después de ejecutar la acción por si acaso
+      log('info', 'Secondary cleanup of VFX zoom containers after action');
+      vfxController.cleanupActiveZooms();
     }, animationDuration / 2);
   }, [card, position, onAction, animationDuration, log]);
 
@@ -298,8 +307,8 @@ export const CardContextMenu: React.FC<CardContextMenuProps> = ({
           left: 0,
           width: '100vw',
           height: '100vh',
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          backdropFilter: 'blur(4px)',
+          backgroundColor: 'rgba(0, 0, 0, 0.3)', // Reducido la opacidad un poco
+          // backdropFilter: 'blur(4px)', // ELIMINADO - causaba que las cartas se vean borrosas
           zIndex: zIndex - 1, // LayerManager: Un nivel por debajo del menú principal
           opacity: isAnimatingIn ? 0 : 1,
           transition: `opacity ${animationDuration}ms ease-out`
@@ -323,7 +332,7 @@ export const CardContextMenu: React.FC<CardContextMenuProps> = ({
           willChange: 'transform, opacity'
         }}
       >
-        {/* Indicador central */}
+        {/* Indicador central - REMOVIDO para no interferir con el zoom
         <div
           style={{
             position: 'absolute',
@@ -345,6 +354,7 @@ export const CardContextMenu: React.FC<CardContextMenuProps> = ({
         >
           {card.rank}
         </div>
+        */}
 
         {/* Opciones del menú en círculo */}
         {enabledOptions.map((option, index) => {
@@ -431,10 +441,11 @@ export const CardContextMenu: React.FC<CardContextMenuProps> = ({
             fontSize: '14px',
             fontWeight: 'bold',
             textShadow: '0 2px 4px rgba(0, 0, 0, 0.8)',
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)', // Aumentado opacidad para compensar falta de blur
             padding: '8px 12px',
             borderRadius: '8px',
-            backdropFilter: 'blur(4px)'
+            border: '1px solid rgba(255, 255, 255, 0.1)' // Añadido borde para mejor definición
+            // backdropFilter: 'blur(4px)' // ELIMINADO - causaba problemas visuales
           }}
         >
           <div>{card.rank} de {card.suit}</div>

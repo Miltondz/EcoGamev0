@@ -19,57 +19,123 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as PIXI from 'pixi.js';
 
-// Definición de capas del juego ordenadas por prioridad
+/**
+ * SISTEMA DE CAPAS Z-INDEX - ORDEN DE RENDERIZADO
+ * ==============================================
+ * 
+ * Las capas se renderizan de MENOR a MAYOR z-index (de atrás hacia adelante)
+ * Los valores más BAJOS aparecen DETRÁS, los más ALTOS aparecen DELANTE
+ * 
+ * ORDEN DE RENDERIZADO ACTUAL:
+ * 
+ * 1. FONDO Y LAYOUT (0-99) - Elementos base que siempre están atrás
+ *    • BACKGROUND (0): Fondos de pantalla, texturas base
+ *    • GAME_BACKGROUND (10): Fondos del área de juego, cartas ECO inactivas
+ *    • LAYOUT_FRAME (20): Marcos, bordes, estructura visual
+ * 
+ * 2. CONTENIDO DEL JUEGO (100-999) - Elementos principales del gameplay
+ *    • PIXI_STAGE (100): Canvas PixiJS base
+ *    • GAME_BOARD (200): Tablero/área de juego, zona verde de drop
+ *    • CARDS_IDLE (300): Cartas del jugador en reposo
+ *    • CARDS_HOVERED (350): Cartas del jugador con hover
+ *    • CARDS_SELECTED (400): Cartas seleccionadas
+ *    • CARDS_DRAGGING (450): Cartas siendo arrastradas
+ * 
+ * 3. EFECTOS VISUALES (1000-1999) - Efectos y animaciones
+ *    • PARTICLE_EFFECTS (1000): Partículas, chispas, efectos menores
+ *    • SCREEN_EFFECTS (1100): Efectos de pantalla completa (lightning, fire, etc.)
+ *    • TRANSITIONS (1200): Transiciones entre estados
+ * 
+ * 4. UI BASE (2000-3999) - Interfaz de usuario básica
+ *    • UI_BACKGROUND (2000): Fondos de paneles, HUD background
+ *    • UI_PANELS (2100): Paneles informativos, retratos de personajes
+ *    • UI_STATS (2200): HUD con stats del jugador
+ *    • UI_BUTTONS (2300): Botones de acción principales
+ *    • UI_INDICATORS (2400): Indicadores de estado, iconos
+ * 
+ * 5. UI INTERACTIVA (4000-5999) - Elementos que DEBEN ser clickeables
+ *    • INTERACTIVE_UI (4000): Botones de fin de turno, controles principales
+ *    • FLOATING_UI (4100): Zoom de cartas, números flotantes, UI temporal
+ *    • TOOLTIPS (4200): Tooltips informativos
+ *    • DROPDOWN_MENUS (4300): Menús desplegables
+ * 
+ * 6. MENÚS CONTEXTUALES (6000-6999) - Menús de click derecho
+ *    • CONTEXT_MENU_BACKDROP (6000): Fondo transparente
+ *    • CONTEXT_MENU (6100): Menú contextual de cartas (CRÍTICO)
+ *    • CONTEXT_SUBMENU (6200): Submenús
+ * 
+ * 7. MODALES Y OVERLAYS (7000-8999) - Ventanas modales
+ *    • MODAL_BACKDROP (7000): Fondo oscuro de modales
+ *    • MODAL_CONTENT (7100): Contenido de modales
+ *    • EVENT_MODAL (7200): Modales de eventos del juego
+ *    • NARRATIVE_MODAL (7300): Modales de narrativa
+ *    • GAME_END_MODAL (7400): Modal de fin de juego
+ * 
+ * 8. UI CRÍTICA (9000-9999) - Elementos de máxima prioridad
+ *    • CRITICAL_ALERTS (9000): Alertas importantes
+ *    • SYSTEM_MESSAGES (9100): Mensajes del sistema
+ *    • ERROR_OVERLAYS (9200): Overlays de error
+ * 
+ * 9. DEBUG Y DESARROLLO (10000+) - Herramientas de desarrollo
+ *    • DEBUG_OVERLAY (10000): Herramientas de debug
+ *    • DEV_TOOLS (10100): Tools de desarrollo
+ * 
+ * EJEMPLOS PRÁCTICOS:
+ * - Cartas ECO (GAME_BACKGROUND=10) aparecen DETRÁS de la zona verde (GAME_BOARD=200)
+ * - Zoom de cartas (FLOATING_UI=4100) aparece DELANTE de cartas normales (CARDS_IDLE=300)
+ * - Menú contextual (CONTEXT_MENU=6100) aparece DELANTE de todo el UI normal
+ * - Modales (MODAL_CONTENT=7100) aparecen DELANTE de menús contextuales
+ */
 export enum GameLayer {
-  // Fondo y layout base (0-99)
-  BACKGROUND = 0,
-  GAME_BACKGROUND = 10,
-  LAYOUT_FRAME = 20,
+  // Fondo y layout base (0-99) - Elementos que siempre están atrás
+  BACKGROUND = 0,          // Fondos de pantalla, texturas base
+  GAME_BACKGROUND = 10,    // Fondos del área de juego, cartas ECO inactivas  
+  LAYOUT_FRAME = 20,       // Marcos, bordes, estructura visual
   
-  // Contenido del juego (100-999)
-  PIXI_STAGE = 100,        // Canvas PixiJS principal
-  GAME_BOARD = 200,        // Tablero/área de juego
-  CARDS_IDLE = 300,        // Cartas en estado normal
-  CARDS_HOVERED = 350,     // Cartas con hover
+  // Contenido del juego (100-999) - Elementos principales del gameplay
+  PIXI_STAGE = 100,        // Canvas PixiJS base
+  GAME_BOARD = 200,        // Tablero/área de juego, zona verde de drop
+  CARDS_IDLE = 300,        // Cartas del jugador en reposo
+  CARDS_HOVERED = 350,     // Cartas del jugador con hover
   CARDS_SELECTED = 400,    // Cartas seleccionadas
   CARDS_DRAGGING = 450,    // Cartas siendo arrastradas
   
-  // Efectos visuales (1000-1999)
-  PARTICLE_EFFECTS = 1000, // Partículas y efectos menores
-  SCREEN_EFFECTS = 1100,   // Efectos de pantalla completa
+  // Efectos visuales (1000-1999) - Efectos y animaciones
+  PARTICLE_EFFECTS = 1000, // Partículas, chispas, efectos menores
+  SCREEN_EFFECTS = 1100,   // Efectos de pantalla completa (lightning, fire, etc.)
   TRANSITIONS = 1200,      // Transiciones entre estados
   
-  // UI Base (2000-3999)
-  UI_BACKGROUND = 2000,    // Fondos de paneles UI
-  UI_PANELS = 2100,        // Paneles informativos
+  // UI Base (2000-3999) - Interfaz de usuario básica
+  UI_BACKGROUND = 2000,    // Fondos de paneles, HUD background
+  UI_PANELS = 2100,        // Paneles informativos, retratos de personajes
   UI_STATS = 2200,         // HUD con stats del jugador
-  UI_BUTTONS = 2300,       // Botones de acción (CRÍTICO)
-  UI_INDICATORS = 2400,    // Indicadores de estado
+  UI_BUTTONS = 2300,       // Botones de acción principales
+  UI_INDICATORS = 2400,    // Indicadores de estado, iconos
   
-  // UI Interactiva (4000-5999)
-  INTERACTIVE_UI = 4000,   // Elementos que DEBEN responder a clicks
-  FLOATING_UI = 4100,      // UI flotante (damage numbers, etc.)
+  // UI Interactiva (4000-5999) - Elementos que DEBEN ser clickeables
+  INTERACTIVE_UI = 4000,   // Botones de fin de turno, controles principales
+  FLOATING_UI = 4100,      // Zoom de cartas, números flotantes, UI temporal
   TOOLTIPS = 4200,         // Tooltips informativos
   DROPDOWN_MENUS = 4300,   // Menús desplegables
   
-  // Menús contextuales (6000-6999)
+  // Menús contextuales (6000-6999) - Menús de click derecho
   CONTEXT_MENU_BACKDROP = 6000, // Fondo transparente del menú
-  CONTEXT_MENU = 6100,          // Menú contextual (CRÍTICO)
+  CONTEXT_MENU = 6100,          // Menú contextual de cartas (CRÍTICO)
   CONTEXT_SUBMENU = 6200,       // Submenús de contexto
   
-  // Modales y overlays (7000-8999)
+  // Modales y overlays (7000-8999) - Ventanas modales
   MODAL_BACKDROP = 7000,   // Fondo oscuro de modales
   MODAL_CONTENT = 7100,    // Contenido de modales
-  EVENT_MODAL = 7200,      // Modales de eventos
+  EVENT_MODAL = 7200,      // Modales de eventos del juego
   NARRATIVE_MODAL = 7300,  // Modales de narrativa
   GAME_END_MODAL = 7400,   // Modal de fin de juego
   
-  // UI Crítica (9000-9999)
+  // UI Crítica (9000-9999) - Elementos de máxima prioridad
   CRITICAL_ALERTS = 9000,  // Alertas importantes
   SYSTEM_MESSAGES = 9100,  // Mensajes del sistema
   ERROR_OVERLAYS = 9200,   // Overlays de error
   
-  // Debug y desarrollo (10000+)
+  // Debug y desarrollo (10000+) - Herramientas de desarrollo
   DEBUG_OVERLAY = 10000,   // Herramientas de debug
   DEV_TOOLS = 10100        // Tools de desarrollo
 }

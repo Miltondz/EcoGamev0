@@ -1,6 +1,55 @@
-# Changelog - Juego ECO
+# Changelog - Crónicas del Abismo
 
-## [1.2.0] - 2025-09-12
+Todos los cambios notables de este proyecto serán documentados en este archivo.
+
+El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [4.2.0] - 2025-09-13
+
+### 🎯 CRÍTICO - Arreglado
+- **Desincronización card-sprite**: Resuelto el problema donde el zoom mostraba cartas incorrectas (ej: J de corazones cuando se clickeaba 4 de espadas)
+- Implementado sistema para obtener cartas desde estado actual en lugar de closures obsoletos
+- Agregado logging detallado para debugging de sincronización
+
+### 🔧 Agregado - Mejores Prácticas PixiJS v8
+- **Sistema de limpieza completa de sprites**: Remueve event listeners, mata animaciones y destruye sprites correctamente
+- **Manejo correcto de texturas generadas**: Marca y cleanup de texturas dinámicas para prevenir memory leaks
+- **Reemplazo de setTimeout con GSAP**: Mayor control de animaciones y mejor performance
+- **Gestión segura de trail timers**: Prevención de memory leaks en partículas de arrastre
+- **Verificación de existencia de sprites**: Antes de operaciones para prevenir errores
+
+### 💾 Agregado - LocalStorageManager
+- **Sistema completo de persistencia inteligente** para configuraciones, estadísticas y preferencias
+- **Configuraciones del juego**: Gráficos, audio, gameplay y UI persistentes
+- **Estadísticas detalladas**: Partidas jugadas, tiempo, win rate por escenario, achievements
+- **Preferencias de usuario**: Último escenario, dificultad, tutoriales completados
+- **Manejo de versiones**: Migración automática entre versiones
+- **Protección contra storage lleno**: Cleanup automático con QuotaExceededError
+- **Export/Import**: Funcionalidad para respaldar y restaurar configuraciones
+
+### 🔄 Agregado - GameLifecycleManager
+- **Estados del juego bien definidos**: MENU, LOADING, PLAYING, PAUSED, GAME_OVER, RESETTING
+- **Reset completo entre partidas**: Limpia todas las variables y sistemas
+- **Prevención de eventos post-game over**: No más eventos después de terminar partida
+- **Tracking de sesiones**: Tiempo de juego, cartas jugadas, acciones realizadas
+- **Sistema de cleanup tasks**: Registrable para diferentes sistemas
+- **Integración con todos los managers**: Audio, VFX, Estado, etc.
+
+### 🔊 Mejorado - AudioManager
+- **Integración con localStorage**: Configuraciones persisten automáticamente
+- **Métodos de control global**: pauseAll(), resumeAll(), stopAll()
+- **Reset a configuración por defecto**: resetToDefaults()
+- **Mejor manejo de memoria**: Cleanup automático mejorado
+- **Preloading inteligente**: Solo carga audio cuando es necesario
+
+### 🏢 Técnico
+- **Build exitoso sin errores**: Compilación TypeScript y Vite completa
+- **Imports optimizados**: Removidos imports no utilizados
+- **Tipos corregidos**: Compatibilidad con PixiJS v8
+- **Documentación actualizada**: README y archivos técnicos
+
+## [1.2.0] - 2025-09-12 (Versión anterior)
 
 ### 🎯 **CAMBIOS CRÍTICOS RESUELTOS**
 

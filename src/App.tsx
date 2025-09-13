@@ -41,7 +41,7 @@ const AppContent: React.FC = () => {
     // LayerManager hooks para diferentes elementos
     const exitButtonLayer = useLayer(GameLayer.UI_BUTTONS);
     const hudLayer = useLayer(GameLayer.UI_BACKGROUND); // Cambiar a capa más baja
-    const ecoCardsLayer = useLayer(GameLayer.CARDS_IDLE);
+    const ecoCardsLayer = useLayer(GameLayer.GAME_BACKGROUND); // Cartas ECO en el fondo (z=10), detrás de zona de juego (z=200)
     const leftPanelLayer = useLayer(GameLayer.UI_PANELS);
     const rightPanelLayer = useLayer(GameLayer.UI_PANELS);
     const boardLayer = useLayer(GameLayer.GAME_BOARD);
@@ -466,21 +466,10 @@ const AppContent: React.FC = () => {
                                     zIndex: 10 - i
                                 }}
                             >
-                                {i === 0 && (
-                                    <div style={{
-                                        textAlign: 'center',
-                                        color: '#fecaca',
-                                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                                        padding: '4px 8px',
-                                        borderRadius: '6px',
-                                        margin: '8px',
-                                        backdropFilter: 'blur(4px)'
-                                    }}>
-                                        <div style={{ fontSize: '10px', marginBottom: '2px' }}>ECO</div>
-                                        <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{deckManager.getEcoDeckCount()}</div>
-                                        <div style={{ fontSize: '8px' }}>cartas</div>
-                                    </div>
-                                )}
+                                {/* 
+                                    Texto "ECO X cartas" removido para evitar superposición 
+                                    con zona de juego y menús contextuales de cartas 
+                                */}
                             </div>
                         ))}
                     </div>

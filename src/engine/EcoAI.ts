@@ -43,14 +43,15 @@ export class EcoAI {
         console.log(`👁️ EcoAI: Carta revelada al jugador`);
 
         // Trigger advanced VFX animation for ECO playing card
-        const ecoHandPos = { x: 540, y: 80 }; // ECO hand area
-        const centerPos = { x: 640, y: 300 }; // Center of play area
+        // Posiciones correctas basadas en el layout real - ajustadas para visibilidad
+        const ecoHandPos = { x: 640, y: 120 }; // Parte superior central - donde estarían las cartas ECO
+        const playZonePos = { x: 640, y: 390 }; // Centro de la zona de juego (zona verde)
         
-        console.log(`🎭 EcoAI: Triggering advanced ECO card play animation`);
+        console.log(`🎭 EcoAI: Triggering advanced ECO card play animation from hand (${ecoHandPos.x}, ${ecoHandPos.y}) to play zone (${playZonePos.x}, ${playZonePos.y})`);
         vfxSystem.ecoPlayCard({
             card,
             startPosition: ecoHandPos,
-            centerPosition: centerPos
+            centerPosition: playZonePos
         });
 
         // Wait for animations, then execute the attack
@@ -66,7 +67,7 @@ export class EcoAI {
                 console.log(`🔥 EcoAI: Triggering fire discard effect for used card`);
                 vfxSystem.ecoDiscardCard({
                     card,
-                    position: centerPos
+                    position: playZonePos // Usar la misma posición actualizada
                 });
             }, 500);
 
@@ -110,7 +111,7 @@ export class EcoAI {
                 setTimeout(() => {
                     vfxSystem.ecoDiscardCard({
                         card: secondCard,
-                        position: { x: 640, y: 300 }
+                        position: { x: 640, y: 390 } // Zona de juego actualizada
                     });
                 }, 500);
                 

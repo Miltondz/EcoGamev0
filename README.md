@@ -2,6 +2,13 @@
 ## Libro I: Los Susurros de Hualaihué
 *Un juego de cartas de horror roguelike desarrollado con tecnologías web de vanguardia*
 
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8.3-blue.svg)]()
+[![PixiJS](https://img.shields.io/badge/PixiJS-8.13.1-red.svg)]()
+[![React](https://img.shields.io/badge/React-19.1.1-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-4.2-green.svg)]()
+[![Last Updated](https://img.shields.io/badge/updated-Sept%202025-yellow.svg)]()
+
 ![Game Screenshot](https://raw.githubusercontent.com/Miltondz/EcoGamev0/master/public/images/scenarios/default/backgrounds/main-bg.png)
 
 ---
@@ -113,7 +120,7 @@ El Eco puede inyectar cartas falsas en la baraja del jugador, creando decisiones
 
 ## 📊 **Estado Actual**
 
-### **✅ COMPLETADO - Phase 4.1 (95%)**
+### **✅ COMPLETADO - Phase 4.2 (98%)**
 
 #### **Motor de Juego (100%)**
 - ✅ Sistema completo de gestión de estado
@@ -123,6 +130,7 @@ El Eco puede inyectar cartas falsas en la baraja del jugador, creando decisiones
 - ✅ Sistema completo de nodos con daño/reparación
 - ✅ Sistema de alucinaciones procedurales
 - ✅ Carga de escenarios modulares
+- ✅ **🔧 GameLifecycleManager** - Sistema completo de lifecycle del juego
 
 #### **Sistemas Visuales Avanzados (100%)**
 - ✅ Layout fijo 1280×720 completamente implementado
@@ -132,6 +140,8 @@ El Eco puede inyectar cartas falsas en la baraja del jugador, creando decisiones
 - ✅ UI animada con integración GSAP
 - ✅ Componentes estilizados con temática atmosférica
 - ✅ **LayerManager revolucionario** - Sistema de capas Z-index unificado
+- ✅ **🎯 CRÍTICO RESUELTO**: Desincronización card-sprite corregida
+- ✅ **🔧 PixiJS v8 Optimizado**: Mejores prácticas y manejo de memoria
 
 #### **UX/UI Moderno (100%)**
 - ✅ Menú principal con fondo WebP animado
@@ -149,6 +159,61 @@ El Eco puede inyectar cartas falsas en la baraja del jugador, creando decisiones
 - ✅ Gestión de assets con soporte multi-escenario
 - ✅ **Cálculo dinámico de dimensiones** - Adaptación automática
 - ✅ **Documentación comprehensiva** - Código autodocumentado
+- ✅ **💾 LocalStorage Inteligente** - Configuraciones y estadísticas persistentes
+- ✅ **🔊 AudioManager Mejorado** - Mejor manejo de memoria y preloading
+
+### 🆕 **ÚLTIMAS MEJORAS - 13 Sept 2025**
+
+#### **🔧 Mejores Prácticas PixiJS v8**
+- ✅ **Problema crítico resuelto**: Desincronización card-sprite (zoom incorrecto)
+- ✅ Limpieza completa de memory leaks en texturas y sprites
+- ✅ Manejo correcto de event listeners y cleanup
+- ✅ Reemplazo de setTimeout con GSAP para mejor control
+- ✅ Gestión segura de timers y partículas de arrastre
+- ✅ Destrucción apropiada con `destroy()` y parámetros correctos
+
+#### **💾 Sistema de Persistencia Inteligente**
+- ✅ **LocalStorageManager**: Configuraciones, estadísticas y preferencias
+- ✅ Manejo de versiones y migración automática
+- ✅ Protección contra storage lleno con cleanup automático
+- ✅ Export/import de configuraciones de usuario
+- ✅ Tracking completo de estadísticas por escenario
+
+#### **🔄 GameLifecycleManager**
+- ✅ Estados del juego bien definidos (MENU, PLAYING, GAME_OVER, etc.)
+- ✅ Reset completo de variables entre partidas
+- ✅ Prevención de eventos después de game over
+- ✅ Sistema de cleanup tasks registrables
+- ✅ Tracking de sesiones con tiempo de juego y acciones
+
+### **🆕 AudioManager Optimizado**
+- ✅ Integración con sistema de persistencia
+- ✅ Métodos para pausar/resumir todo el audio
+- ✅ Preloading inteligente por escenario
+- ✅ Mejor manejo de memoria y cleanup automático
+
+### 📊 **Detalles Técnicos de las Mejoras**
+
+#### **Arquitectura Mejorada**
+```typescript
+// Sistema de Lifecycle unificado
+GameLifecycleManager.getInstance()
+  .startNewGame('scenario-id')
+  .performCompleteReset()  // Reset completo entre partidas
+  .preventEventsAfterGameOver()  // No más eventos después de game over
+
+// Persistencia inteligente
+LocalStorageManager.getInstance()
+  .saveGameSettings({ audio: { volume: 0.8 } })
+  .recordGameResult(true, 25.5, 'submarine-lab')
+  .getGameStatistics()  // Estadísticas completas
+```
+
+#### **Performance Optimizado**
+- **Memory Management**: Cleanup completo de sprites, texturas y event listeners
+- **Audio Pooling**: Reutilización inteligente de audio assets
+- **State Synchronization**: Solución definitiva al problema card-sprite
+- **Layer Management**: Sistema de capas Z-index unificado y eficiente
 
 ### ⚠️ **EN DESARROLLO - Phase 5 (10%)**
 
@@ -199,17 +264,20 @@ El Eco puede inyectar cartas falsas en la baraja del jugador, creando decisiones
 ### **Setup Local**
 ```bash
 # Clonar repositorio
-git clone https://github.com/Miltondz/EcoGamev0.git
-cd EcoGamev0
+git clone https://github.com/TU_USUARIO/juego-eco.git
+cd juego-eco
 
 # Instalar dependencias
 npm install
 
-# Desarrollo local con hot reload
+# Desarrollo local
 npm run dev
 
 # Build para producción
 npm run build
+
+# Preview del build
+npm run preview
 ```
 
 ### **Comandos Disponibles**

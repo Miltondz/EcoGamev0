@@ -3,7 +3,10 @@
 /**
  * Sistema de Audio para ECO Game
  * Maneja música de fondo, efectos de sonido y audio por escenarios
+ * 🔧 MEJORADO: Integra con LocalStorageManager y mejores prácticas de memoria
  */
+
+import { localStorageManager } from './LocalStorageManager';
 
 export interface AudioConfig {
   masterVolume: number;
@@ -76,15 +79,16 @@ class AudioManager {
   }
 
   private loadConfig(): AudioConfig {
-    const saved = localStorage.getItem('eco_audio_config');
-    if (saved) {
-      try {
-        return { ...this.getDefaultConfig(), ...JSON.parse(saved) };
-      } catch (error) {
-        console.warn('🔊 AudioManager: Error loading config, using defaults:', error);
-      }
-    }
-    return this.getDefaultConfig();
+    // 🔧 MEJORADO: Usar LocalStorageManager para configuración persistente
+    const settings = localStorageManager.getGameSettings();
+    return {
+      masterVolume: settings.audio.masterVolume,
+      musicVolume: settings.audio.musicVolume,
+      effectsVolume: settings.audio.effectsVolume,
+      musicEnabled: settings.audio.musicEnabled,
+      effectsEnabled: settings.audio.effectsEnabled,
+      currentScenario: 'default'
+    };
   }
 
   private getDefaultConfig(): AudioConfig {
@@ -99,8 +103,17 @@ class AudioManager {
   }
 
   private saveConfig(): void {
+    // 🔧 MEJORADO: Usar LocalStorageManager para persistencia
     try {
-      localStorage.setItem('eco_audio_config', JSON.stringify(this.config));
+      localStorageManager.saveGameSettings({
+        audio: {
+          masterVolume: this.config.masterVolume,
+          musicVolume: this.config.musicVolume,
+          effectsVolume: this.config.effectsVolume,
+          musicEnabled: this.config.musicEnabled,
+          effectsEnabled: this.config.effectsEnabled,
+        }
+      });
     } catch (error) {
       console.error('🔊 AudioManager: Error saving config:', error);
     }
@@ -489,6 +502,60 @@ class AudioManager {
 
   private notify(): void {
     this.listeners.forEach(listener => listener());
+  }
+
+  /**
+   * Pausa todo el audio
+   */
+  pauseAll(): void {
+    if (this.currentMusicTrack) {
+      this.currentMusicTrack.pause();
+    }
+    
+    // Pausar efectos activos
+    this.effectTracks.forEach(audio => {
+      if (!audio.paused) {
+        audio.pause();
+      }
+    });
+    
+    console.log('⏸️ AudioManager: All audio paused');
+  }
+
+  /**
+   * Resume todo el audio
+   */
+  resumeAll(): void {
+    if (this.currentMusicTrack && this.currentMusicTrack.paused) {
+      this.currentMusicTrack.play().catch(error => {
+        console.warn('🔊 AudioManager: Error resuming music:', error);
+      });
+    }
+    
+    console.log('▶️ AudioManager: All audio resumed');
+  }
+
+  /**
+   * Para todo el audio
+   */
+  stopAll(): void {
+    this.stopMusic(false);
+    
+    this.effectTracks.forEach(audio => {
+      audio.pause();
+      audio.currentTime = 0;
+    });
+    
+    console.log('🔇 AudioManager: All audio stopped');
+  }
+
+  /**
+   * Reset a configuración por defecto
+   */
+  resetToDefaults(): void {
+    this.config = this.getDefaultConfig();
+    this.saveConfig();
+    console.log('🔄 AudioManager: Reset to defaults');
   }
 
   /**

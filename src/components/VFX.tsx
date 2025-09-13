@@ -9,7 +9,7 @@ import { vfxSystem } from '../engine/VFXSystem';
 import type { VFXEvent, VFXEventType, VFXEventData } from '../engine/VFXSystem';
 import type { Card as CardType } from '../engine/types';
 import { gameStateManager } from '../engine/GameStateManager';
-import { uiPositionManager } from '../engine/UIPositionManager';
+// import { uiPositionManager } from '../engine/UIPositionManager'; // No se usa actualmente
 import { pixiScreenEffects } from '../engine/PixiScreenEffects';
 import { floatingNumbersSystem } from '../engine/FloatingNumbersSystem';
 import { vfxController } from '../engine/VFXController';
@@ -34,48 +34,165 @@ export const VFX: React.FC = () => {
   
   /**
    * Cleanup function for removing active zoom containers
-   * Called when context menu actions are taken
+   * ✅ SIGUIENDO MEJORES PRÁCTICAS PIXI.JS v8
+   * - Destrucción completa de DisplayObjects con destroy()
+   * - Limpieza de texturas generadas
+   * - Limpieza de event listeners
+   * - Cleanup síncrono para evitar timing issues
+   * - Búsqueda optimizada solo en capas relevantes
    */
   const cleanupActiveZoom = useCallback(() => {
     const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
     const logPrefix = `[${timestamp}] 🧽 VFX.cleanupActiveZoom`;
     
-    console.log(`${logPrefix}: Cleaning up active zoom containers`);
+    console.log(`${logPrefix}: Starting PIXI.js v8 compliant zoom cleanup`);
     
     if (!pixiApp || !pixiApp.stage) {
       console.warn(`${logPrefix}: No PIXI app available for cleanup`);
       return;
     }
     
-    // Find and remove all zoom containers
-    const zoomContainers = pixiApp.stage.children.filter(child => 
-      child.label && child.label.startsWith('cardZoomContainer')
-    );
-    
-    console.log(`${logPrefix}: Found ${zoomContainers.length} zoom containers to clean`);
-    
-    zoomContainers.forEach((container, index) => {
-      console.log(`${logPrefix}: Animating out zoom container ${index + 1}/${zoomContainers.length}`);
+    // ✅ OPTIMIZACIÓN: Buscar solo en capas relevantes, no en todo el stage
+    const findZoomContainersInLayer = (layer: PIXI.Container): PIXI.Container[] => {
+      const found: PIXI.Container[] = [];
       
-      gsap.to(container, {
-        scale: 0.1,
-        alpha: 0,
-        duration: 0.3,
-        ease: 'back.in(1.6)',
-        onComplete: () => {
-          if (pixiApp && pixiApp.stage && container.parent) {
-            pixiApp.stage.removeChild(container);
-            console.log(`${logPrefix}: ✅ Zoom container ${index + 1} removed from stage`);
-          }
+      // Direct children check (más eficiente que recursivo)
+      layer.children.forEach(child => {
+        if (child instanceof PIXI.Container && child.label && 
+            child.label.startsWith('cardZoomContainer')) {
+          found.push(child);
+          console.log(`${logPrefix}: Found zoom container: ${child.label}`);
         }
       });
+      
+      return found;
+    };
+    
+    let allZoomContainers: PIXI.Container[] = [];
+    
+    // ✅ BÚSQUEDA OPTIMIZADA: Solo en stage y capas específicas
+    // 1. Buscar directamente en stage (fallback containers)
+    pixiApp.stage.children.forEach(child => {
+      if (child instanceof PIXI.Container && child.label && 
+          child.label.startsWith('cardZoomContainer')) {
+        allZoomContainers.push(child);
+        console.log(`${logPrefix}: Found direct stage zoom container: ${child.label}`);
+      }
+      
+      // 2. Buscar en capa FLOATING_UI (donde se crean los zooms)
+      if (child instanceof PIXI.Container && child.label === 'layer-FLOATING_UI') {
+        const layerZooms = findZoomContainersInLayer(child);
+        allZoomContainers = allZoomContainers.concat(layerZooms);
+        console.log(`${logPrefix}: Found ${layerZooms.length} zoom containers in FLOATING_UI layer`);
+      }
     });
     
-    // Limpieza de efectos huérfanos (removido indicador verde)
+    console.log(`${logPrefix}: Found ${allZoomContainers.length} total zoom containers for cleanup`);
     
-    // Clear active zoom reference
+    // ✅ CLEANUP SÍNCRONO Y COMPLETO - Sin animaciones
+    let cleanedCount = 0;
+    allZoomContainers.forEach((zoomContainer, index) => {
+      console.log(`${logPrefix}: Cleaning zoom container ${index + 1}/${allZoomContainers.length}: ${zoomContainer.label}`);
+      
+      try {
+        // ✅ PASO 1: Matar todas las animaciones inmediatamente
+        gsap.killTweensOf(zoomContainer);
+        
+        // ✅ PASO 2: Limpiar recursivamente todos los children
+        const cleanupChildren = (container: PIXI.Container) => {
+          // Crear copia del array children para evitar modificación durante iteración
+          const childrenCopy = [...container.children];
+          
+          childrenCopy.forEach(child => {
+            // Limpiar event listeners si los tiene
+            if (child.eventMode !== 'passive' && child.eventMode !== 'auto') {
+              child.removeAllListeners();
+            }
+            
+            // Si es un Sprite, destruir su textura si fue generada
+            if (child instanceof PIXI.Sprite && child.texture) {
+              // Solo destruir texturas generadas dinámicamente (no assets cargados)
+              if (child.texture.label && (child.texture.label.includes('generated') || 
+                  child.texture.label.includes('fallback'))) {
+                child.texture.destroy(true); // true = destroy base texture
+                console.log(`${logPrefix}: Destroyed generated texture`);
+              }
+            }
+            
+            // Si es un Graphics, destruir
+            if (child instanceof PIXI.Graphics) {
+              child.clear(); // Limpiar geometría
+            }
+            
+            // Si el child tiene children, limpiar recursivamente
+            if (child instanceof PIXI.Container && child.children.length > 0) {
+              cleanupChildren(child);
+            }
+            
+            // ✅ CRÍTICO: Usar destroy() para liberar memoria completamente
+            child.destroy({
+              children: true,    // Destruir children también
+              texture: false     // No destruir texturas de assets (solo generadas)
+            });
+          });
+        };
+        
+        // Limpiar children del zoom container
+        cleanupChildren(zoomContainer);
+        
+        // ✅ PASO 3: Remover del parent
+        if (zoomContainer.parent) {
+          zoomContainer.parent.removeChild(zoomContainer);
+        }
+        
+        // ✅ PASO 4: Destruir el container principal
+        zoomContainer.destroy({
+          children: true,    // Ya limpiamos children, pero por seguridad
+          texture: false     // No destruir texturas de assets
+        });
+        
+        cleanedCount++;
+        console.log(`${logPrefix}: ✅ Container ${index + 1} completely destroyed and cleaned`);
+        
+      } catch (error) {
+        console.error(`${logPrefix}: ❌ Error cleaning container ${index + 1}:`, error);
+        
+        // ✅ FALLBACK: Intentar cleanup básico si falla el completo
+        try {
+          if (zoomContainer.parent) {
+            zoomContainer.parent.removeChild(zoomContainer);
+          }
+        } catch (fallbackError) {
+          console.error(`${logPrefix}: ❌ Fallback cleanup also failed:`, fallbackError);
+        }
+      }
+    });
+    
+    // ✅ PASO 5: Limpiar referencias inmediatamente
     setActiveZoomContainer(null);
-    console.log(`${logPrefix}: Cleanup initiated for ${zoomContainers.length} containers`);
+    
+    // ✅ PASO 6: Forzar garbage collection y render update
+    if (pixiApp.renderer) {
+      pixiApp.renderer.render(pixiApp.stage);
+      // Opcional: Sugerir garbage collection
+      if (typeof window !== 'undefined' && (window as any).gc) {
+        (window as any).gc();
+      }
+    }
+    
+    console.log(`${logPrefix}: ✅ PIXI.js v8 compliant cleanup completed - ${cleanedCount}/${allZoomContainers.length} containers destroyed`);
+    
+    // ✅ VERIFICACIÓN POST-CLEANUP
+    const remainingZooms = pixiApp.stage.children.filter(child => 
+      child instanceof PIXI.Container && child.label && 
+      child.label.startsWith('cardZoomContainer')
+    );
+    
+    if (remainingZooms.length > 0) {
+      console.warn(`${logPrefix}: ⚠️ Still ${remainingZooms.length} zoom containers remaining after cleanup!`);
+    } else {
+      console.log(`${logPrefix}: ✅ All zoom containers successfully cleaned`);
+    }
   }, [pixiApp]);
 
   // Callback to get the PIXI app instance when it's created
@@ -98,6 +215,21 @@ export const VFX: React.FC = () => {
     const childrenBeforeClear = app.stage.children.length;
     app.stage.removeChildren();
     console.log(`🎨 VFX: Stage cleared - removed ${childrenBeforeClear} existing children`);
+    
+    // TEMPORAL: Crear indicador visual de la zona de drop
+    const dropZoneIndicator = new PIXI.Graphics();
+    dropZoneIndicator.rect(300, 260, 680, 280); // PLAY_AREA ajustado: bajado 110px, reducido 20px altura
+    dropZoneIndicator.stroke({ width: 3, color: 0x00ff00, alpha: 0.5 });
+    dropZoneIndicator.fill({ color: 0x00ff00, alpha: 0.1 });
+    dropZoneIndicator.label = 'dropZoneIndicator';
+    
+    // Usar LayerManager para z-index correcto
+    const addedToGameBoard = layerSystem.addToPixi(GameLayer.GAME_BOARD, dropZoneIndicator);
+    if (!addedToGameBoard) {
+      dropZoneIndicator.zIndex = GameLayer.GAME_BOARD; // Fallback
+      app.stage.addChild(dropZoneIndicator);
+    }
+    console.log('🎯 VFX: Drop zone indicator created at (300,260) size: 680x280');
     
     // Initialize PixiScreenEffects system
     pixiScreenEffects.initialize(app);
@@ -242,7 +374,9 @@ export const VFX: React.FC = () => {
   }, [pixiApp]);
 
   // Helper: Rearrange cards horizontally/vertically while dragging
-  const triggerCardRearrangement = (draggedCardId: string, _newPos: { x: number; y: number }) => {
+  // COMENTADO: No se usa actualmente para evitar lag durante el drag
+  /*
+  const _triggerCardRearrangement = (_draggedCardId: string, _newPos: { x: number; y: number }) => {
     if (!pixiApp) return;
     const handCards = Object.values(pixiCards);
     if (handCards.length === 0) return;
@@ -267,7 +401,7 @@ export const VFX: React.FC = () => {
 
     // Reposition non-dragging cards smoothly to their slots
     sorted.forEach((item, index) => {
-      if (item.id === draggedCardId) return; // skip the dragged card
+      if (item.id === _draggedCardId) return; // skip the dragged card
       const targetX = startX + index * spacing;
       const targetY = handCenterY; // keep aligned vertically
       const sprite = pixiCards[item.id]?.sprite;
@@ -275,6 +409,7 @@ export const VFX: React.FC = () => {
       gsap.to(sprite, { x: targetX, y: targetY, duration: 0.2, ease: 'power1.out' });
     });
   };
+  */
 
   useEffect(() => {
     if (!pixiApp) return;
@@ -380,25 +515,51 @@ export const VFX: React.FC = () => {
           // Build new pixiCards state synchronously
           let newPixiCards = { ...pixiCards };
 
-          // Remove cards no longer in hand
+          // 🔧 MEJORA PixiJS v8: Limpieza completa de sprites huérfanos
           for (const cardId of currentPixiCardIds) {
             if (!newHandCardIds.has(cardId)) {
               const cardToDiscard = pixiCards[cardId];
               console.log('🗑️ VFX: Removing sprite for card', cardId, 'no longer in hand');
               if (cardToDiscard && app.stage) {
-                gsap.to(cardToDiscard.sprite, {
+                const sprite = cardToDiscard.sprite;
+                
+                // 🔧 PASO 1: Matar animaciones activas
+                gsap.killTweensOf(sprite);
+                
+                // 🔧 PASO 2: Remover event listeners y limpiar timers
+                sprite.removeAllListeners();
+                
+                // 🔧 PASO 2.1: Limpiar trail timer si existe
+                if ((sprite as any).cleanupTrailTimer) {
+                  (sprite as any).cleanupTrailTimer();
+                }
+                
+                // 🔧 PASO 3: Animación de salida
+                gsap.to(sprite, {
                   alpha: 0,
-                  y: cardToDiscard.sprite.y + 100, // Animate downwards
+                  y: sprite.y + 100,
                   duration: 0.4,
                   onComplete: () => {
-                    const currentStage = app.stage;
-                    if (currentStage) {
-                      currentStage.removeChild(cardToDiscard.sprite);
-                      console.log('🗑️ VFX: Sprite removed from stage for card', cardId);
+                    try {
+                      // 🔧 PASO 4: Remover del parent correctamente
+                      if (sprite.parent) {
+                        sprite.parent.removeChild(sprite);
+                      }
+                      
+                      // 🔧 PASO 5: Destruir sprite con PixiJS v8 best practices
+                      sprite.destroy({
+                        children: true,   // Destruir children también
+                        texture: false    // No destruir texturas de assets
+                      });
+                      
+                      console.log('🗑️ VFX: Sprite completely destroyed for card', cardId);
+                    } catch (error) {
+                      console.error('🗑️ VFX: Error during sprite cleanup:', error);
                     }
                   }
                 });
-                // Remove from our synchronous state immediately
+                
+                // 🔧 PASO 6: Remove from our synchronous state immediately
                 delete newPixiCards[cardId];
               }
             }
@@ -415,6 +576,7 @@ export const VFX: React.FC = () => {
               // Create fallback texture first (will be replaced with real image)
               console.log('🌨 VFX: Creating fallback texture for card', card.rank, card.suit);
               
+              // 🔧 MEJORA PixiJS v8: Manejo correcto de texturas generadas
               const createFallbackTexture = () => {
                 const graphics = new PIXI.Graphics()
                   .rect(0, 0, 120, 160)
@@ -424,10 +586,16 @@ export const VFX: React.FC = () => {
                   .rect(15, 20, 90, 20)
                   .fill(0xffffff);
                 
-                // Create a container to combine base and text to avoid Sprite.addChild deprecation
+                // Create container for combining elements
                 const container = new PIXI.Container();
-                const baseSprite = new PIXI.Sprite(app.renderer.generateTexture(graphics));
+                
+                // 🔧 CRITICO: Generar textura del graphics y luego limpiar
+                const graphicsTexture = app.renderer.generateTexture(graphics);
+                const baseSprite = new PIXI.Sprite(graphicsTexture);
                 container.addChild(baseSprite);
+                
+                // 🔧 CLEANUP: Destruir graphics después de generar textura
+                graphics.destroy();
                 
                 const text = new PIXI.Text({
                   text: `${card.rank}${card.suit[0]}`,
@@ -441,7 +609,14 @@ export const VFX: React.FC = () => {
                 text.y = -60;
                 container.addChild(text);
                 
-                return app.renderer.generateTexture(container);
+                // 🔧 CRITICO: Generar textura final y limpiar container
+                const finalTexture = app.renderer.generateTexture(container);
+                finalTexture.label = 'generated-fallback'; // Marcar como generada
+                
+                // 🔧 CLEANUP: Destruir container temporal
+                container.destroy({ children: true, texture: false });
+                
+                return finalTexture;
               };
               
               // Start with fallback texture
@@ -452,11 +627,8 @@ export const VFX: React.FC = () => {
               console.log('🎨 VFX: Sprite created, setting anchor');
               sprite.anchor.set(0.5);
 
-              // Add visible white border overlay to ensure clear edge
-              const borderOverlay = new PIXI.Graphics()
-                .rect(-60, -80, 120, 160)
-                .stroke({ width: 2, color: 0xffffff, alpha: 0.7 });
-              sprite.addChild(borderOverlay);
+              // REMOVED: Border overlay to fix PixiJS v8 Container deprecation warning
+              // Sprites cannot have children in PixiJS v8 - border is now part of the texture
 
               console.log('🎨 VFX: Anchor set, positioning sprite');
               
@@ -473,7 +645,11 @@ export const VFX: React.FC = () => {
               // Keep interactive for backward compatibility
               // @ts-ignore
               sprite.interactive = true;
-              sprite.cursor = 'pointer'; // Make it clear cards are clickable
+              sprite.cursor = 'grab'; // Cambiar a grab para indicar que se puede arrastrar
+              
+              // TODA la carta debe ser clickeable/draggable
+              // Como el anchor está en 0.5 (centro), el hitArea debe estar centrado
+              sprite.hitArea = new PIXI.Rectangle(-60, -80, 120, 160); // Área centrada cubriendo toda la carta
               
               // Add default border effect to all cards
               try {
@@ -491,15 +667,17 @@ export const VFX: React.FC = () => {
               
               console.log('🎨 VFX: Final sprite position before adding to stage:', sprite.x, sprite.y);
 
-              let dragging = false;
-              let dragData: PIXI.FederatedPointerEvent | null = null;
+              // Usar el sistema de drag nativo de PixiJS v8
+              sprite.eventMode = 'static';
+              sprite.cursor = 'pointer';
               
               // Store original position directly on the sprite - CRITICAL para retorno
               (sprite as any).originalPosition = { x: position.x, y: position.y };
+              (sprite as any).isDragging = false;
               console.log('🌨 VFX: Original card position set to:', (sprite as any).originalPosition);
 
               sprite.on('pointerover', () => {
-                if (!dragging) {
+                if (!(sprite as any).isDragging) {
                   console.log('🎭 VFX: Hover ON - card', card.rank, card.suit, 'moving from y:', sprite.y, 'to y:', sprite.y - 30);
                   
                   // Advanced hover animation with multiple effects
@@ -547,7 +725,7 @@ export const VFX: React.FC = () => {
               });
 
               sprite.on('pointerout', () => {
-                if (!dragging) {
+                if (!(sprite as any).isDragging) {
                   // Smooth return animation
                   gsap.to(sprite.scale, { x: 0.8, y: 0.8, duration: 0.4, ease: 'power2.out' });
                   
@@ -556,240 +734,189 @@ export const VFX: React.FC = () => {
                   console.log('🎭 VFX: Hover OFF - card', card.rank, card.suit, 'returning from y:', sprite.y, 'to y:', targetY);
                   gsap.to(sprite, { y: targetY, rotation: 0, duration: 0.4, ease: 'elastic.out(0.8, 0.6)' });
                   
-                  // Fade back to base filters with smooth transition
+                  // 🔧 MEJORA PixiJS v8: Manejo optimizado de filtros sin setTimeout excess
                   let baseOutline: GlowFilter | null = null;
                   try {
                     baseOutline = new GlowFilter({ distance: 8, outerStrength: 0.8, innerStrength: 0.2, color: 0x4a90e2 });
                     sprite.filters = [baseOutline];
                     
-                    // Brief shimmer effect on leave with glow intensity change
-                    setTimeout(() => {
-                      try {
-                        const shimmerGlow = new GlowFilter({ distance: 12, outerStrength: 1.5, innerStrength: 0.3, color: 0xffffff });
-                        sprite.filters = [shimmerGlow];
-                        
-                        // Return to base glow after shimmer
-                        setTimeout(() => {
-                          try {
-                            if (baseOutline) {
-                              sprite.filters = [baseOutline];
-                            } else {
-                              sprite.filters = [];
+                    // 🔧 USAR GSAP en lugar de setTimeout para mejor control
+                    gsap.to({}, {
+                      duration: 0.05, 
+                      onComplete: () => {
+                        try {
+                          const shimmerGlow = new GlowFilter({ distance: 12, outerStrength: 1.5, innerStrength: 0.3, color: 0xffffff });
+                          sprite.filters = [shimmerGlow];
+                          
+                          // Return to base glow after shimmer using GSAP
+                          gsap.to({}, {
+                            duration: 0.2,
+                            onComplete: () => {
+                              try {
+                                if (baseOutline && sprite.parent) { // Verificar que sprite aún existe
+                                  sprite.filters = [baseOutline];
+                                }
+                              } catch (e) {
+                                if (sprite.parent) sprite.filters = baseOutline ? [baseOutline] : [];
+                              }
                             }
-                          } catch (e) {
-                            sprite.filters = baseOutline ? [baseOutline] : [];
+                          });
+                        } catch (e) {
+                          console.warn('⚠️ VFX: Shimmer GlowFilter failed:', e);
+                          if (baseOutline && sprite.parent) {
+                            sprite.filters = [baseOutline];
                           }
-                        }, 200);
-                      } catch (e) {
-                        console.warn('⚠️ VFX: Shimmer GlowFilter failed:', e);
-                        if (baseOutline) {
-                          sprite.filters = [baseOutline];
-                        } else {
-                          sprite.filters = [];
                         }
                       }
-                    }, 50);
+                    });
                   } catch (error) {
                     console.warn('⚠️ VFX: Base outline GlowFilter failed:', error);
                     sprite.filters = [];
                   }
-                  
-                  setTimeout(() => {
-                    if (baseOutline) {
-                      sprite.filters = [baseOutline];
-                    } else {
-                      sprite.filters = [];
-                    }
-                  }, 400);
                 }
               });
 
-              sprite.on('pointerdown', (e: PIXI.FederatedPointerEvent) => {
-                // Allow pointer interaction always, but show visual feedback for no AP
-                if (gameStateManager.pa <= 0) {
-                  console.log('⚠️ VFX: Low AP warning - allowing interaction but showing visual feedback');
-                  
-                  // Visual feedback for no AP - red pulse (but don't block interaction)
-                  const noAPGlow = new GlowFilter({ distance: 15, outerStrength: 2, color: 0xff4444 });
-                  sprite.filters = [noAPGlow];
-                  
-                  gsap.to(sprite.scale, { x: 0.9, y: 0.9, duration: 0.1, yoyo: true, repeat: 1, ease: 'power2.inOut' });
-                  
-                  setTimeout(() => {
-                    const baseOutline = new GlowFilter({ distance: 8, outerStrength: 0.8, innerStrength: 0.2, color: 0x4a90e2 });
-                    sprite.filters = [baseOutline];
-                  }, 300);
-                  
-                  // Continue with interaction instead of returning
-                }
-                
-                dragData = e.data;
-                dragging = true;
-                
-                // Store INITIAL click position for accurate drag detection
+              // OPTIMIZADO: Sistema de drag nativo de PixiJS
+              sprite.on('pointerdown', (event: PIXI.FederatedPointerEvent) => {
+                // Guardar posición inicial del click
                 (sprite as any).clickStartPosition = { x: sprite.x, y: sprite.y };
-                // Keep original position separate (for return animations)
-                (sprite as any).originalPosition = { x: sprite.x, y: sprite.y };
+                (sprite as any).dragData = event;
+                (sprite as any).isDragging = true;
                 
-                // Enhanced drag start animation
-                gsap.to(sprite.scale, { x: 1.2, y: 1.2, duration: 0.3, ease: 'back.out(1.6)' });
-                gsap.to(sprite, { rotation: 0.1, duration: 0.2, ease: 'power2.out' });
+                sprite.cursor = 'grabbing';
                 
-                // Advanced filter stack for dragging
-                const dragGlow = new GlowFilter({ distance: 25, outerStrength: 2.5, innerStrength: 0.5, color: 0x00ffcc });
+                // Animación simple sin filtros pesados
+                gsap.to(sprite.scale, { x: 1.1, y: 1.1, duration: 0.2 });
                 
-                sprite.filters = [dragGlow];
-                
-                // Move to front without re-adding
+                // Mover al frente
                 if (sprite.parent) {
                   sprite.parent.setChildIndex(sprite, sprite.parent.children.length - 1);
                 }
                 
-                // Particle trail start
-                for (let i = 0; i < 8; i++) {
-                  const particle = new PIXI.Graphics().circle(0, 0, 3).fill(0x00ffcc);
-                  particle.x = sprite.x + (Math.random() - 0.5) * 60;
-                  particle.y = sprite.y + (Math.random() - 0.5) * 60;
-                  particle.alpha = 0.9;
-                  particle.label = `drag-start-particle-${i}`;
-                  
-                  // Usar LayerManager para partículas de inicio de drag
-                  const addedToParticleLayer = layerSystem.addToPixi(GameLayer.PARTICLE_EFFECTS, particle);
-                  if (!addedToParticleLayer) {
-                    app.stage.addChild(particle); // Fallback
-                  }
-                  
-                  gsap.to(particle, {
-                    x: particle.x + (Math.random() - 0.5) * 100,
-                    y: particle.y - Math.random() * 100 - 30,
-                    alpha: 0,
-                    scale: 0,
-                    duration: 1.2,
-                    ease: 'power2.out',
-                    onComplete: () => { 
-                      if (particle.parent) {
-                        particle.parent.removeChild(particle); 
-                      }
-                    }
-                  });
-                }
+                // Prevenir propagación
+                event.stopPropagation();
               });
 
-              sprite.on('pointerup', (_e: PIXI.FederatedPointerEvent) => {
-                const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
-                const logPrefix = `[${timestamp}] 🎯 VFX.pointerup`;
+              // OPTIMIZADO: Sistema simplificado de release
+              sprite.on('pointerup', () => {
+                handlePointerUp();
+              });
+              
+              sprite.on('pointerupoutside', () => {
+                handlePointerUp();
+              });
+              
+              const handlePointerUp = () => {
+                if (!(sprite as any).isDragging) return;
                 
-                // Calcular distancia de arrastre desde posición inicial
+                (sprite as any).isDragging = false;
+                sprite.cursor = 'pointer';
+                
                 const clickStartPos = (sprite as any).clickStartPosition || (sprite as any).originalPosition;
-                const currentPos = { x: sprite.x, y: sprite.y };
-                const dragDistance = Math.sqrt(Math.pow(currentPos.x - clickStartPos.x, 2) + Math.pow(currentPos.y - clickStartPos.y, 2));
+                const dragDistance = Math.sqrt(
+                  Math.pow(sprite.x - clickStartPos.x, 2) + 
+                  Math.pow(sprite.y - clickStartPos.y, 2)
+                );
                 
-                console.log(`${logPrefix}: Card ${card.id} released`, {
-                  dragDistance,
-                  clickStartPos,
-                  currentPos
-                });
+                // 🔧 CRÍTICO: Obtener carta desde el estado actual, NO del closure
+                const currentPixiCard = pixiCards[card.id];
+                const actualCard = currentPixiCard ? currentPixiCard.card : card;
                 
-                dragging = false;
-                dragData = null;
+                console.log('🔍 VFX: Click detected on sprite with card ID:', card.id);
+                console.log('🔍 VFX: Current pixiCards state has this ID:', !!currentPixiCard);
+                console.log('🔍 VFX: Using card from state:', actualCard.rank, actualCard.suit);
                 
-                // SIMPLIFICADO: Si no se movió mucho, es un click simple
+                // Si no se movió mucho, es un click
                 if (dragDistance < 20) {
-                  console.log(`${logPrefix}: Simple click detected - showing card menu`);
+                  // Mostrar menú centrado
+                  const canvasBounds = app.canvas.getBoundingClientRect();
+                  const menuPosition = {
+                    x: canvasBounds.left + (640 * canvasBounds.width / app.screen.width),
+                    y: canvasBounds.top + (400 * canvasBounds.height / app.screen.height)
+                  };
                   
-                  // Mostrar menú de acciones
-                  vfxSystem.cardClick({ 
-                    card, 
-                    position: { x: sprite.x, y: sprite.y } 
-                  });
+                  // 🔧 CRÍTICO: Usar carta actual del estado, no del closure
+                  vfxSystem.cardClick({ card: actualCard, position: menuPosition });
                   
-                  // Asegurar que la carta regrese a su posición original
+                  // Regresar carta a posición original
                   const origPos = (sprite as any).originalPosition;
                   gsap.to(sprite, {
                     x: origPos.x,
                     y: origPos.y,
-                    rotation: 0,
                     scale: 0.8,
-                    duration: 0.4,
-                    ease: 'back.out(1.2)'
+                    duration: 0.3
                   });
-                  
-                  // Reset visual
-                  const baseGlow = new GlowFilter({ distance: 8, outerStrength: 0.8, innerStrength: 0.2, color: 0x4a90e2 });
-                  sprite.filters = [baseGlow];
-                  
                   return;
                 }
                 
-                // Detección simplificada de zona de juego
-                const cardCenterX = sprite.x;
-                const cardCenterY = sprite.y;
-                
-                // Zona de juego: área central sobre la mano
+                // Verificar si está en zona de drop
                 const PLAY_AREA = {
-                  left: 300,
-                  right: 980,
-                  top: 150,
+                  left: 350,
+                  right: 930,
+                  top: 200,
                   bottom: 450
                 };
                 
                 const isInPlayArea = (
-                  cardCenterX >= PLAY_AREA.left && 
-                  cardCenterX <= PLAY_AREA.right &&
-                  cardCenterY >= PLAY_AREA.top && 
-                  cardCenterY <= PLAY_AREA.bottom
+                  sprite.x >= PLAY_AREA.left && 
+                  sprite.x <= PLAY_AREA.right &&
+                  sprite.y >= PLAY_AREA.top && 
+                  sprite.y <= PLAY_AREA.bottom
                 );
                 
-                console.log(`${logPrefix}: Drop detection`, {
-                  cardPosition: { x: cardCenterX, y: cardCenterY },
-                  isInPlayArea,
-                  dragDistance
-                });
-                
-                // Si la carta fue arrastrada a la zona de juego, mostrar menú
                 if (isInPlayArea && dragDistance > 30) {
-                  console.log(`${logPrefix}: 🎲 Card dropped in play area - showing menu`);
+                  // Mostrar menú centrado
+                  const canvasBounds = app.canvas.getBoundingClientRect();
+                  const menuPosition = {
+                    x: canvasBounds.left + (640 * canvasBounds.width / app.screen.width),
+                    y: canvasBounds.top + (400 * canvasBounds.height / app.screen.height)
+                  };
                   
-                  // Mostrar menú de acciones
-                  vfxSystem.cardClick({ 
-                    card, 
-                    position: { x: sprite.x, y: sprite.y } 
-                  });
+                  // 🔧 CRÍTICO: Usar carta actual del estado, no del closure
+                  vfxSystem.cardClick({ card: actualCard, position: menuPosition });
                 }
                 
-                // SIEMPRE regresar la carta a su posición original
-                console.log(`${logPrefix}: 🔄 Returning card to original position`);
+                // SIEMPRE regresar carta a posición original
                 const origPos = (sprite as any).originalPosition;
-                
                 gsap.to(sprite, {
                   x: origPos.x,
                   y: origPos.y,
-                  rotation: 0,
                   scale: 0.8,
-                  duration: 0.6,
+                  duration: 0.4,
                   ease: "back.out(1.2)"
                 });
-                
-                // Reset visual
-                const baseGlow = new GlowFilter({ distance: 8, outerStrength: 0.8, innerStrength: 0.2, color: 0x4a90e2 });
-                sprite.filters = [baseGlow];
-              });
+              };
 
+              // 🔧 MEJORA PixiJS v8: Manejo seguro de trail timers
               let trailTimer: number | null = null;
               
-              sprite.on('pointermove', () => {
-                if (dragging && dragData) {
+              // Función para limpiar trail timer
+              const cleanupTrailTimer = () => {
+                if (trailTimer) {
+                  clearTimeout(trailTimer);
+                  trailTimer = null;
+                }
+              };
+              
+              // Almacenar referencia para cleanup posterior
+              (sprite as any).cleanupTrailTimer = cleanupTrailTimer;
+              
+              // OPTIMIZADO: Movimiento fluido sin lag
+              sprite.on('globalpointermove', (event: PIXI.FederatedPointerEvent) => {
+                if ((sprite as any).isDragging) {
                   const parent = sprite.parent || app.stage;
-                  const newPosition = dragData.getLocalPosition(parent);
+                  const newPosition = parent.toLocal(event.global);
+                  
+                  // Actualizar posición directamente
                   sprite.x = newPosition.x;
                   sprite.y = newPosition.y;
                   
-                  // Trigger automatic rearrangement of other cards
-                  triggerCardRearrangement(card.id, newPosition);
-                  
-                  // Create trailing particle effect while dragging
-                  if (trailTimer) clearTimeout(trailTimer);
-                  trailTimer = setTimeout(() => {
+                  // 🔧 Create trailing particle effect - con mejor cleanup
+                  cleanupTrailTimer(); // Limpiar timer anterior
+                  trailTimer = window.setTimeout(() => {
+                    // Verificar que sprite aún existe antes de crear partículas
+                    if (!sprite.parent) return;
+                    
                     for (let i = 0; i < 3; i++) {
                       const trail = new PIXI.Graphics().circle(0, 0, 2 + Math.random()).fill(0x00ffcc);
                       trail.x = sprite.x + (Math.random() - 0.5) * 20;
@@ -800,7 +927,6 @@ export const VFX: React.FC = () => {
                       // Usar LayerManager para partículas
                       const addedToParticleLayer = layerSystem.addToPixi(GameLayer.PARTICLE_EFFECTS, trail);
                       if (!addedToParticleLayer) {
-                        // Fallback: agregar directamente al stage
                         app.stage.addChild(trail);
                       }
                       
@@ -811,16 +937,19 @@ export const VFX: React.FC = () => {
                         duration: 0.4,
                         ease: 'power2.out',
                         onComplete: () => { 
-                          if (trail.parent) {
-                            trail.parent.removeChild(trail); 
+                          try {
+                            if (trail.parent) {
+                              trail.parent.removeChild(trail);
+                            }
+                            trail.destroy(); // 🔧 Destruir completamente
+                          } catch (error) {
+                            console.warn('⚠️ VFX: Error cleaning trail particle:', error);
                           }
                         }
                       });
                     }
                     trailTimer = null;
                   }, 50);
-                  
-                  // This cleanup is now handled by the cleanupPlayZoneIndicator function
                 }
               });
 
@@ -1052,69 +1181,139 @@ export const VFX: React.FC = () => {
         case 'ecoPlayCard': {
             const ecoData = event.data as VFXEventData['ecoPlayCard'];
             const { card, startPosition, centerPosition } = ecoData;
+            
+            console.log('🤖 VFX: ECO playing card', card.rank, card.suit, 'from', startPosition, 'to', centerPosition);
 
-            // Create a temp sprite for eco card
-            const placeholder = new PIXI.Graphics()
-              .rect(0, 0, 120, 160)
-              .fill(0x1f2937)
-              .rect(4, 4, 112, 152)
-              .stroke({ width: 2, color: 0xb91c1c })
-              .rect(12, 16, 96, 24)
-              .fill(0xffffff);
-            const phTex = app.renderer.generateTexture(placeholder);
-            const ecoSprite = new PIXI.Sprite(phTex);
-            ecoSprite.anchor.set(0.5);
-            ecoSprite.x = startPosition.x;
-            ecoSprite.y = startPosition.y;
-            ecoSprite.scale.set(0.6);
-            ecoSprite.zIndex = 9000; // Z-index alto para aparecer encima de cartas ECO
-            ecoSprite.filters = [new GlowFilter({ distance: 12, outerStrength: 1.2, color: 0xff4444 })];
-            app.stage.addChild(ecoSprite);
-
-            // Drag to center with slight arc
-            gsap.to(ecoSprite, { x: centerPosition.x, y: centerPosition.y - 20, rotation: -0.15, duration: 0.5, ease: 'power2.out' });
-            gsap.to(ecoSprite.scale, { x: 0.9, y: 0.9, duration: 0.5, ease: 'power2.out' });
-
-            // Flip animation with texture swap
-            setTimeout(() => {
-              // First half flip
-              gsap.to(ecoSprite.scale, { x: 0.05, duration: 0.25, ease: 'power2.in' , onComplete: () => {
-                // Load real texture
-                PIXI.Assets.load(`/images/decks/default/${card.imageFile}`)
-                  .then((tex) => {
-                    ecoSprite.texture = tex;
-                  })
-                  .catch(() => {/* keep placeholder */});
+            // FASE 1: Crear carta ECO usando PixiJS Container para mejor control
+            const ecoCardContainer = new PIXI.Container();
+            ecoCardContainer.x = startPosition.x;
+            ecoCardContainer.y = startPosition.y;
+            ecoCardContainer.scale.set(0.1); // ✅ Empezar pequeño como el zoom del jugador
+            ecoCardContainer.rotation = -0.15; // Inclinación hacia la izquierda (unos -8.5 grados)
+            ecoCardContainer.label = `ecoCard_${card.id}`;
+            
+            // Intentar cargar textura real del card-back
+            const cardBackPath = '/images/scenarios/default/cards/card-back.png';
+            console.log('🤖 VFX: Loading ECO card-back texture from:', cardBackPath);
+            
+            PIXI.Assets.load(cardBackPath)
+              .then((cardBackTexture) => {
+                console.log('🤖 VFX: ECO card-back texture loaded successfully');
                 
-                // Second half flip
-                gsap.to(ecoSprite.scale, { x: 1.2, duration: 0.25, ease: 'power2.out' });
-              }});
+                // Usar textura real del card-back
+                const cardBackSprite = new PIXI.Sprite(cardBackTexture);
+                cardBackSprite.anchor.set(0.5);
+                cardBackSprite.width = 300; // ✅ MISMO tamaño que el zoom del jugador
+                cardBackSprite.height = 420;
+                cardBackSprite.x = 0;
+                cardBackSprite.y = 0;
+                cardBackSprite.label = 'ecoRealCardBack';
+                ecoCardContainer.addChild(cardBackSprite);
+              })
+              .catch((error) => {
+                console.warn('⚠️ VFX: Failed to load ECO card-back texture, using fallback:', error);
+                
+                // Crear fondo fallback si falla la carga
+                const cardBack = new PIXI.Graphics()
+                  .rect(-150, -210, 300, 420) // ✅ MISMO tamaño que el zoom del jugador
+                  .fill(0x1f2937)
+                  .rect(-142, -202, 284, 404)
+                  .stroke({ width: 3, color: 0xb91c1c })
+                  .rect(-100, -150, 200, 60)
+                  .fill(0xff4444);
+                cardBack.label = 'ecoCardBackFallback';
+                ecoCardContainer.addChild(cardBack);
+                
+                // Texto fallback
+                const cardText = new PIXI.Text({
+                  text: 'ECO',
+                  style: {
+                    fontSize: 18,
+                    fill: 0xffffff,
+                    fontWeight: 'bold',
+                    align: 'center'
+                  }
+                });
+                cardText.anchor.set(0.5);
+                cardText.x = 0;
+                cardText.y = -60;
+                cardText.label = 'ecoCardTextFallback';
+                ecoCardContainer.addChild(cardText);
+              });
+            
+            // Aplicar filtros PixiJS
+            try {
+              ecoCardContainer.filters = [new GlowFilter({ distance: 15, outerStrength: 1.5, color: 0xff4444 })];
+            } catch (error) {
+              console.warn('⚠️ VFX: GlowFilter failed for ECO card:', error);
+              ecoCardContainer.filters = [];
+            }
+            
+            // Usar LayerManager para posicionamiento correcto
+            const addedToEcoLayer = layerSystem.addToPixi(GameLayer.FLOATING_UI, ecoCardContainer);
+            if (!addedToEcoLayer) {
+              ecoCardContainer.zIndex = 4100;
+              app.stage.addChild(ecoCardContainer);
+            }
+            
+            console.log('🤖 VFX: ECO card container created at hand position, starting drag animation');
 
-              // Shockwave effect at center
-              const wave = new PIXI.Graphics().circle(0,0,20).stroke({ width: 6, color: 0xff5555, alpha: 0.8 });
-              wave.x = centerPosition.x;
-              wave.y = centerPosition.y;
-              app.stage.addChild(wave);
-              gsap.to(wave.scale, { x: 8, y: 8, duration: 0.6, ease: 'power2.out' });
-              gsap.to(wave, { alpha: 0, duration: 0.6, ease: 'power2.out', onComplete: () => { app.stage.removeChild(wave); } });
-            }, 520);
-
-            // Hold big for a moment
+            // FASE 2: DRAG usando PixiJS Ticker para animación suave
+            const startTime = performance.now();
+            const dragDuration = 1200; // 1.2 segundos
+            const startX = startPosition.x;
+            const startY = startPosition.y;
+            const deltaX = centerPosition.x - startX;
+            const deltaY = centerPosition.y - startY;
+            
+            const dragTicker = new PIXI.Ticker();
+            dragTicker.add(() => {
+              const elapsed = performance.now() - startTime;
+              const progress = Math.min(elapsed / dragDuration, 1);
+              
+              // Usar easing power2.inOut
+              const easedProgress = progress < 0.5 
+                ? 2 * progress * progress 
+                : 1 - 2 * (1 - progress) * (1 - progress);
+                
+              // Actualizar posición
+              ecoCardContainer.x = startX + (deltaX * easedProgress);
+              ecoCardContainer.y = startY + (deltaY * easedProgress);
+              
+              // ✅ Escalar durante el movimiento para dar sensación de profundidad
+              const scale = 0.1 + (0.9 * easedProgress); // De 0.1 a 1.0 (MISMO rango que zoom jugador)
+              ecoCardContainer.scale.set(scale);
+              
+              // Rotación sutil usando seno para movimiento natural + inclinación base
+              ecoCardContainer.rotation = -0.15 + (Math.sin(progress * Math.PI) * 0.05);
+              
+              if (progress >= 1) {
+                dragTicker.stop();
+                dragTicker.destroy();
+                console.log('🤖 VFX: ECO card reached play zone, starting reveal sequence');
+                
+                // FASE 3: REVEAL con PixiJS
+                setTimeout(() => {
+                  performEcoCardReveal(ecoCardContainer, card, centerPosition, app);
+                }, 200);
+              }
+            });
+            dragTicker.start();
+            
+            // FASE 4: Auto-cleanup después de 5 segundos
             setTimeout(() => {
-              gsap.to(ecoSprite.scale, { x: 1.4, y: 1.4, duration: 0.3, ease: 'back.out(1.6)' });
-              ecoSprite.filters = [new GlowFilter({ distance: 20, outerStrength: 2, color: 0xff9999 })];
-            }, 900);
+              console.log('🤖 VFX: Starting ECO card cleanup sequence');
+              performEcoCardCleanup(ecoCardContainer, app);
+            }, 6000);
 
-            // Consume with fade and glow reduction
-            setTimeout(() => {
-              ecoSprite.filters = [new GlowFilter({ distance: 5, outerStrength: 0.5, color: 0xff4444 })];
-              gsap.to(ecoSprite, { alpha: 0, duration: 0.5, ease: 'power2.in', onComplete: () => {
-                app.stage.removeChild(ecoSprite);
-              }});
-            }, 1500);
+            // Old flip animation code removed - now handled by PixiJS native performEcoCardReveal method
+
+            // Old animation code removed - now handled by PixiJS native methods
 
             break;
         }
+        
+        // Cleanup old flip animation code that is now replaced by PixiJS native methods
         
         case 'cardResource': {
             const resourceData = event.data as {
@@ -1233,7 +1432,7 @@ export const VFX: React.FC = () => {
           discardSprite.x = position.x;
           discardSprite.y = position.y;
           discardSprite.scale.set(1);
-          discardSprite.zIndex = 15000; // MUY ALTO para estar encima de TODO
+          discardSprite.zIndex = 2000; // Ajustado para no interferir con el zoom
           
           app.stage.addChild(discardSprite);
           
@@ -1566,42 +1765,59 @@ export const VFX: React.FC = () => {
           const { card } = clickData;
           console.log('🔍 VFX: Card click - creating zoom view for', card.rank, card.suit, 'with imageFile:', card.imageFile);
           
-          // Create a container to hold the zoom elements
+          // ✅ CLEANUP SÍNCRONO INMEDIATO - Sin setTimeout problemático
+          console.log('🔍 VFX: Starting SYNCHRONOUS cleanup before creating new zoom');
+          cleanupActiveZoom();
+          
+          // ✅ CREAR ZOOM INMEDIATAMENTE - Sin timing issues
+          console.log('🔍 VFX: Creating new zoom container immediately after cleanup');
+          
+          // Posición central del zoom (centro del canvas)
+          const zoomCenterX = 640;
+          const zoomCenterY = 400;
+          
+          // ✅ Create zoom container with PIXI.js v8 best practices
           const zoomContainer = new PIXI.Container();
-          zoomContainer.x = 640;
-          zoomContainer.y = 400;
+          zoomContainer.x = zoomCenterX;
+          zoomContainer.y = zoomCenterY;
           zoomContainer.scale.set(0.1);
           zoomContainer.alpha = 0;
-          zoomContainer.label = 'cardZoomContainer'; // PixiJS v8 syntax
+          zoomContainer.label = `cardZoomContainer_${card.id}`; // Label único por carta
           
-          // Create fallback background first
-          const fallbackBg = new PIXI.Graphics()
-            .rect(-150, -210, 300, 420)
-            .fill(0x2a2a3a)
-            .rect(-142, -202, 284, 404)
-            .stroke({ width: 4, color: 0x4a90e2 });
-          fallbackBg.label = 'zoomFallbackBg';
+          // ✅ Marcar textura como generada para cleanup correcto
+          const createFallbackElements = () => {
+            // Create fallback background
+            const fallbackBg = new PIXI.Graphics()
+              .rect(-150, -210, 300, 420)
+              .fill(0x2a2a3a)
+              .rect(-142, -202, 284, 404)
+              .stroke({ width: 4, color: 0x4a90e2 });
+            fallbackBg.label = 'zoomFallbackBg';
+            
+            // Create fallback text with PixiJS v8 syntax
+            const fallbackText = new PIXI.Text({
+              text: `${card.rank} of ${card.suit}`,
+              style: {
+                fontSize: 28,
+                fill: 0xffffff,
+                fontWeight: 'bold',
+                align: 'center'
+              }
+            });
+            fallbackText.anchor.set(0.5);
+            fallbackText.x = 0;
+            fallbackText.y = 0;
+            fallbackText.label = 'zoomFallbackText';
+            
+            return { fallbackBg, fallbackText };
+          };
           
-          // Create fallback text with PixiJS v8 syntax
-          const fallbackText = new PIXI.Text({
-            text: `${card.rank} of ${card.suit}`,
-            style: {
-              fontSize: 28,
-              fill: 0xffffff,
-              fontWeight: 'bold',
-              align: 'center'
-            }
-          });
-          fallbackText.anchor.set(0.5);
-          fallbackText.x = 0;
-          fallbackText.y = 0;
-          fallbackText.label = 'zoomFallbackText';
-          
-          // Add fallback elements to container
+          // Add fallback elements
+          const { fallbackBg, fallbackText } = createFallbackElements();
           zoomContainer.addChild(fallbackBg);
           zoomContainer.addChild(fallbackText);
           
-          // Add glow effect to container
+          // ✅ Add glow effect with proper error handling
           try {
             zoomContainer.filters = [new GlowFilter({ distance: 20, outerStrength: 2, color: 0x4a90e2 })];
           } catch (error) {
@@ -1609,62 +1825,68 @@ export const VFX: React.FC = () => {
             zoomContainer.filters = [];
           }
           
-          // Usar LayerManager para zoom containers
-          const addedToZoomLayer = layerSystem.addToPixi(GameLayer.CARDS_SELECTED, zoomContainer);
+          // ✅ AGREGAR AL STAGE - Usar LayerManager correctamente
+          console.log('🔍 VFX: Adding zoom container to FLOATING_UI layer');
+          const addedToZoomLayer = layerSystem.addToPixi(GameLayer.FLOATING_UI, zoomContainer);
           if (!addedToZoomLayer) {
-            // Fallback: agregar directamente al stage
+            // Fallback: agregar directamente al stage con alto z-index
+            zoomContainer.zIndex = GameLayer.FLOATING_UI; // 4100
             app.stage.addChild(zoomContainer);
-            console.log('⚠️ VFX: Zoom container added directly to stage (fallback)');
+            console.log('⚠️ VFX: Zoom container added directly to stage with FLOATING_UI z-index (fallback)');
           } else {
-            console.log('✅ VFX: Zoom container added to CARDS_SELECTED layer via LayerManager');
+            console.log('✅ VFX: Zoom container successfully added to FLOATING_UI layer via LayerManager');
           }
           
-          // Try to load real card texture
+          // ✅ LOAD REAL TEXTURE - Con proper async handling
           const imagePath = `/images/decks/default/${card.imageFile}`;
           console.log('🔍 VFX: Loading card image from:', imagePath);
           
+          // ✅ Asynchronous texture loading (no afecta el timing del zoom)
           PIXI.Assets.load(imagePath)
             .then((cardTexture) => {
               console.log('🔍 VFX: Real texture loaded successfully for', card.rank, card.suit);
               
-              // Only update if the container still exists
+              // ✅ Verificar que el container aún existe antes de actualizar
               if (zoomContainer.parent) {
                 // Create real card sprite
                 const realCardSprite = new PIXI.Sprite(cardTexture);
                 realCardSprite.anchor.set(0.5);
-                realCardSprite.width = 300;
+                realCardSprite.width = 300; // ✅ Tamaño estándar del zoom del jugador
                 realCardSprite.height = 420;
                 realCardSprite.x = 0;
                 realCardSprite.y = 0;
                 realCardSprite.label = 'zoomRealCard';
                 
-                // Clear fallback elements and add real card
+                // ✅ Clear fallback elements properly
                 zoomContainer.removeChildren();
                 zoomContainer.addChild(realCardSprite);
                 
-                console.log('🔍 VFX: Real card sprite added to zoom container');
+                console.log('🔍 VFX: Real card sprite replaced fallback in zoom container');
+              } else {
+                console.warn('⚠️ VFX: Zoom container was removed before texture loaded');
               }
             })
             .catch((error) => {
-              console.warn('⚠️ VFX: Could not load real texture for', card.rank, card.suit, '- using fallback. Error:', error);
+              console.warn('⚠️ VFX: Could not load real texture for', card.rank, card.suit, '- keeping fallback. Error:', error);
+              // Keep fallback - no action needed
             });
           
-          // Animate container in
+          // ✅ ANIMATE CONTAINER IN - Immediate animation
+          console.log('🔍 VFX: Starting zoom-in animation');
           gsap.to(zoomContainer, {
             scale: 1,
             alpha: 1,
             duration: 0.4,
-            ease: 'back.out(1.6)'
+            ease: 'back.out(1.6)',
+            onComplete: () => {
+              console.log('🔍 VFX: Zoom animation completed successfully');
+            }
           });
           
-          // NO auto-hide - zoom persists until user takes action from context menu
-          // The zoom will be removed when the context menu closes
-          console.log('🔍 VFX: Zoom created, will persist until context menu action');
-          
-          // Store zoom container reference for manual cleanup
+          // ✅ STORE REFERENCE - Para cleanup manual
           (zoomContainer as any).cardId = card.id;
           setActiveZoomContainer(zoomContainer);
-          console.log('🔍 VFX: Zoom container stored for future cleanup');
+          console.log('🔍 VFX: Zoom container stored for future cleanup, will persist until context menu action');
           
           break;
         }
@@ -1690,6 +1912,174 @@ export const VFX: React.FC = () => {
       };
     }
   }, [pixiApp, cleanupActiveZoom]);
+  
+  // Helper functions for ECO card animations - moved outside useEffect to avoid scope issues
+  const performEcoCardReveal = (container: PIXI.Container, card: any, position: {x: number, y: number}, app: PIXI.Application) => {
+    console.log('🤖 VFX: Starting ECO card reveal using PixiJS native methods');
+    
+    // FASE 1: Flip usando PixiJS transform
+    const revealTicker = new PIXI.Ticker();
+    const flipStartTime = performance.now();
+    const flipDuration = 300; // 0.3 segundos para cada lado del flip
+    let flipPhase = 'shrink'; // 'shrink' -> 'expand'
+    
+    revealTicker.add(() => {
+      const elapsed = performance.now() - flipStartTime;
+      
+      if (flipPhase === 'shrink') {
+        const progress = Math.min(elapsed / flipDuration, 1);
+        const scaleX = 1.0 - (0.95 * progress); // ✅ De 1.0 a 0.05 (MISMO rango que zoom jugador)
+        container.scale.set(scaleX, 1.0);
+        
+        if (progress >= 1) {
+          flipPhase = 'loadTexture';
+          
+          // Cargar textura real usando PixiJS Assets
+          PIXI.Assets.load(`/images/decks/default/${card.imageFile}`)
+            .then((texture) => {
+              // Reemplazar el contenido del container
+              container.removeChildren();
+              
+              const realCardSprite = new PIXI.Sprite(texture);
+              realCardSprite.anchor.set(0.5);
+              realCardSprite.width = 300; // ✅ MISMO tamaño que el zoom del jugador
+              realCardSprite.height = 420;
+              realCardSprite.label = `ecoRealCard_${card.id}`;
+              container.addChild(realCardSprite);
+              
+              console.log('🤖 VFX: Real ECO card texture loaded with CONSISTENT size (300x420)');
+              flipPhase = 'expand';
+            })
+            .catch((error) => {
+              console.warn('⚠️ VFX: Failed to load ECO card texture:', error);
+              flipPhase = 'expand'; // Continuar con placeholder
+            });
+        }
+      } else if (flipPhase === 'expand') {
+        const expandProgress = Math.min((elapsed - flipDuration) / flipDuration, 1);
+        const scaleX = 0.05 + (0.95 * expandProgress); // ✅ De 0.05 a 1.0 (MISMO rango que zoom jugador)
+        container.scale.set(scaleX, 1.0);
+        
+        if (expandProgress >= 1) {
+          revealTicker.stop();
+          revealTicker.destroy();
+          
+          // Shockwave effect usando PixiJS Graphics
+          const shockwave = new PIXI.Graphics()
+            .circle(0, 0, 30)
+            .stroke({ width: 8, color: 0xff5555, alpha: 0.9 });
+          shockwave.x = position.x;
+          shockwave.y = position.y;
+          shockwave.label = 'ecoShockwave';
+          app.stage.addChild(shockwave);
+          
+          // Animar shockwave con función helper
+          animateShockwave(shockwave);
+          
+          console.log('🤖 VFX: ECO card reveal completed with shockwave effect');
+        }
+      }
+    });
+    
+    revealTicker.start();
+  };
+  
+  const performEcoCardCleanup = (container: PIXI.Container, app: PIXI.Application) => {
+    console.log('🤖 VFX: Starting ECO card cleanup using PixiJS native methods');
+    
+    // FASE 1: Pulso de advertencia usando PixiJS
+    const pulseTicker = new PIXI.Ticker();
+    const pulseStartTime = performance.now();
+    const pulseDuration = 1000; // 1 segundo de pulsos
+    
+    pulseTicker.add(() => {
+      const elapsed = performance.now() - pulseStartTime;
+      const progress = elapsed / pulseDuration;
+      
+      // ✅ Crear efecto de pulso usando seno con escala consistente
+      const pulseScale = 1.0 + (Math.sin(progress * Math.PI * 6) * 0.1); // ✅ 3 pulsos, escala 0.9-1.1
+      container.scale.set(pulseScale, pulseScale);
+      
+      // Cambiar filtro de color durante el pulso
+      try {
+        const intensity = 1.5 + (Math.sin(progress * Math.PI * 6) * 0.5);
+        container.filters = [new GlowFilter({ distance: 30, outerStrength: intensity, color: 0xff9999 })];
+      } catch (error) {
+        // Fallback sin filtros
+      }
+      
+      if (progress >= 1) {
+        pulseTicker.stop();
+        pulseTicker.destroy();
+        
+        // FASE 2: Cleanup con rotación y fade usando PixiJS
+        performFinalCleanup(container, app);
+      }
+    });
+    
+    pulseTicker.start();
+  };
+  
+  const animateShockwave = (shockwave: PIXI.Graphics) => {
+    const shockTicker = new PIXI.Ticker();
+    const shockStartTime = performance.now();
+    const shockDuration = 800;
+    
+    shockTicker.add(() => {
+      const elapsed = performance.now() - shockStartTime;
+      const progress = Math.min(elapsed / shockDuration, 1);
+      
+      // Escalar y desvanecer
+      const scale = 1 + (progress * 9); // De 1 a 10
+      const alpha = 0.9 - (progress * 0.9); // De 0.9 a 0
+      
+      shockwave.scale.set(scale);
+      shockwave.alpha = alpha;
+      
+      
+      if (progress >= 1) {
+        shockTicker.stop();
+        shockTicker.destroy();
+        if (shockwave.parent) {
+          shockwave.parent.removeChild(shockwave);
+        }
+      }
+    });
+    
+    shockTicker.start();
+  };
+  
+  const performFinalCleanup = (container: PIXI.Container, _app: PIXI.Application) => {
+    const cleanupTicker = new PIXI.Ticker();
+    const cleanupStartTime = performance.now();
+    const cleanupDuration = 800;
+    
+    cleanupTicker.add(() => {
+      const elapsed = performance.now() - cleanupStartTime;
+      const progress = Math.min(elapsed / cleanupDuration, 1);
+      
+      // ✅ Fade, scale y rotate con escala consistente
+      const alpha = 1 - progress;
+      const scale = 1.0 - (0.9 * progress); // ✅ De 1.0 a 0.1 (MISMO rango que zoom jugador)
+      const rotation = progress * Math.PI; // 180 grados
+      
+      container.alpha = alpha;
+      container.scale.set(scale);
+      container.rotation = rotation;
+      
+      if (progress >= 1) {
+        cleanupTicker.stop();
+        cleanupTicker.destroy();
+        
+        if (container.parent) {
+          container.parent.removeChild(container);
+        }
+        console.log('🤖 VFX: ECO card cleanup completed and removed from stage');
+      }
+    });
+    
+    cleanupTicker.start();
+  };
 
   if (debugMode) {
     return (
