@@ -39,8 +39,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
     // LayerManager para diferentes capas del menú
     const backgroundLayer = useLayer(GameLayer.BACKGROUND);
     const vfxLayer = useLayer(GameLayer.PARTICLE_EFFECTS);
-    const loadingLayer = useLayer(GameLayer.MODAL_OVERLAY);
-    const uiInfoLayer = useLayer(GameLayer.UI_BASE);
+    const loadingLayer = useLayer(GameLayer.MODAL_BACKDROP);
+    const uiInfoLayer = useLayer(GameLayer.UI_STATS);
     
     console.log('🎮 MainMenu: Component initialized', { currentView, hasSave });
     
