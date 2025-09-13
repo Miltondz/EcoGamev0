@@ -71,29 +71,11 @@ export const VFX: React.FC = () => {
       });
     });
     
-    // CRITICAL: Also cleanup any lingering play zone indicators
-    const playZoneIndicators = pixiApp.stage.children.filter(child => 
-      child.label && child.label === 'playZoneIndicator'
-    );
-    
-    console.log(`${logPrefix}: Found ${playZoneIndicators.length} play zone indicators to clean`);
-    
-    playZoneIndicators.forEach((indicator, index) => {
-      console.log(`${logPrefix}: Removing play zone indicator ${index + 1}/${playZoneIndicators.length}`);
-      
-      // Kill any ongoing animations
-      gsap.killTweensOf(indicator.scale);
-      gsap.killTweensOf(indicator);
-      
-      if (indicator.parent) {
-        indicator.parent.removeChild(indicator);
-        console.log(`${logPrefix}: ✅ Play zone indicator ${index + 1} removed from stage`);
-      }
-    });
+    // Limpieza de efectos huérfanos (removido indicador verde)
     
     // Clear active zoom reference
     setActiveZoomContainer(null);
-    console.log(`${logPrefix}: Cleanup initiated for ${zoomContainers.length} containers and ${playZoneIndicators.length} indicators`);
+    console.log(`${logPrefix}: Cleanup initiated for ${zoomContainers.length} containers`);
   }, [pixiApp]);
 
   // Callback to get the PIXI app instance when it's created
@@ -222,26 +204,11 @@ export const VFX: React.FC = () => {
     
     console.log(`${logPrefix}: Starting global cleanup of orphaned visual effects`);
     
-    // Clean up play zone indicators
-    const playZoneIndicators = pixiApp.stage.children.filter(child => 
-      child.label && child.label === 'playZoneIndicator'
-    );
-    
-    playZoneIndicators.forEach((indicator) => {
-      console.log(`${logPrefix}: Removing orphaned play zone indicator`);
-      gsap.killTweensOf(indicator.scale);
-      gsap.killTweensOf(indicator);
-      if (indicator.parent) {
-        indicator.parent.removeChild(indicator);
-      }
-    });
-    
     // Clean up any orphaned particles or trails
     const orphanedEffects = pixiApp.stage.children.filter(child => 
       child.label && (
         child.label.includes('trail') || 
-        child.label.includes('particle') ||
-        child.label.includes('indicator')
+        child.label.includes('particle')
       )
     );
     
@@ -253,7 +220,7 @@ export const VFX: React.FC = () => {
       }
     });
     
-    console.log(`${logPrefix}: Cleaned ${playZoneIndicators.length} indicators and ${orphanedEffects.length} orphaned effects`);
+    console.log(`${logPrefix}: Cleaned ${orphanedEffects.length} orphaned effects`);
   }, [pixiApp]);
   
   // Run global cleanup when game phase changes
@@ -526,11 +493,8 @@ export const VFX: React.FC = () => {
 
               let dragging = false;
               let dragData: PIXI.FederatedPointerEvent | null = null;
-              let clickCount = 0;
-              let clickTimer: number | null = null;
-              const DOUBLE_CLICK_DELAY = 300; // ms
               
-              // Store original position directly on the sprite to avoid closure/state issues
+              // Store original position directly on the sprite - CRITICAL para retorno
               (sprite as any).originalPosition = { x: position.x, y: position.y };
               console.log('🌨 VFX: Original card position set to:', (sprite as any).originalPosition);
 
@@ -715,71 +679,58 @@ export const VFX: React.FC = () => {
                 const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
                 const logPrefix = `[${timestamp}] 🎯 VFX.pointerup`;
                 
-                // Handle double-click detection using INITIAL click position
-                const wasDragging = dragging;
+                // Calcular distancia de arrastre desde posición inicial
                 const clickStartPos = (sprite as any).clickStartPosition || (sprite as any).originalPosition;
                 const currentPos = { x: sprite.x, y: sprite.y };
                 const dragDistance = Math.sqrt(Math.pow(currentPos.x - clickStartPos.x, 2) + Math.pow(currentPos.y - clickStartPos.y, 2));
                 
                 console.log(`${logPrefix}: Card ${card.id} released`, {
-                  wasDragging,
                   dragDistance,
                   clickStartPos,
                   currentPos
                 });
                 
-                // CRITICAL: Always cleanup play zone indicator on pointer up
-                cleanupPlayZoneIndicator();
-                
                 dragging = false;
                 dragData = null;
                 
-                // More generous threshold for click detection (accounts for hover movement)
-                if (dragDistance < 50) {
-                  clickCount++;
-                  console.log(`${logPrefix}: Click detected (count: ${clickCount})`);
+                // SIMPLIFICADO: Si no se movió mucho, es un click simple
+                if (dragDistance < 20) {
+                  console.log(`${logPrefix}: Simple click detected - showing card menu`);
                   
-                  if (clickCount === 1) {
-                    // Start timer for double-click detection
-                    clickTimer = setTimeout(() => {
-                      console.log(`${logPrefix}: Single click confirmed after timeout`);
-                      clickCount = 0;
-                      clickTimer = null;
-                    }, DOUBLE_CLICK_DELAY);
-                  } else if (clickCount >= 2) {
-                    // Double-click detected!
-                    if (clickTimer) {
-                      clearTimeout(clickTimer);
-                      clickTimer = null;
-                    }
-                    clickCount = 0;
-                    
-                    console.log(`${logPrefix}: ✨ Double-click detected! Triggering card menu`);
-                    vfxSystem.cardClick({ 
-                      card, 
-                      position: { x: sprite.x, y: sprite.y } 
-                    });
-                    
-                    // Reset visual state for menu
-                    const baseGlow = new GlowFilter({ distance: 8, outerStrength: 0.8, innerStrength: 0.2, color: 0x4a90e2 });
-                    sprite.filters = [baseGlow];
-                    gsap.to(sprite.scale, { x: 0.8, y: 0.8, duration: 0.2, ease: 'back.out(1.2)' });
-                    
-                    return;
-                  }
+                  // Mostrar menú de acciones
+                  vfxSystem.cardClick({ 
+                    card, 
+                    position: { x: sprite.x, y: sprite.y } 
+                  });
+                  
+                  // Asegurar que la carta regrese a su posición original
+                  const origPos = (sprite as any).originalPosition;
+                  gsap.to(sprite, {
+                    x: origPos.x,
+                    y: origPos.y,
+                    rotation: 0,
+                    scale: 0.8,
+                    duration: 0.4,
+                    ease: 'back.out(1.2)'
+                  });
+                  
+                  // Reset visual
+                  const baseGlow = new GlowFilter({ distance: 8, outerStrength: 0.8, innerStrength: 0.2, color: 0x4a90e2 });
+                  sprite.filters = [baseGlow];
+                  
+                  return;
                 }
                 
-                // Enhanced zone detection for drag-to-play
+                // Detección simplificada de zona de juego
                 const cardCenterX = sprite.x;
                 const cardCenterY = sprite.y;
                 
-                // Fixed canvas coordinates for 1280x800 layout
-                // Play area is the central region above the hand
+                // Zona de juego: área central sobre la mano
                 const PLAY_AREA = {
-                  left: 200,    // Left boundary
-                  right: 1080,  // Right boundary  
-                  top: 100,     // Top boundary
-                  bottom: 500   // Bottom boundary (above hand area)
+                  left: 300,
+                  right: 980,
+                  top: 150,
+                  bottom: 450
                 };
                 
                 const isInPlayArea = (
@@ -789,91 +740,24 @@ export const VFX: React.FC = () => {
                   cardCenterY <= PLAY_AREA.bottom
                 );
                 
-                // Special center zone for direct play (no menu)
-                const CENTER_PLAY_ZONE = {
-                  left: 540,   // Center - 100px
-                  right: 740,  // Center + 100px
-                  top: 200,    // 
-                  bottom: 400  // 
-                };
-                
-                const isInCenterPlayZone = (
-                  cardCenterX >= CENTER_PLAY_ZONE.left && 
-                  cardCenterX <= CENTER_PLAY_ZONE.right &&
-                  cardCenterY >= CENTER_PLAY_ZONE.top && 
-                  cardCenterY <= CENTER_PLAY_ZONE.bottom
-                );
-                
-                console.log(`${logPrefix}: Zone detection`, {
+                console.log(`${logPrefix}: Drop detection`, {
                   cardPosition: { x: cardCenterX, y: cardCenterY },
-                  playArea: PLAY_AREA,
-                  centerZone: CENTER_PLAY_ZONE,
                   isInPlayArea,
-                  isInCenterPlayZone,
                   dragDistance
                 });
                 
-                // Priority 1: Check if card is dropped in CENTER ZONE for direct play
-                if (isInCenterPlayZone && dragDistance > 20) {
-                  console.log(`${logPrefix}: 🎯 Card dropped in CENTER ZONE - Playing directly!`);
+                // Si la carta fue arrastrada a la zona de juego, mostrar menú
+                if (isInPlayArea && dragDistance > 30) {
+                  console.log(`${logPrefix}: 🎲 Card dropped in play area - showing menu`);
                   
-                  // Animate card to exact center and play
-                  const centerX = 640;
-                  const centerY = 300;
-                  
-                  gsap.to(sprite, {
-                    x: centerX,
-                    y: centerY,
-                    scale: 1.2,
-                    rotation: 0,
-                    duration: 0.5,
-                    ease: 'back.out(1.4)',
-                    onComplete: () => {
-                      // Execute card directly via Hand component
-                      const handComponent = document.querySelector('[data-component="hand"]');
-                      if (handComponent) {
-                        const playEvent = new CustomEvent('direct-play-card', {
-                          detail: { cardId: card.id, action: 'play' }
-                        });
-                        handComponent.dispatchEvent(playEvent);
-                      }
-                    }
-                  });
-                  
-                  // Epic glow effect for center drop
-                  const centerGlow = new GlowFilter({ distance: 25, outerStrength: 3, innerStrength: 1, color: 0x00ff88 });
-                  sprite.filters = [centerGlow];
-                  
-                  return;
-                }
-                
-                // Priority 2: Check if card is in general play area (show menu)
-                if (isInPlayArea && dragDistance > 20) {
-                  console.log(`${logPrefix}: 🎲 Card dragged to play area - triggering action menu`);
+                  // Mostrar menú de acciones
                   vfxSystem.cardClick({ 
                     card, 
                     position: { x: sprite.x, y: sprite.y } 
                   });
-                  
-                  // Return card to original position while menu is open
-                  const originalPos = (sprite as any).originalPosition;
-                  gsap.to(sprite, {
-                    x: originalPos.x,
-                    y: originalPos.y,
-                    scale: 0.8,
-                    rotation: 0,
-                    duration: 0.4,
-                    ease: 'back.out(1.4)'
-                  });
-                  
-                  // Reset filters
-                  const baseGlow = new GlowFilter({ distance: 8, outerStrength: 0.8, innerStrength: 0.2, color: 0x4a90e2 });
-                  sprite.filters = [baseGlow];
-                  
-                  return;
                 }
                 
-                // Return to original position (card not in valid zone or minimal drag)
+                // SIEMPRE regresar la carta a su posición original
                 console.log(`${logPrefix}: 🔄 Returning card to original position`);
                 const origPos = (sprite as any).originalPosition;
                 
@@ -881,43 +765,17 @@ export const VFX: React.FC = () => {
                   x: origPos.x,
                   y: origPos.y,
                   rotation: 0,
-                  duration: 0.8,
-                  ease: "elastic.out(1, 0.6)"
+                  scale: 0.8,
+                  duration: 0.6,
+                  ease: "back.out(1.2)"
                 });
-                gsap.to(sprite.scale, { x: 0.8, y: 0.8, duration: 0.4, ease: 'back.out(1.2)' });
                 
-                // Visual feedback for return
-                const returnGlow = new GlowFilter({ distance: 12, outerStrength: 1.2, innerStrength: 0.3, color: 0xffaa00 });
-                sprite.filters = [returnGlow];
-                
-                setTimeout(() => {
-                  const baseOutline = new GlowFilter({ distance: 8, outerStrength: 0.8, innerStrength: 0.2, color: 0x4a90e2 });
-                  sprite.filters = [baseOutline];
-                }, 400);
+                // Reset visual
+                const baseGlow = new GlowFilter({ distance: 8, outerStrength: 0.8, innerStrength: 0.2, color: 0x4a90e2 });
+                sprite.filters = [baseGlow];
               });
 
               let trailTimer: number | null = null;
-              
-              let playZoneIndicator: PIXI.Graphics | null = null;
-              
-              // Function to safely clean up play zone indicator
-              const cleanupPlayZoneIndicator = () => {
-                if (playZoneIndicator) {
-                  console.log('🦽 VFX: Cleaning up play zone indicator');
-                  
-                  // Cancelar todas las animaciones GSAP
-                  gsap.killTweensOf(playZoneIndicator.scale);
-                  gsap.killTweensOf(playZoneIndicator);
-                  
-                  // Remover del contenedor padre (ya sea LayerManager o stage)
-                  if (playZoneIndicator.parent) {
-                    playZoneIndicator.parent.removeChild(playZoneIndicator);
-                    console.log('✅ VFX: Play zone indicator removed from parent container');
-                  }
-                  
-                  playZoneIndicator = null;
-                }
-              };
               
               sprite.on('pointermove', () => {
                 if (dragging && dragData) {
@@ -925,72 +783,6 @@ export const VFX: React.FC = () => {
                   const newPosition = dragData.getLocalPosition(parent);
                   sprite.x = newPosition.x;
                   sprite.y = newPosition.y;
-                  
-                  // Check if card is in center play zone and show indicator
-                  const CENTER_ZONE = { left: 540, right: 740, top: 200, bottom: 400 };
-                  const isInCenterZone = (
-                    sprite.x >= CENTER_ZONE.left && sprite.x <= CENTER_ZONE.right &&
-                    sprite.y >= CENTER_ZONE.top && sprite.y <= CENTER_ZONE.bottom
-                  );
-                  
-                  // Show/hide play zone indicator
-                  if (isInCenterZone && !playZoneIndicator) {
-                    // Create center play zone indicator with enhanced visibility
-                    playZoneIndicator = new PIXI.Graphics()
-                      // Outer ring - más brillante
-                      .circle(640, 300, 100)
-                      .stroke({ width: 6, color: 0x00ff88, alpha: 1.0 })
-                      // Middle ring
-                      .circle(640, 300, 80)
-                      .stroke({ width: 4, color: 0x00ff88, alpha: 0.8 })
-                      // Inner ring
-                      .circle(640, 300, 60)
-                      .stroke({ width: 2, color: 0x00ff88, alpha: 0.6 })
-                      // Center fill - más visible
-                      .circle(640, 300, 50)
-                      .fill({ color: 0x00ff88, alpha: 0.2 })
-                      // Punto central
-                      .circle(640, 300, 8)
-                      .fill({ color: 0x00ff88, alpha: 0.9 });
-                    
-                    // Usar LayerManager para z-index correcto
-                    const indicatorZIndex = layerSystem.get(GameLayer.UI_INDICATORS, true); // Traer al frente
-                    playZoneIndicator.zIndex = indicatorZIndex;
-                    playZoneIndicator.label = 'playZoneIndicator';
-                    playZoneIndicator.eventMode = 'none'; // No interceptar eventos
-                    
-                    // Agregar a la capa correcta usando LayerManager
-                    const addedToLayer = layerSystem.addToPixi(GameLayer.UI_INDICATORS, playZoneIndicator);
-                    if (!addedToLayer) {
-                      // Fallback: agregar directamente al stage
-                      app.stage.addChild(playZoneIndicator);
-                      console.log('⚠️ VFX: Indicador agregado directamente al stage como fallback');
-                    }
-                    
-                    // Pulsing animation con más visibilidad
-                    gsap.to(playZoneIndicator.scale, {
-                      x: 1.3, y: 1.3, duration: 0.5, yoyo: true, repeat: -1, ease: 'sine.inOut'
-                    });
-                    
-                    // Animación de rotación sutil para más visibilidad
-                    gsap.to(playZoneIndicator, {
-                      rotation: Math.PI * 2, duration: 2, repeat: -1, ease: 'linear'
-                    });
-                    
-                    console.log('✨ VFX: Play zone indicator created with LayerManager');
-                    console.log('🔍 VFX: Indicator details:', {
-                      zIndex: indicatorZIndex,
-                      layer: 'UI_INDICATORS',
-                      position: { x: 640, y: 300 },
-                      visible: playZoneIndicator.visible,
-                      alpha: playZoneIndicator.alpha,
-                      parent: playZoneIndicator.parent?.label || 'stage'
-                    });
-                    
-                  } else if (!isInCenterZone && playZoneIndicator) {
-                    // Remove indicator when card leaves zone
-                    cleanupPlayZoneIndicator();
-                  }
                   
                   // Trigger automatic rearrangement of other cards
                   triggerCardRearrangement(card.id, newPosition);
