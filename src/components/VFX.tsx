@@ -1088,32 +1088,9 @@ export const VFX: React.FC = () => {
           break;
 
         case 'cardAttack': {
-            const attackData = event.data as {
-              startPosition: { x: number; y: number };
-              endPosition: { x: number; y: number };
-            };
-
-            const { startPosition: attackStart, endPosition: attackEnd } = attackData;
-            const projectile = new PIXI.Graphics().rect(0, 0, 10, 10).fill(0xff0000);
-            const projectileTexture = app.renderer.generateTexture(projectile);
-            const projectileSprite = new PIXI.Sprite(projectileTexture);
-            projectileSprite.anchor.set(0.5);
-            projectileSprite.x = attackStart.x;
-            projectileSprite.y = attackStart.y;
-            app.stage.addChild(projectileSprite);
-
-            gsap.to(projectileSprite, {
-                x: attackEnd.x,
-                y: attackEnd.y,
-                duration: 0.6,
-                ease: 'power2.in',
-                onComplete: () => {
-                  const currentStage = app.stage;
-                  if (currentStage) {
-                    currentStage.removeChild(projectileSprite);
-                  }
-                }
-            });
+            // 🛑 ELIMINADO: Efectos de misiles/proyectiles como solicitado
+            // Los ataques ahora solo activan screen effects sin proyectiles
+            console.log('⚔️ VFX: Card attack - effects disabled as requested');
             break;
         }
         
@@ -1178,6 +1155,137 @@ export const VFX: React.FC = () => {
             }
             break;
         }
+        case 'playerPlayCard': {
+            const playerData = event.data as VFXEventData['playerPlayCard'];
+            const { card, startPosition, centerPosition } = playerData;
+            
+            console.log('👤 VFX: PLAYER playing card', card.rank, card.suit, 'from', startPosition, 'to', centerPosition);
+
+            // FASE 1: Crear carta del jugador usando PixiJS Container
+            const playerCardContainer = new PIXI.Container();
+            playerCardContainer.x = startPosition.x;
+            playerCardContainer.y = startPosition.y;
+            playerCardContainer.scale.set(0.8); // Empezar con tamaño de mano
+            playerCardContainer.rotation = 0.15; // Inclinación hacia la derecha (opuesto al ECO)
+            playerCardContainer.label = `playerCard_${card.id}`;
+            
+            // Cargar textura real de la carta del jugador
+            const cardPath = `/images/decks/default/${card.imageFile}`;
+            console.log('👤 VFX: Loading player card texture from:', cardPath);
+            
+            PIXI.Assets.load(cardPath)
+              .then((cardTexture) => {
+                console.log('👤 VFX: Player card texture loaded successfully');
+                
+                // Usar textura real de la carta
+                const cardSprite = new PIXI.Sprite(cardTexture);
+                cardSprite.anchor.set(0.5);
+                cardSprite.width = 300; // Mismo tamaño que el zoom
+                cardSprite.height = 420;
+                cardSprite.x = 0;
+                cardSprite.y = 0;
+                cardSprite.label = 'playerRealCard';
+                playerCardContainer.addChild(cardSprite);
+              })
+              .catch((error) => {
+                console.warn('⚠️ VFX: Failed to load player card texture, using fallback:', error);
+                
+                // Crear fondo fallback si falla la carga
+                const cardFront = new PIXI.Graphics()
+                  .rect(-150, -210, 300, 420)
+                  .fill(0x2a2a3a)
+                  .rect(-142, -202, 284, 404)
+                  .stroke({ width: 3, color: 0x4a90e2 })
+                  .rect(-100, -150, 200, 60)
+                  .fill(0x4a90e2);
+                cardFront.label = 'playerCardFrontFallback';
+                playerCardContainer.addChild(cardFront);
+                
+                // Texto fallback con info de la carta
+                const cardText = new PIXI.Text({
+                  text: `${card.rank}\n${card.suit}`,
+                  style: {
+                    fontSize: 16,
+                    fill: 0xffffff,
+                    fontWeight: 'bold',
+                    align: 'center'
+                  }
+                });
+                cardText.anchor.set(0.5);
+                cardText.x = 0;
+                cardText.y = -60;
+                cardText.label = 'playerCardTextFallback';
+                playerCardContainer.addChild(cardText);
+              });
+            
+            // Aplicar filtros PixiJS con color del jugador (azul)
+            try {
+              playerCardContainer.filters = [new GlowFilter({ distance: 15, outerStrength: 1.5, color: 0x4a90e2 })];
+            } catch (error) {
+              console.warn('⚠️ VFX: GlowFilter failed for player card:', error);
+              playerCardContainer.filters = [];
+            }
+            
+            // Usar LayerManager para posicionamiento correcto
+            const addedToPlayerLayer = layerSystem.addToPixi(GameLayer.FLOATING_UI, playerCardContainer);
+            if (!addedToPlayerLayer) {
+              playerCardContainer.zIndex = 4100;
+              app.stage.addChild(playerCardContainer);
+            }
+            
+            console.log('👤 VFX: Player card container created at hand position, starting drag animation');
+
+            // FASE 2: DRAG usando PixiJS Ticker para animación suave (igual que ECO)
+            const startTime = performance.now();
+            const dragDuration = 1200; // 1.2 segundos
+            const startX = startPosition.x;
+            const startY = startPosition.y;
+            const deltaX = centerPosition.x - startX;
+            const deltaY = centerPosition.y - startY;
+            
+            const playerDragTicker = new PIXI.Ticker();
+            playerDragTicker.add(() => {
+              const elapsed = performance.now() - startTime;
+              const progress = Math.min(elapsed / dragDuration, 1);
+              
+              // Usar easing power2.inOut
+              const easedProgress = progress < 0.5 
+                ? 2 * progress * progress 
+                : 1 - 2 * (1 - progress) * (1 - progress);
+                
+              // Actualizar posición
+              playerCardContainer.x = startX + (deltaX * easedProgress);
+              playerCardContainer.y = startY + (deltaY * easedProgress);
+              
+              // Escalar durante el movimiento para dar sensación de profundidad
+              const scale = 0.8 + (0.4 * easedProgress); // De 0.8 a 1.2 (ligeramente más grande)
+              playerCardContainer.scale.set(scale);
+              
+              // Rotación sutil con inclinación base opuesta al ECO
+              playerCardContainer.rotation = 0.15 - (Math.sin(progress * Math.PI) * 0.05);
+              
+              if (progress >= 1) {
+                playerDragTicker.stop();
+                playerDragTicker.destroy();
+                console.log('👤 VFX: Player card reached play zone, starting reveal sequence');
+                
+                // FASE 3: REVEAL del jugador (diferente al ECO - sin flip)
+                setTimeout(() => {
+                  performPlayerCardReveal(playerCardContainer, card, centerPosition, app);
+                }, 200);
+              }
+            });
+            playerDragTicker.start();
+            
+            // FASE 4: Auto-cleanup después de 5 segundos
+            setTimeout(() => {
+              console.log('👤 VFX: Starting player card cleanup sequence');
+              performPlayerCardCleanup(playerCardContainer, app);
+            }, 6000);
+
+            break;
+        }
+        
         case 'ecoPlayCard': {
             const ecoData = event.data as VFXEventData['ecoPlayCard'];
             const { card, startPosition, centerPosition } = ecoData;
@@ -1913,6 +2021,86 @@ export const VFX: React.FC = () => {
     }
   }, [pixiApp, cleanupActiveZoom]);
   
+  // Helper functions for player card animations
+  const performPlayerCardReveal = (container: PIXI.Container, _card: any, _position: {x: number, y: number}, _app: PIXI.Application) => {
+    console.log('👤 VFX: Starting player card reveal - no flip, just glow effect');
+    
+    // Para el jugador, no hacemos flip ya que la carta ya se ve
+    // Solo hacemos un efecto de brillo y escala
+    
+    try {
+      // Intensificar glow temporalmente
+      const intensifiedGlow = new GlowFilter({ 
+        distance: 25, 
+        outerStrength: 3.0, 
+        innerStrength: 1.0, 
+        color: 0x00ffff 
+      });
+      container.filters = [intensifiedGlow];
+      
+      // Efecto de pulso
+      gsap.to(container.scale, {
+        x: 1.3,
+        y: 1.3,
+        duration: 0.3,
+        ease: 'back.out(2)',
+        yoyo: true,
+        repeat: 1
+      });
+      
+      // Volver al glow normal después del efecto
+      setTimeout(() => {
+        try {
+          const normalGlow = new GlowFilter({ distance: 15, outerStrength: 1.5, color: 0x4a90e2 });
+          container.filters = [normalGlow];
+        } catch (error) {
+          console.warn('⚠️ VFX: Error resetting player card glow:', error);
+          container.filters = [];
+        }
+      }, 1000);
+      
+    } catch (error) {
+      console.warn('⚠️ VFX: Error in player card reveal:', error);
+    }
+  };
+  
+  const performPlayerCardCleanup = (container: PIXI.Container, _app: PIXI.Application) => {
+    console.log('👤 VFX: Cleaning up player card container');
+    
+    try {
+      // Animación de salida
+      gsap.to(container, {
+        alpha: 0,
+        scale: 0.1,
+        rotation: container.rotation + 0.5, // Rotación adicional al desaparecer
+        duration: 0.5,
+        ease: 'back.in(2)',
+        onComplete: () => {
+          try {
+            if (container.parent) {
+              container.parent.removeChild(container);
+            }
+            container.destroy({ children: true, texture: false });
+            console.log('👤 VFX: Player card container completely destroyed');
+          } catch (error) {
+            console.error('👤 VFX: Error destroying player card container:', error);
+          }
+        }
+      });
+    } catch (error) {
+      console.error('👤 VFX: Error in player card cleanup:', error);
+      // Fallback cleanup
+      try {
+        if (container.parent) {
+          container.parent.removeChild(container);
+        }
+        container.destroy({ children: true, texture: false });
+      } catch (fallbackError) {
+        console.error('👤 VFX: Fallback cleanup failed:', fallbackError);
+      }
+    }
+  };
+
   // Helper functions for ECO card animations - moved outside useEffect to avoid scope issues
   const performEcoCardReveal = (container: PIXI.Container, card: any, position: {x: number, y: number}, app: PIXI.Application) => {
     console.log('🤖 VFX: Starting ECO card reveal using PixiJS native methods');

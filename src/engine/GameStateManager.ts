@@ -3,6 +3,7 @@
 import type { Card } from './types';
 import { scenarioLoader } from './ScenarioLoader';
 import { deckManager } from './DeckManager';
+import { floatingNumbersSystem } from './FloatingNumbersSystem';
 
 export enum GamePhase {
     EVENT,
@@ -189,12 +190,32 @@ class GameStateManager {
     }
 
     dealDamageToEco(amount: number) {
+        const oldHp = this.ecoHp;
         this.ecoHp = Math.max(0, this.ecoHp - amount);
+        const actualDamage = oldHp - this.ecoHp;
+        
+        // 📊 Mostrar números flotantes sobre el retrato del ECO
+        if (actualDamage > 0) {
+            // Posición aproximada del retrato del ECO (esto puede ajustarse)
+            const ecoPortraitPosition = { x: 1100, y: 300 }; // Esquina superior derecha
+            floatingNumbersSystem.showDamage(actualDamage, ecoPortraitPosition);
+            console.log(`❤️ GameState: ECO recibió ${actualDamage} de daño - mostrando números flotantes`);
+        }
+        
         this.checkForGameOver();
     }
 
     recoverSanity(amount: number) {
+        const oldSanity = this.sanity;
         this.sanity = Math.min(this._maxSanity, this.sanity + amount);
+        const actualHealing = this.sanity - oldSanity;
+        
+        // 📊 Mostrar números flotantes de curación de cordura
+        if (actualHealing > 0) {
+            const playerSanityPosition = { x: 180, y: 350 };
+            floatingNumbersSystem.showSanityHealing(actualHealing, playerSanityPosition);
+            console.log(`🌿 GameState: Jugador recuperó ${actualHealing} de cordura - mostrando números flotantes`);
+        }
     }
 
     addCardsToHand(cards: Card[]) {
@@ -203,12 +224,34 @@ class GameStateManager {
     }
 
     dealDamageToPlayer(amount: number) {
+        const oldPv = this.pv;
         this.pv = Math.max(0, this.pv - amount);
+        const actualDamage = oldPv - this.pv;
+        
+        // 📊 Mostrar números flotantes sobre el retrato del jugador
+        if (actualDamage > 0) {
+            // Posición aproximada del retrato del jugador (esto puede ajustarse)
+            const playerPortraitPosition = { x: 180, y: 300 }; // Esquina superior izquierda
+            floatingNumbersSystem.showDamage(actualDamage, playerPortraitPosition);
+            console.log(`👤 GameState: Jugador recibió ${actualDamage} de daño HP - mostrando números flotantes`);
+        }
+        
         this.checkForGameOver();
     }
 
     dealSanityDamage(amount: number) {
+        const oldSanity = this.sanity;
         this.sanity = Math.max(0, this.sanity - amount);
+        const actualDamage = oldSanity - this.sanity;
+        
+        // 📊 Mostrar números flotantes de cordura sobre el retrato del jugador
+        if (actualDamage > 0) {
+            // Posición ligeramente desplazada para cordura
+            const playerSanityPosition = { x: 180, y: 350 }; // Un poco más abajo que HP
+            floatingNumbersSystem.showSanityDamage(actualDamage, playerSanityPosition);
+            console.log(`🧠 GameState: Jugador recibió ${actualDamage} de daño de cordura - mostrando números flotantes`);
+        }
+        
         this.checkForGameOver();
     }
 

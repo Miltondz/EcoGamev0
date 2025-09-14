@@ -134,11 +134,26 @@ class TurnManager {
             y: window.innerHeight - 120 
         };
         
+        // Posición central para la animación de carta
+        const centerPosition = {
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2 - 50
+        };
+        
         // Posición del ECO (lado derecho superior)
         const endPosition = uiPositionManager.get('eco') || { 
             x: window.innerWidth - 200, 
             y: 150 
         };
+        
+        console.log(`🎯 TurnManager: Triggering player card animation for`, card.rank, card.suit);
+        
+        // 🎴 NUEVA ANIMACIÓN: Carta del jugador con efectos como el ECO
+        vfxSystem.playerPlayCard({
+            card,
+            startPosition,
+            centerPosition
+        });
         
         console.log(`🎯 TurnManager: Triggering VFX from`, startPosition, 'to', endPosition, 'for suit', card.suit);
         vfxSystem.triggerSuitEffect(card.suit, startPosition, endPosition);
