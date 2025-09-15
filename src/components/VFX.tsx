@@ -1,6 +1,66 @@
 // src/components/VFX.tsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+/**
+ * VFX COMPONENT - SISTEMA DE CARTAS INTERACTIVAS CON PIXIJS
+ * ==========================================================
+ * 
+ * PROPÓSITO:
+ * Sistema principal de renderizado y manejo de cartas del jugador usando PixiJS.
+ * Proporciona efectos visuales avanzados, interactividad completa y animaciones suaves.
+ * 
+ * FUNCIONALIDADES PRINCIPALES:
+ * ✅ Renderizado de cartas con PixiJS (hardware accelerated)
+ * ✅ Hover effects con animación de vaivén (sway)
+ * ✅ Drag & Drop nativo de PixiJS
+ * ✅ Efectos visuales: glow, partículas, brillo
+ * ✅ Integración con LayerManager para z-index correcto
+ * ✅ Sistema de eventos VFX para comunicación con Hand.tsx
+ * ✅ Menús contextuales al hacer click/drop en zona de juego
+ * ✅ Limpieza automática de memoria (PixiJS v8 compliant)
+ * 
+ * FLUJO DE TRABAJO:
+ * 1. Hand.tsx maneja la lógica de cartas del jugador
+ * 2. VFXSystem comunica eventos entre Hand y VFX
+ * 3. VFX.tsx renderiza cartas con PixiJS y maneja interactividad
+ * 4. Al hacer click/drop, se activa CardContextMenu
+ * 5. Acciones del menú se ejecutan a través de TurnManager
+ * 
+ * CARACTERÍSTICAS VISUALES:
+ * - Hover: Elevación + escala + glow + vaivén continuo
+ * - Drag: Cambio de cursor + escala + reset de rotación
+ * - Drop zones: Detección de área de juego
+ * - Partículas: Efectos de hover y transiciones
+ * - Filtros: GlowFilter con múltiples capas
+ * 
+ * ARQUITECTURA:
+ * - Usa GameLayer para z-index management
+ * - PixiJS v8 compliant (destroy patterns, memory cleanup)
+ * - GSAP para animaciones suaves
+ * - Event-driven con VFXSystem
+ * 
+ * CAMBIOS RECIENTES (Sept 15, 2025):
+ * - ✅ Añadido efecto de vaivén (sway) en hover usando GSAP
+ * - ✅ Simplificado sistema de drag: eliminado click detection
+ * - ✅ Drag & drop puro: solo arrastra -> suelta en zona -> menú
+ * - ✅ Movimiento fluido durante drag con partículas trail
+ * - ✅ Optimizado cleanup de animaciones de rotación
+ * - ✅ Integración con LayerManager para particle effects
+ * - ⚠️  BalatroGameCards deshabilitado para evitar conflictos
+ * 
+ * PROBLEMAS CONOCIDOS:
+ * - Requiere que BalatroGameCards esté deshabilitado
+ * - Texturas fallback pueden tardar en cargar
+ * - Memory leaks si no se hace cleanup correcto
+ * 
+ * DEPENDENCIAS CRÍTICAS:
+ * - Hand.tsx (lógica de cartas)
+ * - VFXSystem.ts (eventos)
+ * - LayerManager.ts (z-index)
+ * - CardContextMenu.tsx (interacciones)
+ * - TurnManager.ts (acciones de juego)
+ */
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Application } from '@pixi/react';
 import * as PIXI from 'pixi.js';
 import { gsap } from 'gsap';
@@ -27,10 +87,12 @@ export const VFX: React.FC = () => {
   const vfxLayer = useLayer(GameLayer.PIXI_STAGE);
   const debugToolsLayer = useLayer(GameLayer.DEBUG_OVERLAY);
   
-  const [pixiCards, setPixiCards] = useState<Record<string, PixiCard>>({});
+  const [pixiCards, setPixiCards] = useState<Record<string, PixiCard>>();
   const [pixiApp, setPixiApp] = useState<PIXI.Application | null>(null);
   const [debugMode, setDebugMode] = useState(false);
   const [_activeZoomContainer, setActiveZoomContainer] = useState<PIXI.Container | null>(null);
+  const electricEffectTimer = useRef<number | null>(null);
+  const electricEffectsActive = useRef<boolean>(false);
   
   /**
    * Cleanup function for removing active zoom containers
@@ -194,7 +256,511 @@ export const VFX: React.FC = () => {
       console.log(`${logPrefix}: ✅ All zoom containers successfully cleaned`);
     }
   }, [pixiApp]);
-
+  
+  /**
+   * Creates realistic electric arc effect between two cards
+   * 
+   * Features:
+   * - Travels 25px below cards along their bottom edges
+   * - Uses advanced noise algorithms for organic lightning paths
+   * - Variable thickness (thin at extremes, thick in middle)
+   * - Probabilistic branching system with different length distributions
+   * - Multiple visual layers for depth and realism
+   * - Natural animation with flickering and fade-out
+   * 
+   * @param fromSprite - Source card sprite
+   * @param toSprite - Target card sprite
+   * @param app - PIXI Application instance
+   */
+  const createElectricArc = useCallback((fromSprite: PIXI.Sprite, toSprite: PIXI.Sprite, app: PIXI.Application) => {
+    if (!app || !fromSprite || !toSprite) return;
+    const lightningContainer = new PIXI.Container();
+    lightningContainer.label = 'electric-arc-container';
+    
+    const startX = fromSprite.x;
+    const startY = fromSprite.y;
+    const endX = toSprite.x;
+    const endY = toSprite.y;
+    
+    // Calculate arc parameters
+    const distance = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2);
+    const segments = Math.max(8, Math.floor(distance / 15));
+    
+    // Card dimensions for corner calculations
+    const CARD_WIDTH = 80;
+    const CARD_HEIGHT = 112;
+    
+    /**
+     * Generates organic lightning path between card corners
+     * Path travels 25px below cards with thin segments at extremes
+     */
+    const generateCornerToCornerLightning = (startX: number, startY: number, endX: number, endY: number, segments: number) => {
+      const points: {x: number, y: number}[] = [];
+      
+      // Calculate corner positions 25px below card edges
+      const startCornerX = startX - CARD_WIDTH/2;
+      const startCornerY = startY + CARD_HEIGHT/2 + 25;
+      const endCornerX = endX + CARD_WIDTH/2;
+      const endCornerY = endY + CARD_HEIGHT/2 + 25;
+      
+      // Create thin segments at extremes for natural appearance
+      /**
+       * Creates a thin segment at arc extremes for natural lightning appearance
+       * 
+       * @param baseX - Starting X coordinate
+       * @param baseY - Starting Y coordinate  
+       * @param targetX - Target X coordinate
+       * @param targetY - Target Y coordinate
+       * @param maxLength - Maximum segment length in pixels
+       * @returns Object with x, y coordinates for the thin segment endpoint
+       */
+      const createThinSegment = (baseX: number, baseY: number, targetX: number, targetY: number, maxLength: number) => {
+        const dx = targetX - baseX;
+        const dy = targetY - baseY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Limit length to maximum or 10% of total distance, whichever is smaller
+        const segmentLength = Math.min(maxLength, distance * 0.1);
+        
+        // Small random angle deviation (±15 degrees)
+        const baseAngle = Math.atan2(dy, dx);
+        const angleDeviation = (Math.random() - 0.5) * (Math.PI / 6);
+        const finalAngle = baseAngle + angleDeviation;
+        
+        return {
+          x: baseX + Math.cos(finalAngle) * segmentLength,
+          y: baseY + Math.sin(finalAngle) * segmentLength
+        };
+      };
+      
+      // Generate thin start and end segments
+      const thinStartPoint = createThinSegment(startCornerX, startCornerY, endCornerX, endCornerY, 10);
+      const thinEndPoint = createThinSegment(endCornerX, endCornerY, startCornerX, startCornerY, 10);
+      
+      /**
+       * Advanced pseudo-Perlin noise function for organic lightning patterns
+       * Combines multiple sine/cosine waves at different frequencies for natural variation
+       * 
+       * @param x - X coordinate
+       * @param y - Y coordinate  
+       * @param scale - Noise scale multiplier (default: 1)
+       * @returns Noise value between -1 and 1
+       */
+      const noise = (x: number, y: number, scale: number = 1) => {
+        const sin1 = Math.sin(x * scale * 0.01) * Math.sin(y * scale * 0.01);
+        const sin2 = Math.sin(x * scale * 0.03) * Math.cos(y * scale * 0.02);
+        const sin3 = Math.cos(x * scale * 0.05) * Math.sin(y * scale * 0.04);
+        return (sin1 + sin2 * 0.5 + sin3 * 0.25) / 1.75;
+      };
+      
+      // Agregar punto inicial (esquina original)
+      points.push({x: startCornerX, y: startCornerY});
+      
+      // Agregar segmento inicial delgado
+      points.push(thinStartPoint);
+      
+      // Generar puntos intermedios (del segmento delgado inicial al final)
+      const intermediateSegments = segments - 2; // Reservar 2 para inicio y fin delgados
+      
+      for (let i = 1; i <= intermediateSegments; i++) {
+        const progress = i / (intermediateSegments + 1); // Ajustar progreso para segmentos intermedios
+        
+        // Posición base: del segmento delgado inicial al segmento delgado final
+        let x = thinStartPoint.x + (thinEndPoint.x - thinStartPoint.x) * progress;
+        let y = thinStartPoint.y + (thinEndPoint.y - thinStartPoint.y) * progress;
+        
+        // Aplicar ruido a puntos intermedios
+        // CAPA 1: Ruido principal - simula seguir bordes inferiores
+        const mainNoise = noise(x, y, 0.15) * 25;
+        const mainAngle = Math.atan2(thinEndPoint.y - thinStartPoint.y, thinEndPoint.x - thinStartPoint.x) + Math.PI / 2;
+        x += Math.cos(mainAngle) * mainNoise;
+        y += Math.sin(mainAngle) * Math.abs(mainNoise) * 0.3;
+        
+        // CAPA 2: Zigzag eléctrico
+        const zigzagNoise = noise(x * 3, y * 3, 0.8) * 15;
+        const zigzagAngle = Math.random() * Math.PI * 2;
+        x += Math.cos(zigzagAngle) * zigzagNoise;
+        y += Math.sin(zigzagAngle) * zigzagNoise;
+        
+        // CAPA 3: Detalles finos
+        const detailNoise = noise(x * 8, y * 8, 1.2) * 6;
+        const detailAngle = Math.random() * Math.PI * 2;
+        x += Math.cos(detailAngle) * detailNoise;
+        y += Math.sin(detailAngle) * detailNoise;
+        
+        // Atenuación en extremos
+        const attenuation = Math.sin(progress * Math.PI);
+        const baseX = thinStartPoint.x + (thinEndPoint.x - thinStartPoint.x) * progress;
+        const baseY = thinStartPoint.y + (thinEndPoint.y - thinStartPoint.y) * progress;
+        x = baseX + (x - baseX) * attenuation;
+        y = baseY + (y - baseY) * attenuation;
+        
+        points.push({x, y});
+      }
+      
+      // Agregar segmento final delgado
+      points.push(thinEndPoint);
+      
+      // Agregar punto final (esquina original)
+      points.push({x: endCornerX, y: endCornerY});
+      
+      return points;
+    };
+    
+    /**
+     * Advanced branching system with probabilistic distribution
+     * Generates organic branches with varying lengths (max 50px)
+     */
+    const generateAdvancedBranches = (mainPath: {x: number, y: number}[]) => {
+      const branches: {x: number, y: number}[][] = [];
+      
+      /**
+       * Generates branch lengths using probabilistic distribution
+       * - 65% short branches (5-20px)
+       * - 25% medium branches (20-35px)
+       * - 10% long branches (35-50px max)
+       * 
+       * @returns Branch length in pixels
+       */
+      const generateBranchLength = () => {
+        const rand = Math.random();
+        
+        if (rand < 0.65) {
+          // Short branches (most common)
+          return 5 + Math.random() * 15; // 5-20px
+        } else if (rand < 0.90) {
+          // Medium branches
+          return 20 + Math.random() * 15; // 20-35px
+        } else {
+          // Long branches (least common)
+          return 35 + Math.random() * 15; // 35-50px
+        }
+      };
+      
+      // Número de ramificaciones basado en longitud del rayo principal
+      const branchCount = Math.max(3, Math.floor(mainPath.length / 4));
+      
+      for (let i = 0; i < branchCount; i++) {
+        // Punto de origen (evitar extremos)
+        const branchOriginIndex = Math.floor(Math.random() * (mainPath.length - 4)) + 2;
+        const origin = mainPath[branchOriginIndex];
+        
+        // Dirección del rayo principal en ese punto
+        const prevPoint = mainPath[Math.max(0, branchOriginIndex - 1)];
+        const nextPoint = mainPath[Math.min(mainPath.length - 1, branchOriginIndex + 1)];
+        const mainAngle = Math.atan2(nextPoint.y - prevPoint.y, nextPoint.x - prevPoint.x);
+        
+        // Ángulo de la rama (30-150 grados desde la dirección principal)
+        const angleDeviation = (Math.PI / 6) + Math.random() * (2 * Math.PI / 3); // 30-150 grados
+        const branchAngle = mainAngle + (Math.random() < 0.5 ? angleDeviation : -angleDeviation);
+        
+        // Longitud usando distribución probabilística
+        const branchLength = generateBranchLength();
+        
+        // Segmentos proporcionales ajustados para longitudes menores
+        const branchSegments = Math.max(2, Math.floor(branchLength / 12)); // 1 segmento cada 12px
+        
+        const branchPoints: {x: number, y: number}[] = [];
+        
+        // Generar puntos de la ramificación
+        for (let j = 0; j <= branchSegments; j++) {
+          const branchProgress = j / branchSegments;
+          let branchX = origin.x + Math.cos(branchAngle) * branchLength * branchProgress;
+          let branchY = origin.y + Math.sin(branchAngle) * branchLength * branchProgress;
+          
+          // Zigzag proporcional ajustado a longitudes máximas de 50px
+          if (j > 0 && j < branchSegments) {
+            const zigzagIntensity = Math.min(5, branchLength / 8); // Máximo 5px de zigzag
+            const zigzag = (Math.random() - 0.5) * zigzagIntensity;
+            const perpAngle = branchAngle + Math.PI / 2;
+            branchX += Math.cos(perpAngle) * zigzag;
+            branchY += Math.sin(perpAngle) * zigzag;
+            
+            // Ruido adicional para ramas medias y largas
+            if (branchLength > 30) {
+              const extraNoise = (Math.random() - 0.5) * 3; // Reducido de 4 a 3
+              const noiseAngle = Math.random() * Math.PI * 2;
+              branchX += Math.cos(noiseAngle) * extraNoise;
+              branchY += Math.sin(noiseAngle) * extraNoise;
+            }
+          }
+          
+          branchPoints.push({x: branchX, y: branchY});
+        }
+        
+        branches.push(branchPoints);
+      }
+      
+      return branches;
+    };
+    
+    // Generate main path and branches
+    const mainPath = generateCornerToCornerLightning(startX, startY, endX, endY, segments);
+    const branches = generateAdvancedBranches(mainPath);
+    
+    /**
+     * Utility function for drawing lightning paths with consistent styling
+     * 
+     * @param points - Array of coordinate points defining the path
+     * @param width - Stroke width in pixels
+     * @param color - Hex color value
+     * @param alpha - Alpha transparency (0-1)
+     * @returns PIXI.Graphics object with the drawn path
+     */
+    const drawLightningPath = (points: {x: number, y: number}[], width: number, color: number, alpha: number) => {
+      const graphics = new PIXI.Graphics();
+      if (points.length < 2) return graphics;
+      
+      graphics.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        graphics.lineTo(points[i].x, points[i].y);
+      }
+      graphics.stroke({ width, color, alpha });
+      
+      return graphics;
+    };
+    
+    /**
+     * Draws lightning path with variable width for realistic appearance
+     * - Thin at extremes (20% of base width)
+     * - Full width in middle with optional internal variations for large arcs
+     * - Supports organic pulsing patterns for arcs >100px
+     * 
+     * @param points - Array of coordinate points
+     * @param baseWidth - Base stroke width in pixels
+     * @param color - Hex color value
+     * @param alpha - Alpha transparency (0-1)
+     * @returns PIXI.Graphics object with variable width path
+     */
+    const drawVariableWidthPath = (points: {x: number, y: number}[], baseWidth: number, color: number, alpha: number) => {
+      if (points.length < 2) return new PIXI.Graphics();
+      
+      const graphics = new PIXI.Graphics();
+      
+      // Apply internal variations for medium to large arcs (>100px)
+      const totalDistance = Math.sqrt(
+        Math.pow(points[points.length - 1].x - points[0].x, 2) + 
+        Math.pow(points[points.length - 1].y - points[0].y, 2)
+      );
+      const needsVariation = totalDistance > 100;
+      
+      // Generar patrón de variación para consistencia
+      const variationPattern: number[] = [];
+      if (needsVariation) {
+        for (let i = 0; i < points.length; i++) {
+          // Usar seno y coseno para variaciones orgánicas
+          const phase1 = (i / points.length) * Math.PI * 4; // 4 ciclos a lo largo del arco
+          const phase2 = (i / points.length) * Math.PI * 7; // 7 ciclos para detalles finos
+          const variation = (Math.sin(phase1) * 0.15) + (Math.cos(phase2) * 0.08); // Variación ±15% y ±8%
+          variationPattern.push(variation);
+        }
+      }
+      
+      // Dibujar segmentos con grosor variable
+      for (let i = 0; i < points.length - 1; i++) {
+        const progress = i / (points.length - 1);
+        
+        // Apply width tapering at extremes
+        let widthMultiplier;
+        if (progress < 0.1) {
+          widthMultiplier = 0.2 + (progress * 8); // Thin start
+        } else if (progress > 0.9) {
+          widthMultiplier = 1.0 - ((progress - 0.9) * 8); // Thin end
+        } else {
+          widthMultiplier = 1.0;
+          
+          // Apply internal variations for large arcs
+          if (needsVariation && variationPattern.length > i) {
+            const middleIntensity = Math.sin(progress * Math.PI);
+            widthMultiplier += variationPattern[i] * middleIntensity;
+            widthMultiplier = Math.max(0.6, Math.min(1.4, widthMultiplier)); // 60-140%
+          }
+        }
+        
+        const currentWidth = baseWidth * widthMultiplier;
+        
+        graphics.moveTo(points[i].x, points[i].y);
+        graphics.lineTo(points[i + 1].x, points[i + 1].y);
+        graphics.stroke({ width: currentWidth, color, alpha });
+      }
+      
+      return graphics;
+    };
+    
+    // Layer 1: Outer glow
+    const outerGlow = drawVariableWidthPath(mainPath, 14, 0x1155ff, 0.3);
+    lightningContainer.addChild(outerGlow);
+    
+    // Layer 2: Mid glow
+    const midGlow = drawVariableWidthPath(mainPath, 8, 0x3388ff, 0.6);
+    lightningContainer.addChild(midGlow);
+    
+    // Layer 3: White core beam
+    const coreBeam = drawVariableWidthPath(mainPath, 2, 0xffffff, 1.0);
+    lightningContainer.addChild(coreBeam);
+    
+    // Layer 4: Branches with variable thickness
+    branches.forEach((branch, index) => {
+      if (branch.length < 2) return; // Skip ramas inválidas
+      
+      // Calculate branch length and determine thickness
+      const branchLength = Math.sqrt(
+        Math.pow(branch[branch.length - 1].x - branch[0].x, 2) + 
+        Math.pow(branch[branch.length - 1].y - branch[0].y, 2)
+      );
+      
+      let glowWidth, coreWidth, alpha;
+      
+      if (branchLength < 20) {
+        // Short branches (5-20px)
+        glowWidth = 1.5;
+        coreWidth = 0.3;
+        alpha = 0.5;
+      } else if (branchLength < 35) {
+        // Medium branches (20-35px)
+        glowWidth = 2.5;
+        coreWidth = 0.7;
+        alpha = 0.7;
+      } else {
+        // Long branches (35-50px)
+        glowWidth = 3.5;
+        coreWidth = 1.2;
+        alpha = 0.85;
+      }
+      
+      // Branch glow and core layers
+      const branchGlow = drawLightningPath(branch, glowWidth, 0x2266ff, alpha * 0.6);
+      lightningContainer.addChild(branchGlow);
+      
+      const branchCore = drawLightningPath(branch, coreWidth, 0xffffff, alpha);
+      lightningContainer.addChild(branchCore);
+    });
+    
+    // Apply glow filter to entire container
+    try {
+      const glowFilter = new GlowFilter({ 
+        distance: 10,
+        outerStrength: 1.5,
+        innerStrength: 1,
+        color: 0x4499ff,
+        quality: 0.5
+      });
+      lightningContainer.filters = [glowFilter];
+    } catch (error) {
+      lightningContainer.filters = [];
+    }
+    
+    // Add container to stage
+    lightningContainer.zIndex = 99999;
+    app.stage.addChild(lightningContainer);
+    
+    // Animate with ticker system
+    let life = 1.0;
+    const initialAlpha = 1.0;
+    lightningContainer.alpha = initialAlpha;
+    
+    const ticker = () => {
+      life -= 0.015;
+      
+      // Electric flickering effect
+      if (life > 0.8) {
+        // Initial intense flickering
+        lightningContainer.alpha = initialAlpha * (0.5 + Math.random() * 0.5);
+      } else if (life > 0.4) {
+        // Gradual fade with occasional flickers
+        const baseAlpha = life * initialAlpha;
+        const flicker = Math.random() < 0.15 ? Math.random() * 0.4 : 0;
+        lightningContainer.alpha = Math.max(0, baseAlpha + flicker);
+      } else {
+        // Final fade out
+        lightningContainer.alpha = Math.max(0, life * initialAlpha * 2.5);
+      }
+      
+      // Cleanup when finished
+      if (life <= 0) {
+        if (lightningContainer.parent) {
+          lightningContainer.parent.removeChild(lightningContainer);
+        }
+        lightningContainer.destroy({ children: true });
+        app.ticker.remove(ticker);
+      }
+    };
+    
+    app.ticker.add(ticker);
+  }, []);
+  
+  /**
+   * Starts the random electric effect system for idle cards
+   * Creates electric arcs between random card pairs every 3-7 seconds
+   * Only affects cards that are not being dragged or hovered
+   * 
+   * @returns void
+   */
+  const startElectricEffects = useCallback(() => {
+    if (!pixiApp || electricEffectsActive.current) return;
+    
+    electricEffectsActive.current = true;
+    console.log('⚡ VFX: Starting random electric effects for idle cards');
+    
+    const scheduleNextEffect = () => {
+      if (!electricEffectsActive.current || !pixiApp) return;
+      
+      const cardIds = Object.keys(pixiCards || {});
+      if (cardIds.length < 2) {
+        // Need at least 2 cards for arc effect
+        electricEffectTimer.current = window.setTimeout(scheduleNextEffect, 3000);
+        return;
+      }
+      
+      // ⚡ FRECUENCIA NORMAL: Random entre 3-7 segundos
+      const delay = 3000 + Math.random() * 4000; // 3-7 segundos entre efectos
+      
+      electricEffectTimer.current = window.setTimeout(() => {
+        if (!electricEffectsActive.current || !pixiApp || !pixiCards) return;
+        
+        // Pick two random cards
+        const availableCards = Object.values(pixiCards).filter(pc => {
+          const sprite = pc.sprite;
+          return sprite.parent && !(sprite as any).isDragging && !(sprite as any).isHovered;
+        });
+        
+        if (availableCards.length >= 2) {
+          const fromCard = availableCards[Math.floor(Math.random() * availableCards.length)];
+          let toCard = availableCards[Math.floor(Math.random() * availableCards.length)];
+          
+          // Make sure we don't pick the same card
+          while (toCard === fromCard && availableCards.length > 1) {
+            toCard = availableCards[Math.floor(Math.random() * availableCards.length)];
+          }
+          
+          if (fromCard !== toCard) {
+            createElectricArc(fromCard.sprite, toCard.sprite, pixiApp);
+          }
+        }
+        
+        // Schedule next effect
+        scheduleNextEffect();
+      }, delay);
+    };
+    
+    scheduleNextEffect();
+  }, [pixiApp, pixiCards, createElectricArc]);
+  
+  /**
+   * Stops the random electric effect system
+   * Clears any pending timers and disables automatic arc generation
+   * 
+   * @returns void
+   */
+  const stopElectricEffects = useCallback(() => {
+    electricEffectsActive.current = false;
+    if (electricEffectTimer.current) {
+      clearTimeout(electricEffectTimer.current);
+      electricEffectTimer.current = null;
+    }
+    console.log('⚡ VFX: Stopped random electric effects');
+  }, []);
+  
   // Callback to get the PIXI app instance when it's created
   const onAppInit = (app: PIXI.Application) => {
     console.log('🎨 VFX: PIXI App initialized', app);
@@ -415,7 +981,7 @@ export const VFX: React.FC = () => {
     if (!pixiApp) return;
 
     const handleVFXEvent = (event: VFXEvent<VFXEventType>) => {
-      console.log(`🎨 VFX: Received event ${event.type} - Stage has ${pixiApp?.stage?.children.length || 0} children, tracking ${Object.keys(pixiCards).length} cards`);
+      console.log(`🎨 VFX: Received event ${event.type} - Stage has ${pixiApp?.stage?.children.length || 0} children, tracking ${Object.keys(pixiCards || {}).length} cards`);
       const app = pixiApp;
       if (!app?.stage) {
         console.warn('⚠️ VFX: No PIXI app or stage available');
@@ -507,7 +1073,7 @@ export const VFX: React.FC = () => {
           console.log('🎃 VFX: Current game state hand length:', gameStateManager.hand.length);
           console.log('🎃 VFX: Actual game state hand IDs:', gameStateManager.hand.map(c => c.id));
 
-          const currentPixiCardIds = new Set(Object.keys(pixiCards));
+          const currentPixiCardIds = new Set(Object.keys(pixiCards || {}));
           const newHandCardIds = new Set(newHandCards.map((c: { card: CardType; }) => c.card.id));
           console.log('🎨 VFX: Current pixiCards keys:', Array.from(currentPixiCardIds));
           console.log('🎨 VFX: New hand card IDs:', Array.from(newHandCardIds));
@@ -518,7 +1084,7 @@ export const VFX: React.FC = () => {
           // 🔧 MEJORA PixiJS v8: Limpieza completa de sprites huérfanos
           for (const cardId of currentPixiCardIds) {
             if (!newHandCardIds.has(cardId)) {
-              const cardToDiscard = pixiCards[cardId];
+              const cardToDiscard = pixiCards?.[cardId];
               console.log('🗑️ VFX: Removing sprite for card', cardId, 'no longer in hand');
               if (cardToDiscard && app.stage) {
                 const sprite = cardToDiscard.sprite;
@@ -568,7 +1134,7 @@ export const VFX: React.FC = () => {
           // Add or update cards in hand
           newHandCards.forEach((handCardData: { card: CardType; position: { x: number; y: number; }; rotation: number; delay: number; }) => {
             const { card, position, rotation, delay } = handCardData;
-            const existingPixiCard = pixiCards[card.id];
+            const existingPixiCard = pixiCards?.[card.id];
 
             if (!existingPixiCard) {
               console.log('🎨 VFX: Creating NEW sprite for card', card.rank, card.suit, 'at position', position);
@@ -597,17 +1163,46 @@ export const VFX: React.FC = () => {
                 // 🔧 CLEANUP: Destruir graphics después de generar textura
                 graphics.destroy();
                 
-                const text = new PIXI.Text({
-                  text: `${card.rank}${card.suit[0]}`,
+                // Add rank and suit text
+                const rankText = new PIXI.Text({
+                  text: `${card.rank}`,
                   style: {
-                    fontSize: 16, 
+                    fontSize: 18, 
                     fill: 0x000000, 
+                    fontWeight: 'bold',
+                    fontFamily: 'Arial'
+                  }
+                });
+                rankText.x = -45;
+                rankText.y = -70;
+                container.addChild(rankText);
+                
+                // Add suit symbol
+                const suitSymbols = { 'Spades': '♠', 'Hearts': '♥', 'Clubs': '♣', 'Diamonds': '♦' };
+                const suitText = new PIXI.Text({
+                  text: suitSymbols[card.suit as keyof typeof suitSymbols] || card.suit[0],
+                  style: {
+                    fontSize: 20, 
+                    fill: card.suit === 'Hearts' || card.suit === 'Diamonds' ? 0xff0000 : 0x000000,
                     fontWeight: 'bold'
                   }
                 });
-                text.x = -40;
-                text.y = -60;
-                container.addChild(text);
+                suitText.x = -45;
+                suitText.y = -45;
+                container.addChild(suitText);
+                
+                // Add card value in center
+                const valueText = new PIXI.Text({
+                  text: `${card.value}`,
+                  style: {
+                    fontSize: 14, 
+                    fill: 0x666666, 
+                    fontWeight: 'normal'
+                  }
+                });
+                valueText.x = -10;
+                valueText.y = 60;
+                container.addChild(valueText);
                 
                 // 🔧 CRITICO: Generar textura final y limpiar container
                 const finalTexture = app.renderer.generateTexture(container);
@@ -682,7 +1277,31 @@ export const VFX: React.FC = () => {
                   
                   // Advanced hover animation with multiple effects
                   gsap.to(sprite.scale, { x: 1.1, y: 1.1, duration: 0.3, ease: 'back.out(1.6)' });
-                  gsap.to(sprite, { y: sprite.y - 40, rotation: 0.05, duration: 0.3, ease: 'back.out(1.2)' });
+                  gsap.to(sprite, { y: sprite.y - 40, duration: 0.3, ease: 'back.out(1.2)' });
+                  
+                  // Add continuous sway rotation while hovering
+                  const swayAnimation = () => {
+                    if ((sprite as any).isHovered && !(sprite as any).isDragging) {
+                      gsap.to(sprite, {
+                        rotation: -0.08, // -4.5 degrees
+                        duration: 1,
+                        ease: 'sine.inOut',
+                        onComplete: () => {
+                          if ((sprite as any).isHovered && !(sprite as any).isDragging) {
+                            gsap.to(sprite, {
+                              rotation: 0.08, // +4.5 degrees
+                              duration: 1,
+                              ease: 'sine.inOut',
+                              onComplete: swayAnimation
+                            });
+                          }
+                        }
+                      });
+                    }
+                  };
+                  
+                  (sprite as any).isHovered = true;
+                  swayAnimation();
                   
                   // Advanced filter stack for hover
                   try {
@@ -726,6 +1345,10 @@ export const VFX: React.FC = () => {
 
               sprite.on('pointerout', () => {
                 if (!(sprite as any).isDragging) {
+                  // Stop sway animation
+                  (sprite as any).isHovered = false;
+                  gsap.killTweensOf(sprite, 'rotation'); // Stop any rotation animations
+                  
                   // Smooth return animation
                   gsap.to(sprite.scale, { x: 0.8, y: 0.8, duration: 0.4, ease: 'power2.out' });
                   
@@ -778,6 +1401,12 @@ export const VFX: React.FC = () => {
 
               // OPTIMIZADO: Sistema de drag nativo de PixiJS
               sprite.on('pointerdown', (event: PIXI.FederatedPointerEvent) => {
+                console.log('🎴 VFX: Drag START for card', card.rank, card.suit);
+                
+                // Stop sway animation immediately
+                (sprite as any).isHovered = false;
+                gsap.killTweensOf(sprite, 'rotation');
+                
                 // Guardar posición inicial del click
                 (sprite as any).clickStartPosition = { x: sprite.x, y: sprite.y };
                 (sprite as any).dragData = event;
@@ -787,6 +1416,7 @@ export const VFX: React.FC = () => {
                 
                 // Animación simple sin filtros pesados
                 gsap.to(sprite.scale, { x: 1.1, y: 1.1, duration: 0.2 });
+                gsap.to(sprite, { rotation: 0, duration: 0.2 }); // Reset rotation
                 
                 // Mover al frente
                 if (sprite.parent) {
@@ -809,47 +1439,15 @@ export const VFX: React.FC = () => {
               const handlePointerUp = () => {
                 if (!(sprite as any).isDragging) return;
                 
+                console.log('🎴 VFX: Drag END for card', card.rank, card.suit);
                 (sprite as any).isDragging = false;
                 sprite.cursor = 'pointer';
                 
-                const clickStartPos = (sprite as any).clickStartPosition || (sprite as any).originalPosition;
-                const dragDistance = Math.sqrt(
-                  Math.pow(sprite.x - clickStartPos.x, 2) + 
-                  Math.pow(sprite.y - clickStartPos.y, 2)
-                );
-                
-                // 🔧 CRÍTICO: Obtener carta desde el estado actual, NO del closure
-                const currentPixiCard = pixiCards[card.id];
+                // Get current card from state
+                const currentPixiCard = pixiCards?.[card.id];
                 const actualCard = currentPixiCard ? currentPixiCard.card : card;
                 
-                console.log('🔍 VFX: Click detected on sprite with card ID:', card.id);
-                console.log('🔍 VFX: Current pixiCards state has this ID:', !!currentPixiCard);
-                console.log('🔍 VFX: Using card from state:', actualCard.rank, actualCard.suit);
-                
-                // Si no se movió mucho, es un click
-                if (dragDistance < 20) {
-                  // Mostrar menú centrado
-                  const canvasBounds = app.canvas.getBoundingClientRect();
-                  const menuPosition = {
-                    x: canvasBounds.left + (640 * canvasBounds.width / app.screen.width),
-                    y: canvasBounds.top + (400 * canvasBounds.height / app.screen.height)
-                  };
-                  
-                  // 🔧 CRÍTICO: Usar carta actual del estado, no del closure
-                  vfxSystem.cardClick({ card: actualCard, position: menuPosition });
-                  
-                  // Regresar carta a posición original
-                  const origPos = (sprite as any).originalPosition;
-                  gsap.to(sprite, {
-                    x: origPos.x,
-                    y: origPos.y,
-                    scale: 0.8,
-                    duration: 0.3
-                  });
-                  return;
-                }
-                
-                // Verificar si está en zona de drop
+                // Check if dropped in play area
                 const PLAY_AREA = {
                   left: 350,
                   right: 930,
@@ -864,19 +1462,24 @@ export const VFX: React.FC = () => {
                   sprite.y <= PLAY_AREA.bottom
                 );
                 
-                if (isInPlayArea && dragDistance > 30) {
-                  // Mostrar menú centrado
+                console.log('🎯 VFX: Drop position:', { x: sprite.x, y: sprite.y }, 'In play area:', isInPlayArea);
+                
+                if (isInPlayArea) {
+                  console.log('✅ VFX: Valid drop! Opening context menu for:', actualCard.rank, actualCard.suit);
+                  
+                  // Show context menu at center of screen
                   const canvasBounds = app.canvas.getBoundingClientRect();
                   const menuPosition = {
                     x: canvasBounds.left + (640 * canvasBounds.width / app.screen.width),
                     y: canvasBounds.top + (400 * canvasBounds.height / app.screen.height)
                   };
                   
-                  // 🔧 CRÍTICO: Usar carta actual del estado, no del closure
                   vfxSystem.cardClick({ card: actualCard, position: menuPosition });
+                } else {
+                  console.log('❌ VFX: Invalid drop area, returning card to hand');
                 }
                 
-                // SIEMPRE regresar carta a posición original
+                // Always return card to original position
                 const origPos = (sprite as any).originalPosition;
                 gsap.to(sprite, {
                   x: origPos.x,
@@ -1048,7 +1651,7 @@ export const VFX: React.FC = () => {
           // Only update positions of existing sprites, don't create new ones
           repositionCards.forEach((handCardData: { card: CardType; position: { x: number; y: number; }; rotation: number; delay: number; }) => {
             const { card, position, rotation, delay } = handCardData;
-            const existingPixiCard = pixiCards[card.id];
+            const existingPixiCard = pixiCards?.[card.id];
             
             if (existingPixiCard) {
               const sprite = existingPixiCard.sprite;
@@ -1070,7 +1673,7 @@ export const VFX: React.FC = () => {
               // Update original position in pixiCards state
               setPixiCards(prev => ({
                 ...prev,
-                [card.id]: { ...prev[card.id], originalPosition: { x: position.x, y: position.y } }
+                [card.id]: { ...(prev?.[card.id] || {} as PixiCard), originalPosition: { x: position.x, y: position.y } }
               }));
             } else {
               console.warn('⚠️ VFX: Cannot reposition card', card.rank, card.suit, '- sprite does not exist');
@@ -1127,161 +1730,237 @@ export const VFX: React.FC = () => {
             break;
         }
         case 'cardResearch': {
-            const researchData = event.data as {
-              startPosition: { x: number; y: number };
-              endPosition: { x: number; y: number };
-            };
-
-            const { startPosition: researchStart, endPosition: researchEnd } = researchData;
-            for (let i = 0; i < 10; i++) {
-                const particle = new PIXI.Graphics().rect(0, 0, 5, 5).fill(0x00ffcc);
-                particle.x = researchStart.x;
-                particle.y = researchStart.y;
-                app.stage.addChild(particle);
-
-                gsap.to(particle, {
-                    x: researchEnd.x,
-                    y: researchEnd.y,
-                    duration: 1 + Math.random() * 0.5,
-                    delay: Math.random() * 0.2,
-                    ease: 'power1.inOut',
-                    onComplete: (() => {
-                      const currentStage = app.stage;
-                      if (currentStage) {
-                        currentStage.removeChild(particle);
-                      }
-                    }) as () => void
-                });
-            }
+            // 🛑 ELIMINADO: Efectos de partículas tipo misil como solicitado
+            // La investigación ahora solo activa efectos de juego sin animaciones de proyectiles
+            console.log('🔍 VFX: Card research - projectile effects disabled as requested');
             break;
         }
         case 'playerPlayCard': {
             const playerData = event.data as VFXEventData['playerPlayCard'];
-            const { card, startPosition, centerPosition } = playerData;
+            const { card } = playerData;
             
-            console.log('👤 VFX: PLAYER playing card', card.rank, card.suit, 'from', startPosition, 'to', centerPosition);
+            // ✅ Posición central del área verde del tablero
+            const centerPosition = {
+              x: 420, // Centro del área verde (entre x:50 y x:790)
+              y: 400  // Centro vertical del área verde
+            };
+            
+            console.log('👤 VFX: PLAYER playing card', card.rank, card.suit);
+            console.log('👤 VFX: Efecto con zoom inverso en centro:', centerPosition);
 
-            // FASE 1: Crear carta del jugador usando PixiJS Container
+            // ✅ FASE 1: Crear carta del jugador con efecto zoom inverso
             const playerCardContainer = new PIXI.Container();
-            playerCardContainer.x = startPosition.x;
-            playerCardContainer.y = startPosition.y;
-            playerCardContainer.scale.set(0.8); // Empezar con tamaño de mano
-            playerCardContainer.rotation = 0.15; // Inclinación hacia la derecha (opuesto al ECO)
+            playerCardContainer.x = centerPosition.x;
+            playerCardContainer.y = centerPosition.y;
+            playerCardContainer.scale.set(2.5); // ✅ Empezar GRANDE (zoom)
+            playerCardContainer.rotation = 0.15; // Inclinación hacia la derecha
+            playerCardContainer.alpha = 0;
             playerCardContainer.label = `playerCard_${card.id}`;
             
-            // Cargar textura real de la carta del jugador
-            const cardPath = `/images/decks/default/${card.imageFile}`;
-            console.log('👤 VFX: Loading player card texture from:', cardPath);
+            // ✅ Cargar imagen real de la carta usando el sistema de assets
+            console.log('👤 VFX: Loading real card image for player effect');
             
-            PIXI.Assets.load(cardPath)
-              .then((cardTexture) => {
-                console.log('👤 VFX: Player card texture loaded successfully');
-                
-                // Usar textura real de la carta
-                const cardSprite = new PIXI.Sprite(cardTexture);
-                cardSprite.anchor.set(0.5);
-                cardSprite.width = 300; // Mismo tamaño que el zoom
-                cardSprite.height = 420;
-                cardSprite.x = 0;
-                cardSprite.y = 0;
-                cardSprite.label = 'playerRealCard';
-                playerCardContainer.addChild(cardSprite);
-              })
-              .catch((error) => {
-                console.warn('⚠️ VFX: Failed to load player card texture, using fallback:', error);
-                
-                // Crear fondo fallback si falla la carga
-                const cardFront = new PIXI.Graphics()
-                  .rect(-150, -210, 300, 420)
-                  .fill(0x2a2a3a)
-                  .rect(-142, -202, 284, 404)
-                  .stroke({ width: 3, color: 0x4a90e2 })
-                  .rect(-100, -150, 200, 60)
-                  .fill(0x4a90e2);
-                cardFront.label = 'playerCardFrontFallback';
-                playerCardContainer.addChild(cardFront);
-                
-                // Texto fallback con info de la carta
-                const cardText = new PIXI.Text({
-                  text: `${card.rank}\n${card.suit}`,
-                  style: {
-                    fontSize: 16,
-                    fill: 0xffffff,
-                    fontWeight: 'bold',
-                    align: 'center'
-                  }
-                });
-                cardText.anchor.set(0.5);
-                cardText.x = 0;
-                cardText.y = -60;
-                cardText.label = 'playerCardTextFallback';
-                playerCardContainer.addChild(cardText);
-              });
+            // Crear sprite temporal mientras carga la imagen real
+            const cardGraphics = new PIXI.Graphics()
+              .roundRect(-60, -84, 120, 168, 12)
+              .fill({ color: 0x1e40af, alpha: 0.9 })
+              .stroke({ color: 0x60a5fa, width: 4 });
             
-            // Aplicar filtros PixiJS con color del jugador (azul)
-            try {
-              playerCardContainer.filters = [new GlowFilter({ distance: 15, outerStrength: 1.5, color: 0x4a90e2 })];
-            } catch (error) {
-              console.warn('⚠️ VFX: GlowFilter failed for player card:', error);
-              playerCardContainer.filters = [];
-            }
-            
-            // Usar LayerManager para posicionamiento correcto
-            const addedToPlayerLayer = layerSystem.addToPixi(GameLayer.FLOATING_UI, playerCardContainer);
-            if (!addedToPlayerLayer) {
-              playerCardContainer.zIndex = 4100;
-              app.stage.addChild(playerCardContainer);
-            }
-            
-            console.log('👤 VFX: Player card container created at hand position, starting drag animation');
-
-            // FASE 2: DRAG usando PixiJS Ticker para animación suave (igual que ECO)
-            const startTime = performance.now();
-            const dragDuration = 1200; // 1.2 segundos
-            const startX = startPosition.x;
-            const startY = startPosition.y;
-            const deltaX = centerPosition.x - startX;
-            const deltaY = centerPosition.y - startY;
-            
-            const playerDragTicker = new PIXI.Ticker();
-            playerDragTicker.add(() => {
-              const elapsed = performance.now() - startTime;
-              const progress = Math.min(elapsed / dragDuration, 1);
-              
-              // Usar easing power2.inOut
-              const easedProgress = progress < 0.5 
-                ? 2 * progress * progress 
-                : 1 - 2 * (1 - progress) * (1 - progress);
-                
-              // Actualizar posición
-              playerCardContainer.x = startX + (deltaX * easedProgress);
-              playerCardContainer.y = startY + (deltaY * easedProgress);
-              
-              // Escalar durante el movimiento para dar sensación de profundidad
-              const scale = 0.8 + (0.4 * easedProgress); // De 0.8 a 1.2 (ligeramente más grande)
-              playerCardContainer.scale.set(scale);
-              
-              // Rotación sutil con inclinación base opuesta al ECO
-              playerCardContainer.rotation = 0.15 - (Math.sin(progress * Math.PI) * 0.05);
-              
-              if (progress >= 1) {
-                playerDragTicker.stop();
-                playerDragTicker.destroy();
-                console.log('👤 VFX: Player card reached play zone, starting reveal sequence');
-                
-                // FASE 3: REVEAL del jugador (diferente al ECO - sin flip)
-                setTimeout(() => {
-                  performPlayerCardReveal(playerCardContainer, card, centerPosition, app);
-                }, 200);
+            const tempText = new PIXI.Text({
+              text: `${card.rank}\n♠`, // Placeholder temporal
+              style: {
+                fontFamily: 'Arial',
+                fontSize: 24,
+                fill: 0xffffff,
+                align: 'center',
+                fontWeight: 'bold'
               }
             });
-            playerDragTicker.start();
+            tempText.anchor.set(0.5);
             
-            // FASE 4: Auto-cleanup después de 5 segundos
-            setTimeout(() => {
-              console.log('👤 VFX: Starting player card cleanup sequence');
-              performPlayerCardCleanup(playerCardContainer, app);
-            }, 6000);
+            playerCardContainer.addChild(cardGraphics);
+            playerCardContainer.addChild(tempText);
+            
+            // ✅ Cargar imagen real de la carta de forma asíncrona
+            const cardImagePath = `/images/decks/default/${card.imageFile}`;
+            
+            console.log('👤 VFX: Attempting to load card image:', cardImagePath);
+            
+            PIXI.Assets.load(cardImagePath)
+              .then((cardTexture) => {
+                console.log('👤 VFX: Real card texture loaded successfully');
+                
+                // Reemplazar el fallback con la imagen real
+                const cardSprite = new PIXI.Sprite(cardTexture);
+                cardSprite.anchor.set(0.5);
+                cardSprite.width = 120;
+                cardSprite.height = 168;
+                cardSprite.x = 0;
+                cardSprite.y = 0;
+                
+                // Remover elementos temporales
+                playerCardContainer.removeChild(cardGraphics);
+                playerCardContainer.removeChild(tempText);
+                
+                // Agregar imagen real
+                playerCardContainer.addChild(cardSprite);
+                
+                console.log('👤 VFX: Real card sprite replaced fallback');
+              })
+              .catch((error) => {
+                console.warn('👤 VFX: Failed to load real card texture, keeping fallback:', error);
+              });
+            
+            // ✅ Efecto de fuego azul usando method chaining (mejores prácticas PixiJS v8+)
+            const blueFireEffect = new PIXI.Graphics()
+              .circle(0, 0, 100).fill({ color: 0x1e40af, alpha: 0.3 })
+              .circle(0, 0, 130).fill({ color: 0x3b82f6, alpha: 0.2 })
+              .circle(0, 0, 160).fill({ color: 0x60a5fa, alpha: 0.1 });
+            blueFireEffect.x = centerPosition.x;
+            blueFireEffect.y = centerPosition.y;
+            blueFireEffect.scale.set(0);
+            blueFireEffect.alpha = 0;
+            
+            // ✅ Partículas de energía azul
+            const energyParticles: PIXI.Graphics[] = [];
+            for (let i = 0; i < 20; i++) {
+              const particle = new PIXI.Graphics()
+                .circle(0, 0, 2 + Math.random() * 5)
+                .fill({ color: [0x3b82f6, 0x60a5fa, 0x93c5fd][Math.floor(Math.random() * 3)], alpha: 0.8 });
+              
+              const angle = (i / 20) * Math.PI * 2;
+              const radius = 80 + Math.random() * 40;
+              particle.x = centerPosition.x + Math.cos(angle) * radius;
+              particle.y = centerPosition.y + Math.sin(angle) * radius;
+              particle.alpha = 0;
+              particle.scale.set(0);
+              energyParticles.push(particle);
+            }
+            
+            // Agregar elementos al stage
+            layerSystem.addToPixi(GameLayer.PARTICLE_EFFECTS, blueFireEffect);
+            layerSystem.addToPixi(GameLayer.CARDS_DRAGGING, playerCardContainer);
+            energyParticles.forEach(p => layerSystem.addToPixi(GameLayer.PARTICLE_EFFECTS, p));
+
+            // ✅ FASE 2: ANIMACIONES CON ZOOM INVERSO
+            const timeline = gsap.timeline();
+            
+            // 1. Aparición de la carta en zoom
+            timeline.to(playerCardContainer, {
+              alpha: 1,
+              rotation: 0.08,
+              duration: 0.3,
+              ease: 'power2.out'
+            });
+            
+            // 2. Efecto de fuego azul
+            timeline.to(blueFireEffect, {
+              scale: 1,
+              alpha: 0.8,
+              duration: 0.4,
+              ease: 'back.out(1.5)'
+            }, 0.1);
+            
+            // 3. Partículas aparecen
+            energyParticles.forEach((particle, i) => {
+              timeline.to(particle, {
+                alpha: 1,
+                scale: 1.5,
+                duration: 0.3,
+                ease: 'back.out'
+              }, 0.2 + i * 0.02);
+              
+              const angle = (i / 20) * Math.PI * 2;
+              timeline.to(particle, {
+                x: centerPosition.x + Math.cos(angle + i * 0.5) * 60,
+                y: centerPosition.y + Math.sin(angle + i * 0.5) * 60,
+                duration: 2,
+                ease: 'sine.inOut'
+              }, 0.3);
+            });
+            
+            // 4. ✅ ZOOM INVERSO: Reducir carta
+            timeline.to(playerCardContainer.scale, {
+              x: 0.8,
+              y: 0.8,
+              duration: 1.5,
+              ease: 'power2.inOut'
+            }, 0.5);
+            
+            // 5. Pulsación del fuego
+            timeline.to(blueFireEffect.scale, {
+              x: 1.3,
+              y: 1.3,
+              duration: 0.5,
+              ease: 'sine.inOut',
+              repeat: 2,
+              yoyo: true
+            }, 0.8);
+            
+            // 6. ✅ COLAPSO FINAL
+            timeline.to(playerCardContainer.scale, {
+              x: 0,
+              y: 0,
+              duration: 0.8,
+              ease: 'back.in(2)'
+            }, 2.5);
+            
+            timeline.to(playerCardContainer, {
+              rotation: Math.PI * 2,
+              duration: 0.8,
+              ease: 'power2.in'
+            }, 2.5);
+            
+            timeline.to([blueFireEffect, ...energyParticles], {
+              scale: 0,
+              alpha: 0,
+              duration: 0.8,
+              ease: 'power2.in'
+            }, 2.5);
+            
+            // 7. Explosión final
+            timeline.call(() => {
+              for (let i = 0; i < 8; i++) {
+                const burst = new PIXI.Graphics()
+                  .circle(0, 0, 3)
+                  .fill({ color: 0x60a5fa, alpha: 1 });
+                burst.x = centerPosition.x;
+                burst.y = centerPosition.y;
+                layerSystem.addToPixi(GameLayer.PARTICLE_EFFECTS, burst);
+                
+                const angle = (i / 8) * Math.PI * 2;
+                gsap.to(burst, {
+                  x: centerPosition.x + Math.cos(angle) * 150,
+                  y: centerPosition.y + Math.sin(angle) * 150,
+                  alpha: 0,
+                  scale: 0,
+                  duration: 0.6,
+                  ease: 'power2.out',
+                  onComplete: () => {
+                    if (burst.parent) burst.parent.removeChild(burst);
+                  }
+                });
+              }
+            }, undefined, 3.2);
+            
+            // 8. Limpieza y evento de finalización
+            timeline.call(() => {
+              console.log('👤 VFX: Limpiando efectos y notificando finalización');
+              if (playerCardContainer.parent) {
+                playerCardContainer.parent.removeChild(playerCardContainer);
+              }
+              if (blueFireEffect.parent) {
+                blueFireEffect.parent.removeChild(blueFireEffect);
+              }
+              energyParticles.forEach(p => {
+                if (p.parent) p.parent.removeChild(p);
+              });
+              
+              // ✅ EMITIR EVENTO DE FINALIZACIÓN
+              const effectId = `playerCard_${card.id}_${Date.now()}`;
+              vfxSystem.playerCardEffectComplete({ card, effectId });
+              console.log('🎉 VFX: Player card effect completed, event emitted');
+            }, undefined, 3.8);
 
             break;
         }
@@ -1411,7 +2090,7 @@ export const VFX: React.FC = () => {
             // FASE 4: Auto-cleanup después de 5 segundos
             setTimeout(() => {
               console.log('🤖 VFX: Starting ECO card cleanup sequence');
-              performEcoCardCleanup(ecoCardContainer, app);
+              performEcoCardCleanup(ecoCardContainer, app, card);
             }, 6000);
 
             // Old flip animation code removed - now handled by PixiJS native performEcoCardReveal method
@@ -1424,32 +2103,9 @@ export const VFX: React.FC = () => {
         // Cleanup old flip animation code that is now replaced by PixiJS native methods
         
         case 'cardResource': {
-            const resourceData = event.data as {
-              startPosition: { x: number; y: number };
-              endPosition: { x: number; y: number };
-            };
-
-            const { startPosition: resourceStart, endPosition: resourceEnd } = resourceData;
-            for (let i = 0; i < 15; i++) {
-                const particle = new PIXI.Graphics().rect(0, 0, 6, 6).fill(0xffd700);
-                particle.x = resourceStart.x;
-                particle.y = resourceStart.y;
-                app.stage.addChild(particle);
-
-                gsap.to(particle, {
-                    x: resourceEnd.x,
-                    y: resourceEnd.y,
-                    duration: 0.8 + Math.random() * 0.4,
-                    delay: Math.random() * 0.2,
-                    ease: 'power1.inOut',
-                    onComplete: (() => {
-                      const currentStage = app.stage;
-                      if (currentStage) {
-                        currentStage.removeChild(particle);
-                      }
-                    }) as () => void
-                });
-            }
+            // 🛑 ELIMINADO: Efectos de partículas tipo misil como solicitado
+            // Los recursos ahora solo activan efectos de juego sin animaciones de proyectiles
+            console.log('💰 VFX: Card resource - projectile effects disabled as requested');
             break;
         }
         
@@ -2021,85 +2677,7 @@ export const VFX: React.FC = () => {
     }
   }, [pixiApp, cleanupActiveZoom]);
   
-  // Helper functions for player card animations
-  const performPlayerCardReveal = (container: PIXI.Container, _card: any, _position: {x: number, y: number}, _app: PIXI.Application) => {
-    console.log('👤 VFX: Starting player card reveal - no flip, just glow effect');
-    
-    // Para el jugador, no hacemos flip ya que la carta ya se ve
-    // Solo hacemos un efecto de brillo y escala
-    
-    try {
-      // Intensificar glow temporalmente
-      const intensifiedGlow = new GlowFilter({ 
-        distance: 25, 
-        outerStrength: 3.0, 
-        innerStrength: 1.0, 
-        color: 0x00ffff 
-      });
-      container.filters = [intensifiedGlow];
-      
-      // Efecto de pulso
-      gsap.to(container.scale, {
-        x: 1.3,
-        y: 1.3,
-        duration: 0.3,
-        ease: 'back.out(2)',
-        yoyo: true,
-        repeat: 1
-      });
-      
-      // Volver al glow normal después del efecto
-      setTimeout(() => {
-        try {
-          const normalGlow = new GlowFilter({ distance: 15, outerStrength: 1.5, color: 0x4a90e2 });
-          container.filters = [normalGlow];
-        } catch (error) {
-          console.warn('⚠️ VFX: Error resetting player card glow:', error);
-          container.filters = [];
-        }
-      }, 1000);
-      
-    } catch (error) {
-      console.warn('⚠️ VFX: Error in player card reveal:', error);
-    }
-  };
-  
-  const performPlayerCardCleanup = (container: PIXI.Container, _app: PIXI.Application) => {
-    console.log('👤 VFX: Cleaning up player card container');
-    
-    try {
-      // Animación de salida
-      gsap.to(container, {
-        alpha: 0,
-        scale: 0.1,
-        rotation: container.rotation + 0.5, // Rotación adicional al desaparecer
-        duration: 0.5,
-        ease: 'back.in(2)',
-        onComplete: () => {
-          try {
-            if (container.parent) {
-              container.parent.removeChild(container);
-            }
-            container.destroy({ children: true, texture: false });
-            console.log('👤 VFX: Player card container completely destroyed');
-          } catch (error) {
-            console.error('👤 VFX: Error destroying player card container:', error);
-          }
-        }
-      });
-    } catch (error) {
-      console.error('👤 VFX: Error in player card cleanup:', error);
-      // Fallback cleanup
-      try {
-        if (container.parent) {
-          container.parent.removeChild(container);
-        }
-        container.destroy({ children: true, texture: false });
-      } catch (fallbackError) {
-        console.error('👤 VFX: Fallback cleanup failed:', fallbackError);
-      }
-    }
-  };
+  // ✅ Player card functions removed - now using static effects
 
   // Helper functions for ECO card animations - moved outside useEffect to avoid scope issues
   const performEcoCardReveal = (container: PIXI.Container, card: any, position: {x: number, y: number}, app: PIXI.Application) => {
@@ -2172,7 +2750,7 @@ export const VFX: React.FC = () => {
     revealTicker.start();
   };
   
-  const performEcoCardCleanup = (container: PIXI.Container, app: PIXI.Application) => {
+  const performEcoCardCleanup = (container: PIXI.Container, app: PIXI.Application, card?: CardType) => {
     console.log('🤖 VFX: Starting ECO card cleanup using PixiJS native methods');
     
     // FASE 1: Pulso de advertencia usando PixiJS
@@ -2201,7 +2779,7 @@ export const VFX: React.FC = () => {
         pulseTicker.destroy();
         
         // FASE 2: Cleanup con rotación y fade usando PixiJS
-        performFinalCleanup(container, app);
+        performFinalCleanup(container, app, card);
       }
     });
     
@@ -2237,7 +2815,7 @@ export const VFX: React.FC = () => {
     shockTicker.start();
   };
   
-  const performFinalCleanup = (container: PIXI.Container, _app: PIXI.Application) => {
+  const performFinalCleanup = (container: PIXI.Container, _app: PIXI.Application, card?: CardType) => {
     const cleanupTicker = new PIXI.Ticker();
     const cleanupStartTime = performance.now();
     const cleanupDuration = 800;
@@ -2263,11 +2841,56 @@ export const VFX: React.FC = () => {
           container.parent.removeChild(container);
         }
         console.log('🤖 VFX: ECO card cleanup completed and removed from stage');
+        
+        // ✅ EMITIR EVENTO DE FINALIZACIÓN PARA EL ECO
+        if (card) {
+          const effectId = `ecoCard_${card.id}_${Date.now()}`;
+          vfxSystem.ecoCardEffectComplete({ card, effectId });
+          console.log('🎉 VFX: ECO card effect completed, event emitted');
+        }
       }
     });
     
     cleanupTicker.start();
   };
+
+  // Electric effects management - Start/stop based on card availability
+  useEffect(() => {
+    console.log('⚡ VFX Electric Effects Check:', {
+      pixiApp: !!pixiApp,
+      pixiCards: !!pixiCards,
+      cardCount: pixiCards ? Object.keys(pixiCards).length : 0,
+      electricActive: electricEffectsActive.current
+    });
+    
+    if (!pixiApp || !pixiCards || Object.keys(pixiCards).length < 2) {
+      console.log('⚡ VFX: Not enough conditions for electric effects - stopping');
+      stopElectricEffects();
+      return;
+    }
+    
+    // Start electric effects when we have cards in idle state
+    const availableCards = Object.values(pixiCards).filter(pc => {
+      const sprite = pc.sprite;
+      const isIdle = sprite.parent && !(sprite as any).isDragging && !(sprite as any).isHovered;
+      return isIdle;
+    });
+    
+    console.log(`⚡ VFX: Found ${availableCards.length} idle cards for electric effects`);
+    
+    if (availableCards.length >= 2 && !electricEffectsActive.current) {
+      console.log('⚡ VFX: Starting electric effects with idle cards');
+      startElectricEffects();
+    } else if (availableCards.length < 2 && electricEffectsActive.current) {
+      console.log('⚡ VFX: Stopping electric effects - not enough idle cards');
+      stopElectricEffects();
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      stopElectricEffects();
+    };
+  }, [pixiApp, pixiCards, startElectricEffects, stopElectricEffects]);
 
   if (debugMode) {
     return (

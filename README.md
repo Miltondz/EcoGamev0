@@ -107,6 +107,13 @@ El Eco puede inyectar cartas falsas en la baraja del jugador, creando decisiones
   - ⚡ Lightning, 🔥 Fire, 📺 Glitch, 🌍 Shake, 📻 Static, ✨ Sparks
   - 🌑 Darkness, 💫 Glow, 🦠 Corruption, ⚡ Energy, 🌫️ Fog
 - **VFXSystem**: Sistema de partículas y efectos de combate
+- **⚡ Electric Arc System**: Arcos eléctricos realistas entre cartas
+  - Algoritmos de ruido avanzados para patrones orgánicos
+  - Sistema de ramificaciones probabilísticas (65% cortas, 25% medias, 10% largas)
+  - Grosor variable con adelgazamiento en extremos
+  - Múltiples capas visuales (glow exterior, medio, núcleo blanco)
+  - Animación con parpadeo eléctrico y fade-out natural
+  - Generación automática cada 3-7 segundos en cartas inactivas
 - **EventVisualSystem**: 4 tipos de presentación (Card/Image/GIF/Video)
 - **UIPositionManager**: Gestión dinámica de posiciones para animaciones
 
@@ -162,7 +169,7 @@ El Eco puede inyectar cartas falsas en la baraja del jugador, creando decisiones
 - ✅ **💾 LocalStorage Inteligente** - Configuraciones y estadísticas persistentes
 - ✅ **🔊 AudioManager Mejorado** - Mejor manejo de memoria y preloading
 
-### 🆕 **ÚLTIMAS MEJORAS - 13 Sept 2025**
+### 🆕 **ÚLTIMAS MEJORAS - 15 Sept 2025**
 
 #### **🔧 Mejores Prácticas PixiJS v8**
 - ✅ **Problema crítico resuelto**: Desincronización card-sprite (zoom incorrecto)
@@ -186,7 +193,16 @@ El Eco puede inyectar cartas falsas en la baraja del jugador, creando decisiones
 - ✅ Sistema de cleanup tasks registrables
 - ✅ Tracking de sesiones con tiempo de juego y acciones
 
-### **🆕 AudioManager Optimizado**
+#### **⚡ Sistema de Arcos Eléctricos Realistas**
+- ✅ **Algoritmo de ruido avanzado**: Pseudo-Perlin con múltiples frecuencias
+- ✅ **Trayectorias orgánicas**: 25px debajo de cartas con segmentos delgados en extremos
+- ✅ **Grosor variable inteligente**: Adelgazamiento progresivo y variaciones internas
+- ✅ **Sistema de ramificaciones**: Distribución probabilística (65%-25%-10%)
+- ✅ **Múltiples capas visuales**: Glow exterior, medio y núcleo blanco superpuestos
+- ✅ **Animación realista**: Parpadeo eléctrico con ticker y fade-out natural
+- ✅ **Generación automática**: Cada 3-7 segundos entre cartas inactivas
+
+#### **🆕 AudioManager Optimizado**
 - ✅ Integración con sistema de persistencia
 - ✅ Métodos para pausar/resumir todo el audio
 - ✅ Preloading inteligente por escenario
@@ -208,6 +224,15 @@ LocalStorageManager.getInstance()
   .recordGameResult(true, 25.5, 'submarine-lab')
   .getGameStatistics()  // Estadísticas completas
 ```
+
+#### **⚡ Sistema de Arcos Eléctricos Avanzado**
+- **Algoritmo de Ruido Pseudo-Perlin**: Combina múltiples ondas seno/coseno para patrones orgánicos
+- **Trayectoria Realista**: Viaja 25px debajo de las cartas siguiendo bordes inferiores
+- **Segmentos Extremos Delgados**: Ínicio y fin con segmentos de ≤10px y ángulos ±15°
+- **Grosor Variable Inteligente**: 20% en extremos, 100% en el medio, con variaciones 60-140% para arcos >100px
+- **Ramificaciones Orgánicas**: Distribución probabilística con longitudes 5-50px
+- **Múltiples Capas Visuales**: Glow exterior (14px), glow medio (8px), núcleo blanco (2px)
+- **Sistema de Animación**: Ticker nativo con parpadeo eléctrico y cleanup automático
 
 #### **Performance Optimizado**
 - **Memory Management**: Cleanup completo de sprites, texturas y event listeners

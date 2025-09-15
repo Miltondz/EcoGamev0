@@ -4,6 +4,15 @@ import type { Card } from './types';
 import { scenarioLoader } from './ScenarioLoader';
 import { deckManager } from './DeckManager';
 import { floatingNumbersSystem } from './FloatingNumbersSystem';
+// Importar turnManager con lazy loading para evitar circular imports
+let turnManager: any = null;
+const getTurnManager = async () => {
+    if (!turnManager) {
+        const module = await import('./TurnManager');
+        turnManager = module.turnManager;
+    }
+    return turnManager;
+};
 
 export enum GamePhase {
     EVENT,
@@ -28,6 +37,13 @@ class GameStateManager {
     private _playerStatusEffects: PlayerStatusEffect[] = [];
     private _ecoRevealedCard: Card | null = null;
     private _cardsToDraw: Card[] = [];
+    
+    // Sistema de números flotantes diferidos para ECO
+    private pendingEcoFloatingNumbers: Array<{
+        type: 'damage' | 'sanity';
+        amount: number;
+        position: { x: number; y: number };
+    }> = [];
     
     // Card selection and interaction state
     private _selectedCards: Card[] = [];
@@ -189,17 +205,30 @@ class GameStateManager {
         return false;
     }
 
-    dealDamageToEco(amount: number) {
+    async dealDamageToEco(amount: number) {
         const oldHp = this.ecoHp;
         this.ecoHp = Math.max(0, this.ecoHp - amount);
         const actualDamage = oldHp - this.ecoHp;
         
-        // 📊 Mostrar números flotantes sobre el retrato del ECO
+        // 📚 Mostrar números flotantes sobre el retrato del ECO y registrar en TurnManager
         if (actualDamage > 0) {
-            // Posición aproximada del retrato del ECO (esto puede ajustarse)
-            const ecoPortraitPosition = { x: 1100, y: 300 }; // Esquina superior derecha
-            floatingNumbersSystem.showDamage(actualDamage, ecoPortraitPosition);
-            console.log(`❤️ GameState: ECO recibió ${actualDamage} de daño - mostrando números flotantes`);
+            // ✅ Posición ajustada del retrato del ECO - CORREGIDA para estar dentro de pantalla
+            const ecoPortraitPosition = { x: 1200, y: 400 }; // Dentro de pantalla 1280x720
+            
+            // ✅ Registrar la promesa en TurnManager para que espere a que termine
+            const floatingNumberPromise = floatingNumbersSystem.showDamage(actualDamage, ecoPortraitPosition);
+            
+            try {
+                const tm = await getTurnManager();
+                if (tm && tm.registerFloatingNumber) {
+                    tm.registerFloatingNumber(floatingNumberPromise);
+                    console.log(`❤️ GameState: ECO recibió ${actualDamage} de daño - número flotante registrado en TurnManager`);
+                } else {
+                    console.log(`❤️ GameState: ECO recibió ${actualDamage} de daño - TurnManager no disponible para registro`);
+                }
+            } catch (error) {
+                console.warn('⚠️ GameState: Error registrando floating number en TurnManager:', error);
+            }
         }
         
         this.checkForGameOver();
@@ -212,7 +241,7 @@ class GameStateManager {
         
         // 📊 Mostrar números flotantes de curación de cordura
         if (actualHealing > 0) {
-            const playerSanityPosition = { x: 180, y: 350 };
+            const playerSanityPosition = { x: 115, y: 450 }; // ✅ Bajado para verificar generación
             floatingNumbersSystem.showSanityHealing(actualHealing, playerSanityPosition);
             console.log(`🌿 GameState: Jugador recuperó ${actualHealing} de cordura - mostrando números flotantes`);
         }
@@ -228,12 +257,19 @@ class GameStateManager {
         this.pv = Math.max(0, this.pv - amount);
         const actualDamage = oldPv - this.pv;
         
-        // 📊 Mostrar números flotantes sobre el retrato del jugador
+        // 📊 Diferir números flotantes hasta después de efectos VFX del ECO
         if (actualDamage > 0) {
-            // Posición aproximada del retrato del jugador (esto puede ajustarse)
-            const playerPortraitPosition = { x: 180, y: 300 }; // Esquina superior izquierda
-            floatingNumbersSystem.showDamage(actualDamage, playerPortraitPosition);
-            console.log(`👤 GameState: Jugador recibió ${actualDamage} de daño HP - mostrando números flotantes`);
+            // ✅ Posición ajustada del retrato del jugador - BAJADA PARA TESTING
+            const playerPortraitPosition = { x: 115, y: 400 }; // Bajado para verificar generación
+            
+            // Agregar a la lista de números flotantes pendientes
+            this.pendingEcoFloatingNumbers.push({
+                type: 'damage',
+                amount: actualDamage,
+                position: playerPortraitPosition
+            });
+            
+            console.log(`👤 GameState: Jugador recibirá ${actualDamage} de daño HP - números diferidos hasta fin de efecto ECO`);
         }
         
         this.checkForGameOver();
@@ -244,12 +280,19 @@ class GameStateManager {
         this.sanity = Math.max(0, this.sanity - amount);
         const actualDamage = oldSanity - this.sanity;
         
-        // 📊 Mostrar números flotantes de cordura sobre el retrato del jugador
+        // 📊 Diferir números flotantes hasta después de efectos VFX del ECO
         if (actualDamage > 0) {
-            // Posición ligeramente desplazada para cordura
-            const playerSanityPosition = { x: 180, y: 350 }; // Un poco más abajo que HP
-            floatingNumbersSystem.showSanityDamage(actualDamage, playerSanityPosition);
-            console.log(`🧠 GameState: Jugador recibió ${actualDamage} de daño de cordura - mostrando números flotantes`);
+            // ✅ Posición ligeramente desplazada para cordura - BAJADA PARA TESTING
+            const playerSanityPosition = { x: 115, y: 450 }; // Bajado para verificar generación
+            
+            // Agregar a la lista de números flotantes pendientes
+            this.pendingEcoFloatingNumbers.push({
+                type: 'sanity',
+                amount: actualDamage,
+                position: playerSanityPosition
+            });
+            
+            console.log(`🧠 GameState: Jugador recibirá ${actualDamage} de daño de cordura - números diferidos hasta fin de efecto ECO`);
         }
         
         this.checkForGameOver();
@@ -265,6 +308,56 @@ class GameStateManager {
     removePlayerStatusEffect(effect: PlayerStatusEffect) {
         this._playerStatusEffects = this._playerStatusEffects.filter(e => e !== effect);
         this.notify();
+    }
+
+    /**
+     * Verifica si hay números flotantes pendientes del ECO
+     */
+    hasPendingEcoFloatingNumbers(): boolean {
+        return this.pendingEcoFloatingNumbers.length > 0;
+    }
+
+    /**
+     * Muestra todos los números flotantes pendientes del ECO y limpia la lista
+     * Se llama cuando terminan los efectos VFX del ECO
+     * @returns Promise que se resuelve cuando todos los números se han mostrado
+     */
+    async showPendingEcoFloatingNumbers(): Promise<void> {
+        if (this.pendingEcoFloatingNumbers.length === 0) {
+            return Promise.resolve();
+        }
+        
+        console.log(`📊 GameState: Mostrando ${this.pendingEcoFloatingNumbers.length} números flotantes diferidos del ECO`);
+        
+        // Calcular duración total basada en el número de elementos
+        const totalNumbers = this.pendingEcoFloatingNumbers.length;
+        const delayBetweenNumbers = 200; // 200ms entre cada número
+        const floatingNumberDuration = 6000; // Duración aproximada de cada número flotante
+        const totalDuration = (totalNumbers * delayBetweenNumbers) + floatingNumberDuration;
+        
+        // Mostrar todos los números flotantes con un pequeño delay entre cada uno
+        this.pendingEcoFloatingNumbers.forEach((floatingNumber, index) => {
+            setTimeout(() => {
+                if (floatingNumber.type === 'damage') {
+                    floatingNumbersSystem.showDamage(floatingNumber.amount, floatingNumber.position);
+                    console.log(`👤 GameState: Mostrando número flotante de daño HP: ${floatingNumber.amount}`);
+                } else if (floatingNumber.type === 'sanity') {
+                    floatingNumbersSystem.showSanityDamage(floatingNumber.amount, floatingNumber.position);
+                    console.log(`🧠 GameState: Mostrando número flotante de daño cordura: ${floatingNumber.amount}`);
+                }
+            }, index * delayBetweenNumbers);
+        });
+        
+        // Limpiar la lista de números pendientes
+        this.pendingEcoFloatingNumbers = [];
+        
+        // Retornar promesa que se resuelve cuando todos los números han terminado
+        return new Promise(resolve => {
+            setTimeout(() => {
+                console.log('📊 GameState: Todos los números flotantes diferidos del ECO han terminado');
+                resolve();
+            }, totalDuration);
+        });
     }
 
     checkForGameOver() {
